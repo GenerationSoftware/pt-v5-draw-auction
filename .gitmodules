@@ -14,3 +14,6 @@
 	path = lib/pooltogether-rng-contracts
 	url = https://github.com/pooltogether/pooltogether-rng-contracts
 	branch = v1.5.3
+[submodule "lib/v5-prize-pool"]
+	path = lib/v5-prize-pool
+	url = https://github.com/pooltogether/v5-prize-pool
