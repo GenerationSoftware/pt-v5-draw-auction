@@ -10,3 +10,7 @@
 	path = lib/openzeppelin-contracts
 	url = https://github.com/openzeppelin/openzeppelin-contracts
 	branch = v4.8.2
+[submodule "lib/pooltogether-rng-contracts"]
+	path = lib/pooltogether-rng-contracts
+	url = https://github.com/pooltogether/pooltogether-rng-contracts
+	branch = v1.5.3
