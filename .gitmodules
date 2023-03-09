@@ -2,3 +2,7 @@
 	path = lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
 	branch = v1.3.0
+[submodule "lib/owner-manager-contracts"]
+	path = lib/owner-manager-contracts
+	url = https://github.com/pooltogether/owner-manager-contracts
+	branch = v1.1.0
