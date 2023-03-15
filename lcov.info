@@ -1,7 +1,7 @@
 TN:
-SF:src/Foo.sol
-FN:5,Foo.getFoo
-FNDA:1,Foo.getFoo
+SF:src/DrawBeacon.sol
+FN:5,DrawBeacon.getDrawBeacon
+FNDA:1,DrawBeacon.getDrawBeacon
 FNF:1
 FNH:1
 DA:6,1
