@@ -29,7 +29,7 @@ contract DrawAuctionTest is Test {
       SD1x18.wrap(0.9e18) // alpha
     );
 
-    _drawAuction = new DrawAuction(_prizePool, _auctionDuration);
+    _drawAuction = new DrawAuction(_prizePool, 86400, _auctionDuration);
 
     vm.warp(0);
 
