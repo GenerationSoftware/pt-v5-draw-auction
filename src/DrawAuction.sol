@@ -2,6 +2,11 @@
 pragma solidity 0.8.17;
 
 import { PrizePool } from "v5-prize-pool/PrizePool.sol";
+import { console2 } from "forge-std/Test.sol";
+
+import { Auction } from "src/auctions/Auction.sol";
+import { TwoStepsAuction, RNGInterface } from "src/auctions/TwoStepsAuction.sol";
+import { RewardLib } from "src/libraries/RewardLib.sol";
 
 /**
  * @title PoolTogether V5 DrawAuction
@@ -10,67 +15,62 @@ import { PrizePool } from "v5-prize-pool/PrizePool.sol";
  *         This mechanism relies on a linear interpolation to incentivizes anyone to start and complete the Draw.
  *         The first user to complete the Draw gets rewarded with the partial or full PrizePool reserve amount.
  */
-contract DrawAuction {
+contract DrawAuction is TwoStepsAuction {
   /* ============ Variables ============ */
-
-  /// @notice Duration of the auction in seconds.
-  uint32 internal _auctionDuration;
 
   /// @notice Instance of the PrizePool to compute Draw for.
   PrizePool internal _prizePool;
-
-  /// @notice Seconds between draws.
-  uint32 internal _drawPeriodSeconds;
 
   /* ============ Custom Errors ============ */
 
   /// @notice Thrown when the PrizePool address passed to the constructor is zero address.
   error PrizePoolNotZeroAddress();
 
-  /// @notice Thrown when the Draw period seconds passed to the constructor is zero.
-  error DrawPeriodSecondsNotZero();
+  /* ============ Events ============ */
+
+  /**
+   * @notice Emitted when a Draw auction phase has completed.
+   * @param phaseId Id of the phase
+   * @param caller Address of the caller
+   */
+  event DrawAuctionPhaseCompleted(uint256 indexed phaseId, address indexed caller);
+
+  /**
+   * @notice Emitted when a Draw auction has completed and rewards have been distributed.
+   * @param phaseIds Ids of the phases that were rewarded
+   * @param rewardRecipients Addresses of the rewards recipients per phase id
+   * @param rewardAmounts Amounts of rewards distributed per phase id
+   */
+  event DrawAuctionRewardsDistributed(
+    uint8[] phaseIds,
+    address[] rewardRecipients,
+    uint256[] rewardAmounts
+  );
 
   /* ============ Constructor ============ */
 
   /**
    * @notice Contract constructor.
-   * @dev We pass the `drawPeriodSeconds` cause the PrizePool we want to interact with may live on L2.
+   * @param rng_ Address of the RNG service
+   * @param rngTimeout_ Time in seconds before an RNG request can be cancelled
    * @param prizePool_ Address of the prize pool
-   * @param drawPeriodSeconds_ Draw period in seconds
+   * @param _auctionPhases Number of auction phases
    * @param auctionDuration_ Duration of the auction in seconds
+   * @param _owner Address of the DrawAuction owner
    */
-  constructor(PrizePool prizePool_, uint32 drawPeriodSeconds_, uint32 auctionDuration_) {
+  constructor(
+    RNGInterface rng_,
+    uint32 rngTimeout_,
+    PrizePool prizePool_,
+    uint8 _auctionPhases,
+    uint256 auctionDuration_,
+    address _owner
+  ) TwoStepsAuction(rng_, rngTimeout_, _auctionPhases, auctionDuration_, _owner) {
+    if (address(prizePool_) == address(0)) revert PrizePoolNotZeroAddress();
     _prizePool = prizePool_;
-    _drawPeriodSeconds = drawPeriodSeconds_;
-    _auctionDuration = auctionDuration_;
-  }
-
-  /* ============ External Functions ============ */
-
-  /**
-   * @notice Complete the current Draw and start the next one.
-   * @param winningRandomNumber_ The winning random number for the current Draw
-   * @return Reward amount
-   */
-  function completeAndStartNextDraw(uint256 winningRandomNumber_) external returns (uint256) {
-    uint256 _rewardAmount = _reward();
-
-    _prizePool.completeAndStartNextDraw(winningRandomNumber_);
-    _prizePool.withdrawReserve(msg.sender, uint104(_rewardAmount));
-
-    return _rewardAmount;
   }
 
   /* ============ Getter Functions ============ */
-
-  /**
-   * @notice Duration of the auction.
-   * @dev This is the time it takes for the auction to reach the PrizePool full reserve amount.
-   * @return Duration of the auction in seconds
-   */
-  function auctionDuration() external view returns (uint256) {
-    return _auctionDuration;
-  }
 
   /**
    * @notice Prize Pool instance for which the Draw is triggered.
@@ -81,32 +81,45 @@ contract DrawAuction {
   }
 
   /**
-   * @notice Current reward for calling `completeAndStartNextDraw`.
+   * @notice Current reward for completing the Auction phase.
+   * @param _phaseId ID of the phase to get reward for (i.e. 0 for `startRNGRequest` or 1 for `completeRNGRequest`)
    * @return Reward amount
    */
-  function reward() external view returns (uint256) {
-    return _reward();
+  function reward(uint8 _phaseId) external view returns (uint256) {
+    return RewardLib.getReward(_phases, _phaseId, _prizePool, _auctionDuration);
   }
 
-  /* ============ Internal Functions ============ */
-
   /**
-   * @notice Current reward for calling `completeAndStartNextDraw`.
-   * @dev The reward amount is computed via linear interpolation starting from 0
-   *      and increasing as the auction goes on to the full reserve amount.
-   * @return Reward amount
+   * @notice Hook called after the RNG request has completed.
+   * @param _randomNumber The random number that was generated
    */
-  function _reward() internal view returns (uint256) {
-    uint256 _nextDrawEndsAt = _prizePool.nextDrawEndsAt();
-
-    if (block.timestamp < _nextDrawEndsAt) {
-      return 0;
-    }
-
-    uint256 _reserve = _prizePool.reserve() + _prizePool.reserveForNextDraw();
-    uint256 _elapsedTime = block.timestamp - _nextDrawEndsAt;
-
-    return
-      _elapsedTime >= _auctionDuration ? _reserve : (_elapsedTime * _reserve) / _auctionDuration;
+  function _afterAuctionEnds(uint256 _randomNumber) internal override {
+    // Phase memory _startRNGPhase = _getPhase(0);
+    // Phase memory _completeRNGPhase = _setPhase(1, _startRNGPhase.startTime, uint64(block.timestamp), _rewardRecipient);
+    // uint256 _startRNGRewardAmount = _reward(_startRNGPhase);
+    // console2.log("_startRNGRewardAmount", _startRNGRewardAmount);
+    // uint256 _completeRNGRewardAmount = _reward(_completeRNGPhase);
+    // _prizePool.completeAndStartNextDraw(_randomNumber);
+    // if (_startRNGPhase.recipient == _completeRNGPhase.recipient) {
+    //   _prizePool.withdrawReserve(_startRNGPhase.recipient, uint104(_startRNGRewardAmount + _completeRNGRewardAmount));
+    // } else {
+    //   _prizePool.withdrawReserve(_startRNGPhase.recipient, uint104(_startRNGRewardAmount));
+    //   _prizePool.withdrawReserve(_completeRNGPhase.recipient, uint104(_completeRNGRewardAmount));
+    // }
+    // uint8[] memory _phaseIds = new uint8[](2);
+    // _phaseIds[0] = _startRNGPhase.id;
+    // _phaseIds[1] = _completeRNGPhase.id;
+    // address[] memory _rewardRecipients = new address[](2);
+    // _rewardRecipients[0] = _startRNGPhase.recipient;
+    // _rewardRecipients[1] = _completeRNGPhase.recipient;
+    // uint256[] memory _rewardAmounts = new uint256[](2);
+    // _rewardAmounts[0] = _startRNGRewardAmount;
+    // _rewardAmounts[1] = _completeRNGRewardAmount;
+    // emit DrawAuctionPhaseCompleted(1, msg.sender);
+    // emit DrawAuctionRewardsDistributed(
+    //   _phaseIds,
+    //   _rewardRecipients,
+    //   _rewardAmounts
+    // );
   }
 }

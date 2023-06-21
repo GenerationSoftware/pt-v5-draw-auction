@@ -1,15 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.17;
 
-import "forge-std/Test.sol";
-import { console2 } from "forge-std/console2.sol";
-
 import { ERC20Mock } from "openzeppelin/mocks/ERC20Mock.sol";
-import { RNGInterface } from "rng/RNGInterface.sol";
 
 import { RNGRequestor } from "src/RNGRequestor.sol";
+import { Helpers, RNGInterface } from "./helpers/Helpers.t.sol";
 
-contract RNGRequestorTest is Test {
+contract RNGRequestorTest is Helpers {
   /* ============ Events ============ */
 
   event RNGServiceSet(RNGInterface indexed rngService);
@@ -22,17 +19,17 @@ contract RNGRequestorTest is Test {
 
   RNGInterface public rng;
   RNGRequestor public rngRequestor;
-  uint32 public rngTimeOut;
+  uint32 public rngTimeOut = 1 hours;
 
   ERC20Mock public feeToken;
   uint256 public feeAmount;
+  address public recipient = address(this);
 
   function setUp() public {
     feeToken = new ERC20Mock();
     feeAmount = 2e18;
 
     rng = RNGInterface(address(1));
-    rngTimeOut = 1 hours;
 
     rngRequestor = new RNGRequestor(rng, rngTimeOut, address(this));
   }
@@ -52,30 +49,28 @@ contract RNGRequestorTest is Test {
     uint32 _requestId = uint32(1);
     uint32 _lockBlock = uint32(block.number);
 
-    _mockGetRequestFee(address(0), 0);
-    _mockRequestRandomNumber(_requestId, _lockBlock);
+    _mockStartRNGRequest(address(rng), address(0), 0, _requestId, _lockBlock);
 
     vm.expectEmit();
     emit RNGRequestStarted(_requestId, _lockBlock);
 
-    rngRequestor.startRNGRequest();
+    rngRequestor.startRNGRequest(recipient);
 
     assertEq(rngRequestor.getRNGLockBlock(), _lockBlock);
     assertEq(rngRequestor.getRNGRequestId(), _requestId);
   }
 
-  // @TODO Test with ChainlinkVRFV2 direct LINK transfer contact
+  // @TODO Test with ChainlinkVRFV2 direct LINK transfer contract
   function testStartRNGRequestWithFeeToken() public {
     uint32 _requestId = uint32(1);
     uint32 _lockBlock = uint32(block.number);
 
-    _mockGetRequestFee(address(feeToken), feeAmount);
-    _mockRequestRandomNumber(_requestId, _lockBlock);
+    _mockStartRNGRequest(address(rng), address(feeToken), feeAmount, _requestId, _lockBlock);
 
     vm.expectEmit();
     emit RNGRequestStarted(_requestId, _lockBlock);
 
-    rngRequestor.startRNGRequest();
+    rngRequestor.startRNGRequest(recipient);
 
     assertEq(rngRequestor.getRNGLockBlock(), _lockBlock);
     assertEq(rngRequestor.getRNGRequestId(), _requestId);
@@ -85,14 +80,13 @@ contract RNGRequestorTest is Test {
     uint32 _requestId = uint32(1);
     uint32 _lockBlock = uint32(block.number);
 
-    _mockGetRequestFee(address(0), 0);
-    _mockRequestRandomNumber(_requestId, _lockBlock);
+    _mockStartRNGRequest(address(rng), address(0), 0, _requestId, _lockBlock);
 
-    rngRequestor.startRNGRequest();
+    rngRequestor.startRNGRequest(recipient);
 
     vm.expectRevert(abi.encodeWithSelector(RNGRequestor.RNGRequested.selector, _requestId));
 
-    rngRequestor.startRNGRequest();
+    rngRequestor.startRNGRequest(recipient);
   }
 
   /* ============ completeRNGRequest ============ */
@@ -101,40 +95,38 @@ contract RNGRequestorTest is Test {
     uint32 _lockBlock = uint32(block.number);
     uint256 _randomNumber = 123456789;
 
-    _mockGetRequestFee(address(0), 0);
-    _mockRequestRandomNumber(_requestId, _lockBlock);
+    _mockStartRNGRequest(address(rng), address(0), 0, _requestId, _lockBlock);
 
-    rngRequestor.startRNGRequest();
+    rngRequestor.startRNGRequest(recipient);
 
-    _mockIsRequestComplete(_requestId, true);
-    _mockRandomNumber(_requestId, _randomNumber);
+    _mockIsRequestComplete(address(rng), _requestId, true);
+    _mockRandomNumber(address(rng), _requestId, _randomNumber);
 
     vm.expectEmit();
     emit RNGRequestCompleted(_requestId, _randomNumber);
 
-    rngRequestor.completeRNGRequest();
+    rngRequestor.completeRNGRequest(recipient);
   }
 
   function testCompleteRNGRequestFailRNGNotRequested() public {
     vm.expectRevert(abi.encodeWithSelector(RNGRequestor.RNGNotRequested.selector));
 
-    rngRequestor.completeRNGRequest();
+    rngRequestor.completeRNGRequest(recipient);
   }
 
   function testCompleteRNGRequestFailRNGNotCompleted() public {
     uint32 _requestId = uint32(1);
     uint32 _lockBlock = uint32(block.number);
 
-    _mockGetRequestFee(address(0), 0);
-    _mockRequestRandomNumber(_requestId, _lockBlock);
+    _mockStartRNGRequest(address(rng), address(0), 0, _requestId, _lockBlock);
 
-    rngRequestor.startRNGRequest();
+    rngRequestor.startRNGRequest(recipient);
 
-    _mockIsRequestComplete(_requestId, false);
+    _mockIsRequestComplete(address(rng), _requestId, false);
 
     vm.expectRevert(abi.encodeWithSelector(RNGRequestor.RNGNotCompleted.selector, _requestId));
 
-    rngRequestor.completeRNGRequest();
+    rngRequestor.completeRNGRequest(recipient);
   }
 
   /* ============ cancelRNGRequest ============ */
@@ -142,10 +134,9 @@ contract RNGRequestorTest is Test {
     uint32 _requestId = uint32(1);
     uint32 _lockBlock = uint32(block.number);
 
-    _mockGetRequestFee(address(0), 0);
-    _mockRequestRandomNumber(_requestId, _lockBlock);
+    _mockStartRNGRequest(address(rng), address(0), 0, _requestId, _lockBlock);
 
-    rngRequestor.startRNGRequest();
+    rngRequestor.startRNGRequest(recipient);
 
     vm.warp(2 hours);
 
@@ -159,10 +150,9 @@ contract RNGRequestorTest is Test {
     uint32 _requestId = uint32(1);
     uint32 _lockBlock = uint32(block.number);
 
-    _mockGetRequestFee(address(0), 0);
-    _mockRequestRandomNumber(_requestId, _lockBlock);
+    _mockStartRNGRequest(address(rng), address(0), 0, _requestId, _lockBlock);
 
-    rngRequestor.startRNGRequest();
+    rngRequestor.startRNGRequest(recipient);
 
     vm.expectRevert(abi.encodeWithSelector(RNGRequestor.RNGHasNotTimedout.selector));
 
@@ -180,25 +170,24 @@ contract RNGRequestorTest is Test {
     uint32 _requestId = uint32(1);
     uint32 _lockBlock = uint32(block.number);
 
-    _mockGetRequestFee(address(0), 0);
-    _mockRequestRandomNumber(_requestId, _lockBlock);
+    _mockStartRNGRequest(address(rng), address(0), 0, _requestId, _lockBlock);
 
     vm.expectEmit();
     emit RNGRequestStarted(_requestId, _lockBlock);
 
-    rngRequestor.startRNGRequest();
+    rngRequestor.startRNGRequest(recipient);
 
     assertEq(rngRequestor.isRNGRequested(), true);
   }
 
   /* ============ isRNGCompleted ============ */
   function testIsRNGCompletedDefaultState() public {
-    _mockIsRequestComplete(uint32(0), false);
+    _mockIsRequestComplete(address(rng), uint32(0), false);
     assertEq(rngRequestor.isRNGCompleted(), false);
   }
 
   function testIsRNGCompletedActiveState() public {
-    _mockIsRequestComplete(uint32(0), true);
+    _mockIsRequestComplete(address(rng), uint32(0), true);
     assertEq(rngRequestor.isRNGCompleted(), true);
   }
 
@@ -211,10 +200,9 @@ contract RNGRequestorTest is Test {
     uint32 _requestId = uint32(1);
     uint32 _lockBlock = uint32(block.number);
 
-    _mockGetRequestFee(address(0), 0);
-    _mockRequestRandomNumber(_requestId, _lockBlock);
+    _mockStartRNGRequest(address(rng), address(0), 0, _requestId, _lockBlock);
 
-    rngRequestor.startRNGRequest();
+    rngRequestor.startRNGRequest(recipient);
 
     vm.warp(2 hours);
     assertEq(rngRequestor.isRNGTimedOut(), true);
@@ -229,10 +217,9 @@ contract RNGRequestorTest is Test {
     uint32 _requestId = uint32(1);
     uint32 _lockBlock = uint32(block.number);
 
-    _mockGetRequestFee(address(0), 0);
-    _mockRequestRandomNumber(_requestId, _lockBlock);
+    _mockStartRNGRequest(address(rng), address(0), 0, _requestId, _lockBlock);
 
-    rngRequestor.startRNGRequest();
+    rngRequestor.startRNGRequest(recipient);
 
     assertEq(rngRequestor.canStartRNGRequest(), false);
   }
@@ -246,11 +233,10 @@ contract RNGRequestorTest is Test {
     uint32 _requestId = uint32(1);
     uint32 _lockBlock = uint32(block.number);
 
-    _mockGetRequestFee(address(0), 0);
-    _mockRequestRandomNumber(_requestId, _lockBlock);
-    _mockIsRequestComplete(_requestId, true);
+    _mockStartRNGRequest(address(rng), address(0), 0, _requestId, _lockBlock);
+    _mockIsRequestComplete(address(rng), _requestId, true);
 
-    rngRequestor.startRNGRequest();
+    rngRequestor.startRNGRequest(recipient);
 
     assertEq(rngRequestor.canCompleteRNGRequest(), true);
   }
@@ -312,38 +298,5 @@ contract RNGRequestorTest is Test {
     );
 
     rngRequestor.setRNGTimeout(_newRNGTimeout);
-  }
-
-  /* ============ Mock Functions ============ */
-  function _mockGetRequestFee(address _feeToken, uint256 _requestFee) internal {
-    vm.mockCall(
-      address(rng),
-      abi.encodeWithSelector(RNGInterface.getRequestFee.selector),
-      abi.encode(_feeToken, _requestFee)
-    );
-  }
-
-  function _mockRequestRandomNumber(uint32 _requestId, uint32 _lockBlock) internal {
-    vm.mockCall(
-      address(rng),
-      abi.encodeWithSelector(RNGInterface.requestRandomNumber.selector),
-      abi.encode(_requestId, _lockBlock)
-    );
-  }
-
-  function _mockRandomNumber(uint32 _requestId, uint256 _randomNumber) internal {
-    vm.mockCall(
-      address(rng),
-      abi.encodeWithSelector(RNGInterface.randomNumber.selector, _requestId),
-      abi.encode(_randomNumber)
-    );
-  }
-
-  function _mockIsRequestComplete(uint32 _requestId, bool _isRequestComplete) internal {
-    vm.mockCall(
-      address(rng),
-      abi.encodeWithSelector(RNGInterface.isRequestComplete.selector, _requestId),
-      abi.encode(_isRequestComplete)
-    );
   }
 }
