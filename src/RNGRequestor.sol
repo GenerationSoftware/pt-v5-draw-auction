@@ -5,7 +5,6 @@ import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import { Ownable } from "owner-manager/Ownable.sol";
 import { RNGInterface } from "rng/RNGInterface.sol";
-import { PrizePool } from "v5-prize-pool/PrizePool.sol";
 
 /**
  * @title PoolTogether V5 RNGRequestor

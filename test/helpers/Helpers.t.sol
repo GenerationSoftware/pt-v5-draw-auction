@@ -6,6 +6,8 @@ import "forge-std/Test.sol";
 import { PrizePool, TieredLiquidityDistributor } from "v5-prize-pool/PrizePool.sol";
 import { RNGInterface } from "rng/RNGInterface.sol";
 
+import { AuctionLib } from "src/libraries/AuctionLib.sol";
+
 contract Helpers is Test {
   /* ============ Mock Functions ============ */
 
@@ -93,10 +95,27 @@ contract Helpers is Test {
   /* ============ Computations ============ */
 
   function _computeReward(
-    uint256 _elapsedTime,
+    uint64 _elapsedTime,
     uint256 _reserve,
-    uint256 _auctionDuration
+    uint32 _auctionDuration
   ) internal pure returns (uint256) {
     return (_elapsedTime * _reserve) / _auctionDuration;
+  }
+
+  /* ============ Getters ============ */
+
+  function _getPhase(
+    uint8 _phaseId,
+    uint64 _startTime,
+    uint64 _endTime,
+    address _recipient
+  ) internal pure returns (AuctionLib.Phase memory) {
+    return
+      AuctionLib.Phase({
+        id: _phaseId,
+        startTime: _startTime,
+        endTime: _endTime,
+        recipient: _recipient
+      });
   }
 }

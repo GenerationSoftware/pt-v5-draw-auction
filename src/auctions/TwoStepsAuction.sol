@@ -19,7 +19,7 @@ contract TwoStepsAuction is Auction, RNGRequestor {
     RNGInterface rng_,
     uint32 rngTimeout_,
     uint8 _auctionPhases,
-    uint256 auctionDuration_,
+    uint32 auctionDuration_,
     address _owner
   ) Auction(_auctionPhases, auctionDuration_) RNGRequestor(rng_, rngTimeout_, _owner) {}
 
@@ -36,6 +36,7 @@ contract TwoStepsAuction is Auction, RNGRequestor {
    */
   function _afterRNGStart(address _rewardRecipient) internal override {
     _setPhase(0, 0, uint64(block.timestamp), _rewardRecipient);
+    emit AuctionPhaseCompleted(0, msg.sender);
   }
 
   /**
@@ -45,6 +46,8 @@ contract TwoStepsAuction is Auction, RNGRequestor {
    */
   function _afterRNGComplete(uint256 _randomNumber, address _rewardRecipient) internal override {
     _setPhase(1, _getPhase(0).endTime, uint64(block.timestamp), _rewardRecipient);
+    emit AuctionPhaseCompleted(1, msg.sender);
+
     _afterAuctionEnds(_randomNumber);
   }
 }

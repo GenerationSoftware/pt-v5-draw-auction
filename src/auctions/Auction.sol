@@ -6,11 +6,11 @@ import { AuctionLib } from "src/libraries/AuctionLib.sol";
 contract Auction {
   /* ============ Variables ============ */
 
-  /// @notice Duration of the auction in seconds.
-  uint256 internal _auctionDuration;
-
   /// @notice Array storing phases per id in ascending order.
   AuctionLib.Phase[] internal _phases;
+
+  /// @notice Duration of the auction in seconds.
+  uint32 internal immutable _auctionDuration;
 
   /* ============ Custom Errors ============ */
 
@@ -29,11 +29,30 @@ contract Auction {
    @param endTime End time of the phase
    @param recipient Recipient of the phase reward
    */
-  event PhaseSet(
+  event AuctionPhaseSet(
     uint8 indexed phaseId,
     uint64 startTime,
     uint64 endTime,
     address indexed recipient
+  );
+
+  /**
+   * @notice Emitted when an auction phase has completed.
+   * @param phaseId Id of the phase
+   * @param caller Address of the caller
+   */
+  event AuctionPhaseCompleted(uint256 indexed phaseId, address indexed caller);
+
+  /**
+   * @notice Emitted when an auction has completed and rewards have been distributed.
+   * @param phaseIds Ids of the phases
+   * @param rewardRecipients Addresses of the rewards recipients per phase id
+   * @param rewardAmounts Amounts of rewards distributed per phase id
+   */
+  event AuctionRewardsDistributed(
+    uint8[] phaseIds,
+    address[] rewardRecipients,
+    uint256[] rewardAmounts
   );
 
   /* ============ Constructor ============ */
@@ -43,7 +62,7 @@ contract Auction {
    * @param _auctionPhases Number of auction phases
    * @param auctionDuration_ Duration of the auction in seconds
    */
-  constructor(uint8 _auctionPhases, uint256 auctionDuration_) {
+  constructor(uint8 _auctionPhases, uint32 auctionDuration_) {
     if (_auctionPhases == 0) revert AuctionPhasesNotZero();
     if (auctionDuration_ == 0) revert AuctionDurationNotZero();
 
@@ -65,10 +84,23 @@ contract Auction {
    * @dev This is the time it takes for the auction to reach the PrizePool full reserve amount.
    * @return Duration of the auction in seconds
    */
-  function auctionDuration() external view returns (uint256) {
+  function auctionDuration() external view returns (uint64) {
     return _auctionDuration;
   }
 
+  /**
+   * @notice Get phases.
+   * @return Phases
+   */
+  function getPhases() external view returns (AuctionLib.Phase[] memory) {
+    return _getPhases();
+  }
+
+  /**
+   * @notice Get phase by id.
+   * @param _phaseId Id of the phase
+   * @return Phase
+   */
   function getPhase(uint256 _phaseId) external view returns (AuctionLib.Phase memory) {
     return _getPhase(_phaseId);
   }
@@ -85,12 +117,33 @@ contract Auction {
 
   /* ============ Getters ============ */
 
+  /**
+   * @notice Get phases.
+   * @return Phases
+   */
+  function _getPhases() internal view returns (AuctionLib.Phase[] memory) {
+    return _phases;
+  }
+
+  /**
+   * @notice Get phase by id.
+   * @param _phaseId Id of the phase
+   * @return Phase
+   */
   function _getPhase(uint256 _phaseId) internal view returns (AuctionLib.Phase memory) {
     return _phases[_phaseId];
   }
 
   /* ============ Setters ============ */
 
+  /**
+   * @notice Set phase.
+   * @param _phaseId Id of the phase
+   * @param _startTime Start time of the phase
+   * @param _endTime End time of the phase
+   * @param _recipient Recipient of the phase reward
+   * @return Phase
+   */
   function _setPhase(
     uint8 _phaseId,
     uint64 _startTime,
@@ -106,7 +159,7 @@ contract Auction {
 
     _phases[_phaseId] = _phase;
 
-    emit PhaseSet(_phaseId, _startTime, _endTime, _recipient);
+    emit AuctionPhaseSet(_phaseId, _startTime, _endTime, _recipient);
 
     return _phase;
   }
