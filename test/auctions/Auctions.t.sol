@@ -81,7 +81,7 @@ contract AuctionTest is Test {
     assertEq(_phase.recipient, _recipient);
   }
 
-  /* ============ Setter Functions ============ */
+  /* ============ Setters ============ */
 
   function testSetPhase() public {
     uint8 _phaseId = 0;

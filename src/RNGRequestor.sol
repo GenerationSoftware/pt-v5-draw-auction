@@ -282,7 +282,7 @@ contract RNGRequestor is Ownable {
     return _rng;
   }
 
-  /* ============ Setter Functions ============ */
+  /* ============ Setters ============ */
 
   /**
    * @notice Sets the RNG service used to generate random numbers.

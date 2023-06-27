@@ -11,6 +11,11 @@ import { Helpers, RNGInterface } from "test/helpers/Helpers.t.sol";
 
 contract DrawAuctionTest is Helpers {
   /* ============ Events ============ */
+  event AuctionRewardsDistributed(
+    uint8[] phaseIds,
+    address[] rewardRecipients,
+    uint256[] rewardAmounts
+  );
 
   /* ============ Variables ============ */
 
