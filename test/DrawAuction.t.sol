@@ -11,6 +11,11 @@ import { Helpers, RNGInterface } from "test/helpers/Helpers.t.sol";
 
 contract DrawAuctionTest is Helpers {
   /* ============ Events ============ */
+  event AuctionRewardsDistributed(
+    uint8[] phaseIds,
+    address[] rewardRecipients,
+    uint256[] rewardAmounts
+  );
 
   /* ============ Variables ============ */
 
@@ -35,7 +40,7 @@ contract DrawAuctionTest is Helpers {
         prizeToken: prizeToken,
         twabController: TwabController(address(0)),
         drawManager: address(0),
-        grandPrizePeriodDraws: uint32(365),
+        grandPrizePeriodDraws: uint16(365),
         drawPeriodSeconds: drawPeriodSeconds,
         firstDrawStartsAt: uint64(block.timestamp),
         numberOfTiers: uint8(3), // minimum number of tiers
@@ -202,9 +207,10 @@ contract DrawAuctionTest is Helpers {
 
   function testAfterRNGComplete() public {
     uint256 _reserveAmount = 200e18;
+    uint256 _reserveAmountForNextDraw = _reserveAmount * 220; // Reserve amount for next draw will be 200e18
 
-    prizeToken.mint(address(prizePool), _reserveAmount * 110);
-    prizePool.contributePrizeTokens(address(2), _reserveAmount * 110);
+    prizeToken.mint(address(prizePool), _reserveAmountForNextDraw);
+    prizePool.contributePrizeTokens(address(2), _reserveAmountForNextDraw);
 
     vm.warp(drawPeriodSeconds + auctionDuration / 2);
 
@@ -221,14 +227,15 @@ contract DrawAuctionTest is Helpers {
 
     drawAuction.completeRNGRequest(recipient);
 
-    assertEq(prizeToken.balanceOf(recipient), _reserveAmount / 2);
+    assertEq(prizeToken.balanceOf(recipient), _reserveAmount);
   }
 
   function testAfterRNGCompleteDifferentRecipient() public {
     uint256 _reserveAmount = 200e18;
+    uint256 _reserveAmountForNextDraw = _reserveAmount * 220; // Reserve amount for next draw will be 200e18
 
-    prizeToken.mint(address(prizePool), _reserveAmount * 110);
-    prizePool.contributePrizeTokens(address(2), _reserveAmount * 110);
+    prizeToken.mint(address(prizePool), _reserveAmountForNextDraw);
+    prizePool.contributePrizeTokens(address(2), _reserveAmountForNextDraw);
 
     vm.warp(drawPeriodSeconds + auctionDuration / 2);
 
@@ -246,7 +253,7 @@ contract DrawAuctionTest is Helpers {
 
     drawAuction.completeRNGRequest(recipient);
 
-    assertEq(prizeToken.balanceOf(recipient), _reserveAmount / 4);
-    assertEq(prizeToken.balanceOf(_secondRecipient), _reserveAmount / 4);
+    assertEq(prizeToken.balanceOf(recipient), _reserveAmount / 2);
+    assertEq(prizeToken.balanceOf(_secondRecipient), _reserveAmount / 2);
   }
 }

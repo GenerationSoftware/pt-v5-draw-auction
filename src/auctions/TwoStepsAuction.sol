@@ -13,7 +13,7 @@ contract TwoStepsAuction is Auction, RNGRequestor {
    * @param rngTimeout_ Time in seconds before an RNG request can be cancelled
    * @param _auctionPhases Number of auction phases
    * @param auctionDuration_ Duration of the auction in seconds
-   * @param _owner Address of the DrawAuction owner
+   * @param _owner Address of the TwoStepsAuction owner
    */
   constructor(
     RNGInterface rng_,

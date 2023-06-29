@@ -26,7 +26,6 @@ library RewardLib {
   ) internal view returns (uint256[] memory) {
     uint64 _auctionStart = _prizePool.nextDrawEndsAt();
     uint64 _auctionEnd = _auctionStart + _auctionDuration;
-
     uint256 _reserve = _prizePool.reserve() + _prizePool.reserveForNextDraw();
 
     uint256 _phasesLength = _phases.length;

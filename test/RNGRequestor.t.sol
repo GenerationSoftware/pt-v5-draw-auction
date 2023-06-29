@@ -258,7 +258,7 @@ contract RNGRequestorTest is Helpers {
     assertEq(address(rngRequestor.getRNGService()), address(rng));
   }
 
-  /* ============ Setter Functions ============ */
+  /* ============ Setters ============ */
 
   /* ============ setRNGService ============ */
   function testSetRNGService() public {

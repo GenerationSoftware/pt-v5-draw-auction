@@ -23,7 +23,7 @@ contract DrawAuction is TwoStepsAuction {
   /* ============ Custom Errors ============ */
 
   /// @notice Thrown when the PrizePool address passed to the constructor is zero address.
-  error PrizePoolNotZeroAddress();
+  error PrizePoolZeroAddress();
 
   /* ============ Constructor ============ */
 
@@ -44,7 +44,7 @@ contract DrawAuction is TwoStepsAuction {
     uint32 auctionDuration_,
     address _owner
   ) TwoStepsAuction(rng_, rngTimeout_, _auctionPhases, auctionDuration_, _owner) {
-    if (address(prizePool_) == address(0)) revert PrizePoolNotZeroAddress();
+    if (address(prizePool_) == address(0)) revert PrizePoolZeroAddress();
     _prizePool = prizePool_;
   }
 
