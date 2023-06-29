@@ -7,7 +7,6 @@ import { Auction, AuctionLib } from "src/auctions/Auction.sol";
 import { TwoStepsAuction, RNGInterface } from "src/auctions/TwoStepsAuction.sol";
 import { ISingleMessageDispatcher } from "src/interfaces/ISingleMessageDispatcher.sol";
 import { RewardLib } from "src/libraries/RewardLib.sol";
-import { console2 } from "forge-std/Test.sol";
 
 /**
  * @title PoolTogether V5 DrawAuctionDispatcher

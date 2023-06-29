@@ -6,7 +6,6 @@ import { PrizePool } from "v5-prize-pool/PrizePool.sol";
 import { ExecutorAware } from "src/abstract/ExecutorAware.sol";
 import { AuctionLib } from "src/auctions/Auction.sol";
 import { RewardLib } from "src/libraries/RewardLib.sol";
-import { console2 } from "forge-std/Test.sol";
 
 contract DrawAuctionExecutor is ExecutorAware {
   /* ============ Events ============ */
@@ -22,6 +21,12 @@ contract DrawAuctionExecutor is ExecutorAware {
     address[] rewardRecipients,
     uint256[] rewardAmounts
   );
+
+  /**
+   * @notice Emitted when the DrawAuctionDispatcher has been set.
+   * @param drawAuctionDispatcher Address of the DrawAuctionDispatcher
+   */
+  event DrawAuctionDispatcherSet(address drawAuctionDispatcher);
 
   /* ============ Custom Errors ============ */
 
@@ -155,6 +160,8 @@ contract DrawAuctionExecutor is ExecutorAware {
     if (drawAuctionDispatcher_ == address(0)) revert DrawAuctionDispatcherZeroAddress();
 
     _drawAuctionDispatcher = drawAuctionDispatcher_;
+
+    emit DrawAuctionDispatcherSet(drawAuctionDispatcher_);
   }
 
   /* ============ Internal Functions ============ */

@@ -27,7 +27,7 @@ contract RewardLibTest is Helpers {
         prizeToken: prizeToken,
         twabController: TwabController(address(0)),
         drawManager: address(0),
-        grandPrizePeriodDraws: uint32(365),
+        grandPrizePeriodDraws: uint16(365),
         drawPeriodSeconds: drawPeriodSeconds,
         firstDrawStartsAt: uint64(block.timestamp),
         numberOfTiers: uint8(3), // minimum number of tiers

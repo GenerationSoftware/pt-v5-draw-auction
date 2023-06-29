@@ -8,8 +8,8 @@ import { UD2x18, SD1x18, ConstructorParams, PrizePool, TieredLiquidityDistributo
 import { DrawAuctionDispatcher, ISingleMessageDispatcher } from "src/DrawAuctionDispatcher.sol";
 import { DrawAuctionExecutor } from "src/DrawAuctionExecutor.sol";
 import { AuctionLib } from "src/libraries/AuctionLib.sol";
+
 import { Helpers, RNGInterface } from "test/helpers/Helpers.t.sol";
-import { console2 } from "forge-std/Test.sol";
 
 contract DrawAuctionDispatcherEthereumToOptimismForkTest is Helpers {
   /* ============ Events ============ */
@@ -97,7 +97,7 @@ contract DrawAuctionDispatcherEthereumToOptimismForkTest is Helpers {
         prizeToken: prizeToken,
         twabController: TwabController(address(0)),
         drawManager: address(0),
-        grandPrizePeriodDraws: uint32(365),
+        grandPrizePeriodDraws: uint16(365),
         drawPeriodSeconds: drawPeriodSeconds,
         firstDrawStartsAt: uint64(block.timestamp),
         numberOfTiers: uint8(3), // minimum number of tiers
@@ -143,13 +143,6 @@ contract DrawAuctionDispatcherEthereumToOptimismForkTest is Helpers {
   function testAfterAuctionEnds() public {
     deployAll();
     setAll();
-
-    uint256 _reserveAmount = 200e18;
-
-    vm.selectFork(optimismFork);
-
-    prizeToken.mint(address(prizePool), _reserveAmount * 110);
-    prizePool.contributePrizeTokens(address(2), _reserveAmount * 110);
 
     vm.selectFork(mainnetFork);
 

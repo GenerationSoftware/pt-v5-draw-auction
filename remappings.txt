@@ -1,6 +1,7 @@
 ds-test/=lib/forge-std/lib/ds-test/src/
 forge-std/=lib/forge-std/src/
 openzeppelin=lib/openzeppelin-contracts/contracts/
+optimism/=lib/optimism/packages/contracts-bedrock/contracts/
 owner-manager/=lib/owner-manager-contracts/contracts/
 rng/=lib/pooltogether-rng-contracts/contracts/
 
