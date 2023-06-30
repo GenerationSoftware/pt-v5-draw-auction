@@ -24,9 +24,9 @@ library RewardLib {
     PrizePool _prizePool,
     uint32 _auctionDuration
   ) internal view returns (uint256[] memory) {
-    uint64 _auctionStart = _prizePool.nextDrawEndsAt();
+    uint64 _auctionStart = _prizePool.openDrawEndsAt();
     uint64 _auctionEnd = _auctionStart + _auctionDuration;
-    uint256 _reserve = _prizePool.reserve() + _prizePool.reserveForNextDraw();
+    uint256 _reserve = _prizePool.reserve() + _prizePool.reserveForOpenDraw();
 
     uint256 _phasesLength = _phases.length;
     uint256[] memory _rewards = new uint256[](_phasesLength);
@@ -54,10 +54,10 @@ library RewardLib {
     PrizePool _prizePool,
     uint32 _auctionDuration
   ) internal view returns (uint256) {
-    uint64 _auctionStart = _prizePool.nextDrawEndsAt();
+    uint64 _auctionStart = _prizePool.openDrawEndsAt();
     uint64 _auctionEnd = _auctionStart + _auctionDuration;
 
-    uint256 _reserve = _prizePool.reserve() + _prizePool.reserveForNextDraw();
+    uint256 _reserve = _prizePool.reserve() + _prizePool.reserveForOpenDraw();
 
     return _reward(_phase, _reserve, _auctionStart, _auctionEnd, _auctionDuration);
   }

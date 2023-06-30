@@ -99,7 +99,7 @@ contract DrawAuctionExecutor is ExecutorAware {
 
     uint256[] memory _rewards = RewardLib.rewards(_auctionPhases, _prizePool, _auctionDuration);
 
-    _prizePool.completeAndStartNextDraw(_randomNumber);
+    _prizePool.closeDraw(_randomNumber);
 
     AuctionLib.Phase memory _startRNGPhase = _auctionPhases[0];
     AuctionLib.Phase memory _completeRNGPhase = _auctionPhases[1];
