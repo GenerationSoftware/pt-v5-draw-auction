@@ -6,7 +6,7 @@
 
 # PoolTogether V5 Draw Auction
 
-[![Code Coverage](https://github.com/pooltogether/v5-draw-beacon/actions/workflows/coverage.yml/badge.svg)](https://github.com/pooltogether/v5-draw-beacon/actions/workflows/coverage.yml)
+[![Code Coverage](https://github.com/pooltogether/v5-draw-auction/actions/workflows/coverage.yml/badge.svg)](https://github.com/pooltogether/v5-draw-auction/actions/workflows/coverage.yml)
 [![built-with openzeppelin](https://img.shields.io/badge/built%20with-OpenZeppelin-3677FF)](https://docs.openzeppelin.com/)
 [![GPLv3 license](https://img.shields.io/badge/License-GPLv3-blue.svg)](http://perso.crans.org/besson/LICENSE.html)
 
