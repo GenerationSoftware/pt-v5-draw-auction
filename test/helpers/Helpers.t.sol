@@ -77,10 +77,10 @@ contract Helpers is Test {
     );
   }
 
-  function _mockReserveForNextDraw(address _prizePool, uint256 _amount) internal {
+  function _mockReserveForOpenDraw(address _prizePool, uint256 _amount) internal {
     vm.mockCall(
       _prizePool,
-      abi.encodeWithSelector(PrizePool.reserveForNextDraw.selector),
+      abi.encodeWithSelector(PrizePool.reserveForOpenDraw.selector),
       abi.encode(_amount)
     );
   }
@@ -89,7 +89,7 @@ contract Helpers is Test {
     uint256 _amount = _reserveAmount / 2;
 
     _mockReserve(_prizePool, _amount);
-    _mockReserveForNextDraw(_prizePool, _amount);
+    _mockReserveForOpenDraw(_prizePool, _amount);
   }
 
   /* ============ Computations ============ */

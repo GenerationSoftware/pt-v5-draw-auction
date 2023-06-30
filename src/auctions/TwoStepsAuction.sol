@@ -31,7 +31,7 @@ contract TwoStepsAuction is Auction, RNGRequestor {
    * @notice Hook called after the RNG request has started.
    * @dev The auction is not aware of the PrizePool contract, so startTime is set to 0.
    *      Since the first phase of the auction starts when the draw has ended,
-   *      we can derive the actual startTime by calling PrizePool.nextDrawEndsAt() when computing the reward.
+   *      we can derive the actual startTime by calling PrizePool.hasOpenDrawFinished() when computing the reward.
    * @param _rewardRecipient Address that will receive the auction reward for starting the RNG request
    */
   function _afterRNGStart(address _rewardRecipient) internal override {
