@@ -1,16 +1,26 @@
-# Foundry template
+<p align="center">
+  <a href="https://github.com/pooltogether/pooltogether--brand-assets">
+    <img src="https://github.com/pooltogether/pooltogether--brand-assets/blob/977e03604c49c63314450b5d432fe57d34747c66/logo/pooltogether-logo--purple-gradient.png?raw=true" alt="PoolTogether Brand" style="max-width:100%;" width="400">
+  </a>
+</p>
 
-Template to kickstart a Foundry project.
+# PoolTogether V5 Draw Auction
 
-## Getting started
+[![Code Coverage](https://github.com/pooltogether/v5-draw-beacon/actions/workflows/coverage.yml/badge.svg)](https://github.com/pooltogether/v5-draw-beacon/actions/workflows/coverage.yml)
+[![built-with openzeppelin](https://img.shields.io/badge/built%20with-OpenZeppelin-3677FF)](https://docs.openzeppelin.com/)
+[![GPLv3 license](https://img.shields.io/badge/License-GPLv3-blue.svg)](http://perso.crans.org/besson/LICENSE.html)
 
-The easiest way to get started is by clicking the [Use this template](https://github.com/pooltogether/foundry-template/generate) button at the top right of this page.
+<strong>Have questions or want the latest news?</strong>
+<br/>Join the PoolTogether Discord or follow us on Twitter:
 
-If you prefer to go the CLI way:
+[![Discord](https://badgen.net/badge/icon/discord?icon=discord&label)](https://pooltogether.com/discord)
+[![Twitter](https://badgen.net/badge/icon/twitter?icon=twitter&label)](https://twitter.com/PoolTogether_)
 
-```
-forge init my-project --template https://github.com/pooltogether/foundry-template
-```
+## Overview
+
+To encourage the completion of the Draw, the Prize Pool's reserve, which accumulated during the duration of the Draw, is distributed through an auction. A linear auction mechanism is used to distribute it.
+
+To learn more about this mechanism, consult the following documentation: [https://dev.pooltogether.com/protocol/next/design/draw-auction](https://dev.pooltogether.com/protocol/next/design/draw-auction)
 
 ## Development
 
