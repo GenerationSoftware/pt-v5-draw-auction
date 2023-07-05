@@ -12,9 +12,9 @@
 [submodule "lib/pooltogether-rng-contracts"]
 	path = lib/pooltogether-rng-contracts
 	url = https://github.com/pooltogether/pooltogether-rng-contracts
-[submodule "lib/v5-prize-pool"]
-	path = lib/v5-prize-pool
-	url = https://github.com/pooltogether/v5-prize-pool
 [submodule "lib/optimism"]
 	path = lib/optimism
 	url = https://github.com/ethereum-optimism/optimism
+[submodule "lib/pt-v5-prize-pool"]
+	path = lib/pt-v5-prize-pool
+	url = https://github.com/GenerationSoftware/pt-v5-prize-pool
