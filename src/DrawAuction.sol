@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.17;
 
-import "forge-std/console2.sol";
+// import "forge-std/console2.sol";
 
 import { PrizePool } from "v5-prize-pool/PrizePool.sol";
 import { PhaseManager, Phase } from "src/abstract/PhaseManager.sol";
@@ -17,18 +17,13 @@ import { RewardLib } from "src/libraries/RewardLib.sol";
  *         The first user to complete the Draw gets rewarded with the partial or full PrizePool reserve amount.
  */
 contract DrawAuction is IDrawAuction {
-
   /**
    * @notice Emitted when an auction has completed and rewards have been distributed.
    * @param phases The phases that were submitted
    * @param randomNumber The random number submitted
    * @param rewardAmounts Amounts of rewards distributed per phase id
    */
-  event AuctionRewardsDistributed(
-    Phase[] phases,
-    uint256 randomNumber,
-    uint256[] rewardAmounts
-  );
+  event AuctionRewardsDistributed(Phase[] phases, uint256 randomNumber, uint256[] rewardAmounts);
 
   /* ============ Variables ============ */
 
@@ -52,11 +47,7 @@ contract DrawAuction is IDrawAuction {
    * @param phaseManager_ Phase manager that is pushing the phases
    * @param auctionDuration_ The duration that the auction should run
    */
-  constructor(
-    PrizePool prizePool_,
-    address phaseManager_,
-    uint32 auctionDuration_
-  ) {
+  constructor(PrizePool prizePool_, address phaseManager_, uint32 auctionDuration_) {
     if (address(prizePool_) == address(0)) revert PrizePoolZeroAddress();
     _prizePool = prizePool_;
     _phaseManager = phaseManager_;
@@ -104,7 +95,7 @@ contract DrawAuction is IDrawAuction {
   function completeAuction(
     Phase[] memory _auctionPhases,
     uint256 _randomNumber
-  ) external override onlyPhaseManager() {
+  ) external override onlyPhaseManager {
     uint256[] memory _rewards = RewardLib.rewards(_auctionPhases, _prizePool, _auctionDuration);
 
     _prizePool.closeDraw(_randomNumber);
@@ -118,7 +109,7 @@ contract DrawAuction is IDrawAuction {
   }
 
   modifier onlyPhaseManager() {
-    if(msg.sender != _phaseManager) {
+    if (msg.sender != _phaseManager) {
       revert OnlyPhaseManager();
     }
     _;

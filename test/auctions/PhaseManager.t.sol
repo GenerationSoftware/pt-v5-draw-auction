@@ -3,7 +3,7 @@ pragma solidity 0.8.17;
 
 import "forge-std/Test.sol";
 
-import { IDrawAuction, PhaseManagerHarness, Phase } from "test/harness/PhaseManagerHarness.sol";
+import { PhaseManagerHarness, Phase } from "test/harness/PhaseManagerHarness.sol";
 
 contract PhaseManagerTest is Test {
   /* ============ Events ============ */
@@ -17,16 +17,12 @@ contract PhaseManagerTest is Test {
   /* ============ Variables ============ */
   PhaseManagerHarness public auction;
 
-  IDrawAuction drawAuction;
-
   uint8 public auctionPhases = 2;
   uint32 public auctionDuration = 3 hours;
 
   /* ============ SetUp ============ */
   function setUp() public {
-    drawAuction = IDrawAuction(makeAddr("drawAuction"));
-    vm.etch(address(drawAuction), "drawAuction");
-    auction = new PhaseManagerHarness(auctionPhases, drawAuction);
+    auction = new PhaseManagerHarness(auctionPhases);
   }
 
   /* ============ Getter Functions ============ */

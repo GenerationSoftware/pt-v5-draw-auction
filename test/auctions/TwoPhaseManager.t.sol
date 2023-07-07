@@ -3,7 +3,9 @@ pragma solidity 0.8.17;
 
 import "forge-std/Test.sol";
 
-import { IDrawAuction, TwoPhaseManagerHarness, RNGInterface } from "test/harness/TwoPhaseManagerHarness.sol";
+import { IDrawAuction } from "src/interfaces/IDrawAuction.sol";
+import { DrawAuctionZeroAddress } from "src/TwoPhaseManager.sol";
+import { TwoPhaseManagerHarness, RNGInterface } from "test/harness/TwoPhaseManagerHarness.sol";
 
 contract TwoPhaseManagerTest is Test {
   /* ============ Events ============ */
@@ -15,7 +17,6 @@ contract TwoPhaseManagerTest is Test {
   IDrawAuction public drawAuction;
 
   uint32 public rngTimeout = 1 hours;
-  uint8 public auctionPhases = 2;
   uint32 public auctionDuration = 3 hours;
 
   /* ============ SetUp ============ */
@@ -23,13 +24,7 @@ contract TwoPhaseManagerTest is Test {
     drawAuction = IDrawAuction(makeAddr("drawAuction"));
     vm.etch(address(drawAuction), "drawAuction");
     rng = RNGInterface(address(1));
-    auction = new TwoPhaseManagerHarness(
-      rng,
-      rngTimeout,
-      auctionPhases,
-      drawAuction,
-      address(this)
-    );
+    auction = new TwoPhaseManagerHarness(rng, rngTimeout, drawAuction, address(this));
   }
 
   /* ============ Hooks ============ */
@@ -46,5 +41,29 @@ contract TwoPhaseManagerTest is Test {
     emit AuctionPhaseCompleted(1, address(this));
 
     auction.afterRNGComplete(123456789, address(this));
+  }
+
+  /* ============ Constructor Params ============ */
+
+  function testPhaseManagerHas2Phases() public {
+    assertEq(auction.getPhases().length, 2);
+  }
+
+  /* ============ Constructor Errors ============ */
+
+  function testDrawAuctionZeroAddressError() public {
+    vm.expectRevert(abi.encodeWithSelector(DrawAuctionZeroAddress.selector));
+    new TwoPhaseManagerHarness(
+      rng,
+      rngTimeout,
+      IDrawAuction(address(0)), // zero address
+      address(this)
+    );
+  }
+
+  /* ============ Getters ============ */
+
+  function testGetDrawAuction() public {
+    assertEq(address(auction.drawAuction()), address(drawAuction));
   }
 }

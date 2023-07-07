@@ -1,27 +1,47 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.17;
 
-import { IDrawAuction, PhaseManager, Phase } from "src/abstract/PhaseManager.sol";
+import { IDrawAuction } from "src/interfaces/IDrawAuction.sol";
+import { PhaseManager, Phase } from "src/abstract/PhaseManager.sol";
 import { RNGRequestor, RNGInterface } from "src/abstract/RNGRequestor.sol";
+
+/// @notice Emitted when the draw auction is set to the zero address
+error DrawAuctionZeroAddress();
 
 contract TwoPhaseManager is PhaseManager, RNGRequestor {
   /* ============ Constructor ============ */
+
+  /// @notice Address of the DrawAuction to complete
+  IDrawAuction internal immutable _drawAuction;
 
   /**
    * @notice Contract constructor.
    * @param rng_ Address of the RNG service
    * @param rngTimeout_ Time in seconds before an RNG request can be cancelled
-   * @param _auctionPhases Number of auction phases
    * @param drawAuction_ Draw auction to complete
    * @param _owner Address of the TwoPhaseManager owner
    */
   constructor(
     RNGInterface rng_,
     uint32 rngTimeout_,
-    uint8 _auctionPhases,
     IDrawAuction drawAuction_,
     address _owner
-  ) PhaseManager(_auctionPhases, drawAuction_) RNGRequestor(rng_, rngTimeout_, _owner) {}
+  ) PhaseManager(2) RNGRequestor(rng_, rngTimeout_, _owner) {
+    if (address(drawAuction_) == address(0)) revert DrawAuctionZeroAddress();
+    _drawAuction = drawAuction_;
+  }
+
+  /* ============ External Functions ============ */
+
+  /* ============ Getters ============ */
+
+  /**
+   * @notice The draw auction that is being managed
+   * @return IDrawAuction The auction contract
+   */
+  function drawAuction() external view returns (IDrawAuction) {
+    return _drawAuction;
+  }
 
   /* ============ Internal Functions ============ */
 
@@ -57,6 +77,6 @@ contract TwoPhaseManager is PhaseManager, RNGRequestor {
     _auctionPhases[0] = _getPhase(0);
     _auctionPhases[1] = _completeRNGPhase;
 
-    _afterAuctionEnds(_auctionPhases, _randomNumber);
+    _drawAuction.completeAuction(_auctionPhases, _randomNumber);
   }
 }

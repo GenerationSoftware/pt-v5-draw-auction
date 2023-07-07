@@ -1,13 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.17;
 
-import { IDrawAuction, PhaseManager, Phase } from "src/abstract/PhaseManager.sol";
+import { PhaseManager, Phase } from "src/abstract/PhaseManager.sol";
 
 contract PhaseManagerHarness is PhaseManager {
-  constructor(
-    uint8 _auctionPhases,
-    IDrawAuction drawAuction_
-  ) PhaseManager(_auctionPhases, drawAuction_) {}
+  constructor(uint8 _auctionPhases) PhaseManager(_auctionPhases) {}
 
   function setPhase(
     uint8 _phaseId,
