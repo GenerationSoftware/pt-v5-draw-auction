@@ -3,10 +3,10 @@ pragma solidity 0.8.17;
 
 import { PrizePool } from "v5-prize-pool/PrizePool.sol";
 
-import { Auction, AuctionLib } from "src/auctions/Auction.sol";
-import { TwoStepsAuction, RNGInterface } from "src/auctions/TwoStepsAuction.sol";
-import { ISingleMessageDispatcher } from "src/interfaces/ISingleMessageDispatcher.sol";
-import { RewardLib } from "src/libraries/RewardLib.sol";
+import { Auction, AuctionLib } from "./auctions/Auction.sol";
+import { TwoStepsAuction, RNGInterface } from "./auctions/TwoStepsAuction.sol";
+import { ISingleMessageDispatcher } from "./interfaces/ISingleMessageDispatcher.sol";
+import { RewardLib } from "./libraries/RewardLib.sol";
 
 /**
  * @title PoolTogether V5 DrawAuctionDispatcher

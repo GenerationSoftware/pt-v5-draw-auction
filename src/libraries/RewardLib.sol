@@ -3,7 +3,7 @@ pragma solidity 0.8.17;
 
 import { PrizePool } from "v5-prize-pool/PrizePool.sol";
 
-import { AuctionLib } from "src/libraries/AuctionLib.sol";
+import { AuctionLib } from "../libraries/AuctionLib.sol";
 
 library RewardLib {
   /* ============ Internal Functions ============ */

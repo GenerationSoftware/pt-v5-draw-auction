@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.17;
 
-import { RewardLib, AuctionLib, PrizePool } from "src/libraries/RewardLib.sol";
+import { RewardLib, AuctionLib, PrizePool } from "../../src/libraries/RewardLib.sol";
 
 contract RewardLibHarness {
   PrizePool internal _prizePool;

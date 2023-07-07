@@ -3,9 +3,9 @@ pragma solidity 0.8.17;
 
 import { PrizePool } from "v5-prize-pool/PrizePool.sol";
 
-import { ExecutorAware } from "src/abstract/ExecutorAware.sol";
-import { AuctionLib } from "src/auctions/Auction.sol";
-import { RewardLib } from "src/libraries/RewardLib.sol";
+import { ExecutorAware } from "./abstract/ExecutorAware.sol";
+import { AuctionLib } from "./auctions/Auction.sol";
+import { RewardLib } from "./libraries/RewardLib.sol";
 
 contract DrawAuctionExecutor is ExecutorAware {
   /* ============ Events ============ */

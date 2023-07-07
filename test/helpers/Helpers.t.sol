@@ -6,7 +6,7 @@ import "forge-std/Test.sol";
 import { PrizePool, TieredLiquidityDistributor } from "v5-prize-pool/PrizePool.sol";
 import { RNGInterface } from "rng/RNGInterface.sol";
 
-import { AuctionLib } from "src/libraries/AuctionLib.sol";
+import { AuctionLib } from "../../src/libraries/AuctionLib.sol";
 
 contract Helpers is Test {
   /* ============ Mock Functions ============ */

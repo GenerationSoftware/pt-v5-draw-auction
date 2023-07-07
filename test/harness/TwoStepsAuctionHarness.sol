@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.17;
 
-import { TwoStepsAuction, RNGInterface } from "src/auctions/TwoStepsAuction.sol";
+import { TwoStepsAuction, RNGInterface } from "../../src/auctions/TwoStepsAuction.sol";
 
 contract TwoStepsAuctionHarness is TwoStepsAuction {
   constructor(

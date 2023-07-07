@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.17;
 
-import { Auction, AuctionLib } from "src/auctions/Auction.sol";
+import { Auction, AuctionLib } from "../../src/auctions/Auction.sol";
 
 contract AuctionHarness is Auction {
   constructor(

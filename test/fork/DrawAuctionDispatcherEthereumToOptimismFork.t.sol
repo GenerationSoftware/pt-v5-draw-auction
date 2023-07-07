@@ -5,9 +5,9 @@ import { ERC20Mock } from "openzeppelin/mocks/ERC20Mock.sol";
 
 import { UD2x18, SD1x18, ConstructorParams, PrizePool, TieredLiquidityDistributor, TwabController } from "v5-prize-pool/PrizePool.sol";
 
-import { DrawAuctionDispatcher, ISingleMessageDispatcher } from "src/DrawAuctionDispatcher.sol";
-import { DrawAuctionExecutor } from "src/DrawAuctionExecutor.sol";
-import { AuctionLib } from "src/libraries/AuctionLib.sol";
+import { DrawAuctionDispatcher, ISingleMessageDispatcher } from "../../src/DrawAuctionDispatcher.sol";
+import { DrawAuctionExecutor } from "../../src/DrawAuctionExecutor.sol";
+import { AuctionLib } from "../../src/libraries/AuctionLib.sol";
 
 import { Helpers, RNGInterface } from "test/helpers/Helpers.t.sol";
 
