@@ -3,9 +3,9 @@ pragma solidity 0.8.17;
 
 import "forge-std/Test.sol";
 
-import { AuctionHarness, AuctionLib } from "test/harness/AuctionHarness.sol";
+import { PhaseManagerHarness, Phase } from "test/harness/PhaseManagerHarness.sol";
 
-contract AuctionTest is Test {
+contract PhaseManagerTest is Test {
   /* ============ Events ============ */
   event AuctionPhaseSet(
     uint8 indexed phaseId,
@@ -15,21 +15,17 @@ contract AuctionTest is Test {
   );
 
   /* ============ Variables ============ */
-  AuctionHarness public auction;
+  PhaseManagerHarness public auction;
 
   uint8 public auctionPhases = 2;
   uint32 public auctionDuration = 3 hours;
 
   /* ============ SetUp ============ */
   function setUp() public {
-    auction = new AuctionHarness(auctionPhases, auctionDuration);
+    auction = new PhaseManagerHarness(auctionPhases);
   }
 
   /* ============ Getter Functions ============ */
-
-  function testAuctionDuration() public {
-    assertEq(auction.auctionDuration(), auctionDuration);
-  }
 
   function testGetPhases() public {
     uint8 _firstPhaseId = 0;
@@ -47,15 +43,15 @@ contract AuctionTest is Test {
 
     auction.setPhase(_secondPhaseId, _endTime, _secondPhaseEndTime, _recipient);
 
-    AuctionLib.Phase[] memory _phases = auction.getPhases();
-    AuctionLib.Phase memory _firstPhase = _phases[0];
+    Phase[] memory _phases = auction.getPhases();
+    Phase memory _firstPhase = _phases[0];
 
     assertEq(_firstPhase.id, _firstPhaseId);
     assertEq(_firstPhase.startTime, _startTime);
     assertEq(_firstPhase.endTime, _endTime);
     assertEq(_firstPhase.recipient, _recipient);
 
-    AuctionLib.Phase memory _secondPhase = _phases[1];
+    Phase memory _secondPhase = _phases[1];
 
     assertEq(_secondPhase.id, _secondPhaseId);
     assertEq(_secondPhase.startTime, _endTime);
@@ -73,7 +69,7 @@ contract AuctionTest is Test {
 
     auction.setPhase(_phaseId, _startTime, _endTime, _recipient);
 
-    AuctionLib.Phase memory _phase = auction.getPhase(_phaseId);
+    Phase memory _phase = auction.getPhase(_phaseId);
 
     assertEq(_phase.id, _phaseId);
     assertEq(_phase.startTime, _startTime);
@@ -94,7 +90,7 @@ contract AuctionTest is Test {
     vm.expectEmit();
     emit AuctionPhaseSet(_phaseId, _startTime, _endTime, _recipient);
 
-    AuctionLib.Phase memory _phase = auction.setPhase(_phaseId, _startTime, _endTime, _recipient);
+    Phase memory _phase = auction.setPhase(_phaseId, _startTime, _endTime, _recipient);
 
     assertEq(_phase.id, _phaseId);
     assertEq(_phase.startTime, _startTime);

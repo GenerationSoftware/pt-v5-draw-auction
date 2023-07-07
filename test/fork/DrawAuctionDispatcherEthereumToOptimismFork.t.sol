@@ -5,9 +5,9 @@ import { ERC20Mock } from "openzeppelin/mocks/ERC20Mock.sol";
 
 import { UD2x18, SD1x18, ConstructorParams, PrizePool, TieredLiquidityDistributor, TwabController } from "v5-prize-pool/PrizePool.sol";
 
-import { DrawAuctionDispatcher, ISingleMessageDispatcher } from "src/DrawAuctionDispatcher.sol";
-import { DrawAuctionExecutor } from "src/DrawAuctionExecutor.sol";
-import { AuctionLib } from "src/libraries/AuctionLib.sol";
+import { DrawAuctionDispatcher, ISingleMessageDispatcher } from "src/erc5164/DrawAuctionDispatcher.sol";
+import { IDrawAuction, DrawAuctionExecutor } from "src/erc5164/DrawAuctionExecutor.sol";
+import { Phase } from "src/abstract/PhaseManager.sol";
 
 import { Helpers, RNGInterface } from "test/helpers/Helpers.t.sol";
 
@@ -21,7 +21,7 @@ contract DrawAuctionDispatcherEthereumToOptimismForkTest is Helpers {
     ISingleMessageDispatcher indexed dispatcher,
     uint256 indexed toChainId,
     address indexed drawAuctionExecutor,
-    AuctionLib.Phase[] phases,
+    Phase[] phases,
     uint256 randomNumber
   );
 
@@ -44,9 +44,12 @@ contract DrawAuctionDispatcherEthereumToOptimismForkTest is Helpers {
   DrawAuctionDispatcher public drawAuctionDispatcher;
   DrawAuctionExecutor public drawAuctionExecutor;
 
+  IDrawAuction public drawAuction;
+
   ERC20Mock public prizeToken;
   PrizePool public prizePool;
   RNGInterface public rng = RNGInterface(address(1));
+  address public phaseManager;
 
   uint32 public auctionDuration = 3 hours;
   uint32 public rngTimeOut = 1 hours;
@@ -54,9 +57,14 @@ contract DrawAuctionDispatcherEthereumToOptimismForkTest is Helpers {
   uint256 public randomNumber = 123456789;
   address public recipient = address(this);
 
+  Phase[] public phases;
+
   /* ============ Setup ============ */
 
   function setUp() public {
+    while (phases.length > 0) {
+      phases.pop();
+    }
     mainnetFork = vm.createFork(vm.rpcUrl("mainnet"));
     optimismFork = vm.createFork(vm.rpcUrl("optimism"));
 
@@ -65,14 +73,14 @@ contract DrawAuctionDispatcherEthereumToOptimismForkTest is Helpers {
 
   function deployDrawAuctionDispatcher() public {
     vm.selectFork(mainnetFork);
+    phaseManager = makeAddr("phaseManager");
+    drawAuction = IDrawAuction(makeAddr("drawAuction"));
+    vm.etch(address(drawAuction), "drawauction");
 
     drawAuctionDispatcher = new DrawAuctionDispatcher(
       dispatcher,
       toChainId,
-      rng,
-      rngTimeOut,
-      2,
-      auctionDuration,
+      phaseManager,
       address(this)
     );
 
@@ -82,7 +90,7 @@ contract DrawAuctionDispatcherEthereumToOptimismForkTest is Helpers {
   function deployDrawAuctionExecutor() public {
     vm.selectFork(optimismFork);
 
-    drawAuctionExecutor = new DrawAuctionExecutor(fromChainId, executor, prizePool);
+    drawAuctionExecutor = new DrawAuctionExecutor(fromChainId, executor, drawAuction);
 
     vm.makePersistent(address(drawAuctionExecutor));
   }
@@ -136,43 +144,6 @@ contract DrawAuctionDispatcherEthereumToOptimismForkTest is Helpers {
     setDrawAuctionExecutor();
     setDrawAuctionDispatcher();
     setPrizePoolDrawManager();
-  }
-
-  /* ============ Auction Dispatch ============ */
-  function testAfterAuctionEnds() public {
-    deployAll();
-    setAll();
-
-    vm.selectFork(mainnetFork);
-
-    vm.warp(drawPeriodSeconds + auctionDuration / 2);
-
-    uint32 _requestId = uint32(1);
-    uint32 _lockBlock = uint32(block.number);
-
-    _mockStartRNGRequest(address(rng), address(0), 0, _requestId, _lockBlock);
-
-    drawAuctionDispatcher.startRNGRequest(recipient);
-
-    uint64 _warpTimestamp = uint64(drawPeriodSeconds + auctionDuration);
-    vm.warp(_warpTimestamp);
-
-    _mockCompleteRNGRequest(address(rng), _requestId, randomNumber);
-
-    AuctionLib.Phase[] memory _auctionPhases = new AuctionLib.Phase[](2);
-    _auctionPhases[0] = drawAuctionDispatcher.getPhase(0);
-    _auctionPhases[1] = _getPhase(1, _auctionPhases[0].endTime, _warpTimestamp, recipient);
-
-    vm.expectEmit();
-    emit AuctionDispatched(
-      drawAuctionDispatcher.dispatcher(),
-      drawAuctionDispatcher.toChainId(),
-      drawAuctionDispatcher.drawAuctionExecutor(),
-      _auctionPhases,
-      randomNumber
-    );
-
-    drawAuctionDispatcher.completeRNGRequest(recipient);
   }
 
   /* ============ Getters ============ */

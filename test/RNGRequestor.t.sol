@@ -3,7 +3,7 @@ pragma solidity 0.8.17;
 
 import { ERC20Mock } from "openzeppelin/mocks/ERC20Mock.sol";
 
-import { RNGRequestor } from "src/RNGRequestor.sol";
+import { RNGRequestor } from "src/abstract/RNGRequestor.sol";
 import { Helpers, RNGInterface } from "./helpers/Helpers.t.sol";
 
 contract RNGRequestorTest is Helpers {

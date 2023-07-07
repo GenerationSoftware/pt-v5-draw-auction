@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.17;
 
-import { PrizePool } from "v5-prize-pool/PrizePool.sol";
+// import "forge-std/console2.sol";
 
-import { AuctionLib } from "src/libraries/AuctionLib.sol";
+import { PrizePool } from "v5-prize-pool/PrizePool.sol";
+import { Phase } from "src/abstract/PhaseManager.sol";
 
 library RewardLib {
   /* ============ Internal Functions ============ */
@@ -20,7 +21,7 @@ library RewardLib {
    * @return Rewards ordered by phase ID
    */
   function rewards(
-    AuctionLib.Phase[] memory _phases,
+    Phase[] memory _phases,
     PrizePool _prizePool,
     uint32 _auctionDuration
   ) internal view returns (uint256[] memory) {
@@ -28,7 +29,11 @@ library RewardLib {
     uint64 _auctionEnd = _auctionStart + _auctionDuration;
     uint256 _reserve = _prizePool.reserve() + _prizePool.reserveForOpenDraw();
 
+    // console2.log("RewardLib rewards reserve", _reserve);
+
     uint256 _phasesLength = _phases.length;
+
+    // console2.log("RewardLib rewards _phasesLength", _phasesLength);
     uint256[] memory _rewards = new uint256[](_phasesLength);
 
     for (uint256 i; i < _phasesLength; i++) {
@@ -50,7 +55,7 @@ library RewardLib {
    * @return Reward amount
    */
   function reward(
-    AuctionLib.Phase memory _phase,
+    Phase memory _phase,
     PrizePool _prizePool,
     uint32 _auctionDuration
   ) internal view returns (uint256) {
@@ -78,7 +83,7 @@ library RewardLib {
    * @return Reward amount
    */
   function _reward(
-    AuctionLib.Phase memory _phase,
+    Phase memory _phase,
     uint256 _reserve,
     uint64 _auctionStart,
     uint64 _auctionEnd,
@@ -112,6 +117,8 @@ library RewardLib {
     if (_phase.endTime > _auctionEnd) {
       _phase.endTime = _auctionEnd;
     }
+
+    // console2.log("RewardLib reserve", _reserve);
 
     return ((_phase.endTime - _phase.startTime) * _reserve) / _auctionDuration;
   }

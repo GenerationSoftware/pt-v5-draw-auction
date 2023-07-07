@@ -6,7 +6,7 @@ import "forge-std/Test.sol";
 import { PrizePool, TieredLiquidityDistributor } from "v5-prize-pool/PrizePool.sol";
 import { RNGInterface } from "rng/RNGInterface.sol";
 
-import { AuctionLib } from "src/libraries/AuctionLib.sol";
+import { Phase } from "src/abstract/PhaseManager.sol";
 
 contract Helpers is Test {
   /* ============ Mock Functions ============ */
@@ -109,13 +109,7 @@ contract Helpers is Test {
     uint64 _startTime,
     uint64 _endTime,
     address _recipient
-  ) internal pure returns (AuctionLib.Phase memory) {
-    return
-      AuctionLib.Phase({
-        id: _phaseId,
-        startTime: _startTime,
-        endTime: _endTime,
-        recipient: _recipient
-      });
+  ) internal pure returns (Phase memory) {
+    return Phase({ id: _phaseId, startTime: _startTime, endTime: _endTime, recipient: _recipient });
   }
 }

@@ -256,11 +256,11 @@ LF:9
 LH:9
 end_of_record
 TN:
-SF:src/auctions/TwoStepsAuction.sol
-FN:37,TwoStepsAuction._afterRNGStart
-FN:47,TwoStepsAuction._afterRNGComplete
-FNDA:9,TwoStepsAuction._afterRNGStart
-FNDA:7,TwoStepsAuction._afterRNGComplete
+SF:src/auctions/TwoPhaseManager.sol
+FN:37,TwoPhaseManager._afterRNGStart
+FN:47,TwoPhaseManager._afterRNGComplete
+FNDA:9,TwoPhaseManager._afterRNGStart
+FNDA:7,TwoPhaseManager._afterRNGComplete
 FNF:2
 FNH:2
 DA:38,9

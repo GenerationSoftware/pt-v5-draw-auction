@@ -1,27 +1,47 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.17;
 
-import { Auction, AuctionLib } from "src/auctions/Auction.sol";
-import { RNGRequestor, RNGInterface } from "src/RNGRequestor.sol";
+import { IDrawAuction } from "src/interfaces/IDrawAuction.sol";
+import { PhaseManager, Phase } from "src/abstract/PhaseManager.sol";
+import { RNGRequestor, RNGInterface } from "src/abstract/RNGRequestor.sol";
 
-contract TwoStepsAuction is Auction, RNGRequestor {
+/// @notice Emitted when the draw auction is set to the zero address
+error DrawAuctionZeroAddress();
+
+contract TwoPhaseManager is PhaseManager, RNGRequestor {
   /* ============ Constructor ============ */
+
+  /// @notice Address of the DrawAuction to complete
+  IDrawAuction internal immutable _drawAuction;
 
   /**
    * @notice Contract constructor.
    * @param rng_ Address of the RNG service
    * @param rngTimeout_ Time in seconds before an RNG request can be cancelled
-   * @param _auctionPhases Number of auction phases
-   * @param auctionDuration_ Duration of the auction in seconds
-   * @param _owner Address of the TwoStepsAuction owner
+   * @param drawAuction_ Draw auction to complete
+   * @param _owner Address of the TwoPhaseManager owner
    */
   constructor(
     RNGInterface rng_,
     uint32 rngTimeout_,
-    uint8 _auctionPhases,
-    uint32 auctionDuration_,
+    IDrawAuction drawAuction_,
     address _owner
-  ) Auction(_auctionPhases, auctionDuration_) RNGRequestor(rng_, rngTimeout_, _owner) {}
+  ) PhaseManager(2) RNGRequestor(rng_, rngTimeout_, _owner) {
+    if (address(drawAuction_) == address(0)) revert DrawAuctionZeroAddress();
+    _drawAuction = drawAuction_;
+  }
+
+  /* ============ External Functions ============ */
+
+  /* ============ Getters ============ */
+
+  /**
+   * @notice The draw auction that is being managed
+   * @return IDrawAuction The auction contract
+   */
+  function drawAuction() external view returns (IDrawAuction) {
+    return _drawAuction;
+  }
 
   /* ============ Internal Functions ============ */
 
@@ -45,7 +65,7 @@ contract TwoStepsAuction is Auction, RNGRequestor {
    * @param _rewardRecipient Address that will receive the auction reward for completing the RNG request
    */
   function _afterRNGComplete(uint256 _randomNumber, address _rewardRecipient) internal override {
-    AuctionLib.Phase memory _completeRNGPhase = _setPhase(
+    Phase memory _completeRNGPhase = _setPhase(
       1,
       _getPhase(0).endTime,
       uint64(block.timestamp),
@@ -53,10 +73,10 @@ contract TwoStepsAuction is Auction, RNGRequestor {
     );
     emit AuctionPhaseCompleted(1, msg.sender);
 
-    AuctionLib.Phase[] memory _auctionPhases = new AuctionLib.Phase[](2);
+    Phase[] memory _auctionPhases = new Phase[](2);
     _auctionPhases[0] = _getPhase(0);
     _auctionPhases[1] = _completeRNGPhase;
 
-    _afterAuctionEnds(_auctionPhases, _randomNumber);
+    _drawAuction.completeAuction(_auctionPhases, _randomNumber);
   }
 }
