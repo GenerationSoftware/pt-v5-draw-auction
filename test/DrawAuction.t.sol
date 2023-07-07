@@ -12,11 +12,7 @@ import { Helpers, RNGInterface } from "test/helpers/Helpers.t.sol";
 
 contract DrawAuctionTest is Helpers {
   /* ============ Events ============ */
-  event AuctionRewardsDistributed(
-    Phase[] phases,
-    uint256 randomNumber,
-    uint256[] rewardAmounts
-  );
+  event AuctionRewardsDistributed(Phase[] phases, uint256 randomNumber, uint256[] rewardAmounts);
 
   /* ============ Variables ============ */
 
@@ -40,7 +36,7 @@ contract DrawAuctionTest is Helpers {
     prizePool = PrizePool(makeAddr("prizePool"));
     vm.etch(address(prizePool), "prizePool");
 
-    while(phases.length > 0) {
+    while (phases.length > 0) {
       phases.pop();
     }
 
@@ -99,20 +95,20 @@ contract DrawAuctionTest is Helpers {
     mockCloseDraw(0x1234);
     mockWithdrawReserve(recipient, _reserveAmount);
 
-    phases.push(Phase({
-      id: 0,
-      startTime: uint64(openDrawEndsAt),
-      endTime: uint64(openDrawEndsAt + auctionDuration),
-      recipient: recipient
-    }));
+    phases.push(
+      Phase({
+        id: 0,
+        startTime: uint64(openDrawEndsAt),
+        endTime: uint64(openDrawEndsAt + auctionDuration),
+        recipient: recipient
+      })
+    );
 
     uint256[] memory rewards = new uint256[](1);
     rewards[0] = _reserveAmount;
 
     vm.expectEmit();
-    emit AuctionRewardsDistributed(
-      phases, 0x1234, rewards
-    );
+    emit AuctionRewardsDistributed(phases, 0x1234, rewards);
     drawAuction.completeAuction(phases, 0x1234);
   }
 
@@ -129,45 +125,67 @@ contract DrawAuctionTest is Helpers {
     mockCloseDraw(0x1234);
     mockWithdrawReserve(recipient, _reserveAmount);
 
-    phases.push(Phase({
-      id: 0,
-      startTime: uint64(openDrawEndsAt),
-      endTime: uint64(openDrawEndsAt + auctionDuration / 2),
-      recipient: recipient
-    }));
+    phases.push(
+      Phase({
+        id: 0,
+        startTime: uint64(openDrawEndsAt),
+        endTime: uint64(openDrawEndsAt + auctionDuration / 2),
+        recipient: recipient
+      })
+    );
 
-    phases.push(Phase({
-      id: 1,
-      startTime: uint64(openDrawEndsAt),
-      endTime: uint64(openDrawEndsAt + auctionDuration / 2),
-      recipient: recipient
-    }));
+    phases.push(
+      Phase({
+        id: 1,
+        startTime: uint64(openDrawEndsAt),
+        endTime: uint64(openDrawEndsAt + auctionDuration / 2),
+        recipient: recipient
+      })
+    );
 
     uint256[] memory rewards = new uint256[](2);
     rewards[0] = _reserveAmount / 2;
     rewards[1] = _reserveAmount / 2;
 
     vm.expectEmit();
-    emit AuctionRewardsDistributed(
-      phases, 0x1234, rewards
-    );
+    emit AuctionRewardsDistributed(phases, 0x1234, rewards);
     drawAuction.completeAuction(phases, 0x1234);
   }
 
   function mockOpenDrawEndsAt(uint time) public {
-    vm.mockCall(address(prizePool), abi.encodeWithSelector(prizePool.openDrawEndsAt.selector), abi.encode(time));
+    vm.mockCall(
+      address(prizePool),
+      abi.encodeWithSelector(prizePool.openDrawEndsAt.selector),
+      abi.encode(time)
+    );
   }
 
   function mockReserve(uint reserve) public {
-    vm.mockCall(address(prizePool), abi.encodeWithSelector(prizePool.reserve.selector), abi.encode(reserve));
-    vm.mockCall(address(prizePool), abi.encodeWithSelector(prizePool.reserveForOpenDraw.selector), abi.encode(0));
+    vm.mockCall(
+      address(prizePool),
+      abi.encodeWithSelector(prizePool.reserve.selector),
+      abi.encode(reserve)
+    );
+    vm.mockCall(
+      address(prizePool),
+      abi.encodeWithSelector(prizePool.reserveForOpenDraw.selector),
+      abi.encode(0)
+    );
   }
 
   function mockCloseDraw(uint _randomNumber) public {
-    vm.mockCall(address(prizePool), abi.encodeWithSelector(prizePool.closeDraw.selector, _randomNumber), abi.encode(1));
+    vm.mockCall(
+      address(prizePool),
+      abi.encodeWithSelector(prizePool.closeDraw.selector, _randomNumber),
+      abi.encode(1)
+    );
   }
 
   function mockWithdrawReserve(address _recipient, uint amount) public {
-    vm.mockCall(address(prizePool), abi.encodeWithSelector(prizePool.withdrawReserve.selector, _recipient, amount), abi.encode());
+    vm.mockCall(
+      address(prizePool),
+      abi.encodeWithSelector(prizePool.withdrawReserve.selector, _recipient, amount),
+      abi.encode()
+    );
   }
 }

@@ -110,12 +110,6 @@ contract Helpers is Test {
     uint64 _endTime,
     address _recipient
   ) internal pure returns (Phase memory) {
-    return
-      Phase({
-        id: _phaseId,
-        startTime: _startTime,
-        endTime: _endTime,
-        recipient: _recipient
-      });
+    return Phase({ id: _phaseId, startTime: _startTime, endTime: _endTime, recipient: _recipient });
   }
 }

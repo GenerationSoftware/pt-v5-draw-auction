@@ -59,7 +59,6 @@ contract DrawAuctionDispatcherEthereumToOptimismForkTest is Helpers {
 
   Phase[] public phases;
 
-
   /* ============ Setup ============ */
 
   function setUp() public {

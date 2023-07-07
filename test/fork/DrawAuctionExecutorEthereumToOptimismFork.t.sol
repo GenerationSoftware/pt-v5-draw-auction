@@ -63,7 +63,7 @@ contract DrawAuctionExecutorEthereumToOptimismForkTest is Helpers {
   /* ============ Setup ============ */
 
   function setUp() public {
-    while (phases.length >0) {
+    while (phases.length > 0) {
       phases.pop();
     }
     mainnetFork = vm.createFork(vm.rpcUrl("mainnet"));
@@ -146,7 +146,7 @@ contract DrawAuctionExecutorEthereumToOptimismForkTest is Helpers {
   }
 
   /* ============ Auction Execution ============ */
-/*
+  /*
   function testCompleteAuctionSingleRecipient() public {
     deployAll();
     setAll();
