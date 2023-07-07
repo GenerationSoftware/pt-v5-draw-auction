@@ -3,15 +3,16 @@ pragma solidity 0.8.17;
 
 import "forge-std/Test.sol";
 
-import { TwoStepsAuctionHarness, RNGInterface } from "test/harness/TwoStepsAuctionHarness.sol";
+import { IDrawAuction, TwoPhaseManagerHarness, RNGInterface } from "test/harness/TwoPhaseManagerHarness.sol";
 
-contract TwoStepsAuctionTest is Test {
+contract TwoPhaseManagerTest is Test {
   /* ============ Events ============ */
   event AuctionPhaseCompleted(uint256 indexed phaseId, address indexed caller);
 
   /* ============ Variables ============ */
-  TwoStepsAuctionHarness public auction;
+  TwoPhaseManagerHarness public auction;
   RNGInterface public rng;
+  IDrawAuction public drawAuction;
 
   uint32 public rngTimeout = 1 hours;
   uint8 public auctionPhases = 2;
@@ -19,12 +20,14 @@ contract TwoStepsAuctionTest is Test {
 
   /* ============ SetUp ============ */
   function setUp() public {
+    drawAuction = IDrawAuction(makeAddr("drawAuction"));
+    vm.etch(address(drawAuction), "drawAuction");
     rng = RNGInterface(address(1));
-    auction = new TwoStepsAuctionHarness(
+    auction = new TwoPhaseManagerHarness(
       rng,
       rngTimeout,
       auctionPhases,
-      auctionDuration,
+      drawAuction,
       address(this)
     );
   }
