@@ -7,5 +7,5 @@ rng/=lib/pooltogether-rng-contracts/contracts/
 
 v5-prize-pool/=lib/pt-v5-prize-pool/src/
 
-src/=src/
+draw-auction-local/=src/
 test/=test/

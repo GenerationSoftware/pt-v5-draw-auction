@@ -5,9 +5,9 @@ import { ERC20Mock } from "openzeppelin/mocks/ERC20Mock.sol";
 
 import { UD2x18, SD1x18, ConstructorParams, PrizePool, TieredLiquidityDistributor, TwabController } from "v5-prize-pool/PrizePool.sol";
 
-import { DrawAuction } from "src/DrawAuction.sol";
-import { OnlyPhaseManager } from "src/interfaces/IDrawAuction.sol";
-import { Phase } from "src/abstract/PhaseManager.sol";
+import { DrawAuction } from "draw-auction-local/DrawAuction.sol";
+import { OnlyPhaseManager } from "draw-auction-local/interfaces/IDrawAuction.sol";
+import { Phase } from "draw-auction-local/abstract/PhaseManager.sol";
 import { Helpers, RNGInterface } from "test/helpers/Helpers.t.sol";
 
 contract DrawAuctionTest is Helpers {

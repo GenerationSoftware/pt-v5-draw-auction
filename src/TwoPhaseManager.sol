@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.17;
 
-import { IDrawAuction } from "src/interfaces/IDrawAuction.sol";
-import { PhaseManager, Phase } from "src/abstract/PhaseManager.sol";
-import { RNGRequestor, RNGInterface } from "src/abstract/RNGRequestor.sol";
+import { IDrawAuction } from "draw-auction-local/interfaces/IDrawAuction.sol";
+import { PhaseManager, Phase } from "draw-auction-local/abstract/PhaseManager.sol";
+import { RNGRequestor, RNGInterface } from "draw-auction-local/abstract/RNGRequestor.sol";
 
 /// @notice Emitted when the draw auction is set to the zero address
 error DrawAuctionZeroAddress();

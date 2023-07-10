@@ -3,8 +3,8 @@ pragma solidity 0.8.17;
 
 import "forge-std/Test.sol";
 
-import { IDrawAuction } from "src/interfaces/IDrawAuction.sol";
-import { DrawAuctionZeroAddress } from "src/TwoPhaseManager.sol";
+import { IDrawAuction } from "draw-auction-local/interfaces/IDrawAuction.sol";
+import { DrawAuctionZeroAddress } from "draw-auction-local/TwoPhaseManager.sol";
 import { TwoPhaseManagerHarness, RNGInterface } from "test/harness/TwoPhaseManagerHarness.sol";
 
 contract TwoPhaseManagerTest is Test {

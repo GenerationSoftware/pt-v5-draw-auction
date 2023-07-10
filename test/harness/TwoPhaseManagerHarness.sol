@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.17;
 
-import { IDrawAuction } from "src/interfaces/IDrawAuction.sol";
-import { TwoPhaseManager, RNGInterface } from "src/TwoPhaseManager.sol";
+import { IDrawAuction } from "draw-auction-local/interfaces/IDrawAuction.sol";
+import { TwoPhaseManager, RNGInterface } from "draw-auction-local/TwoPhaseManager.sol";
 
 contract TwoPhaseManagerHarness is TwoPhaseManager {
   constructor(

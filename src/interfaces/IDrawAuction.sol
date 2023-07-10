@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.17;
 
-import { Phase } from "src/abstract/PhaseManager.sol";
+import { Phase } from "draw-auction-local/abstract/PhaseManager.sol";
 
 /// @notice Thrown when the caller is not the PhaseManager contract.
 error OnlyPhaseManager();

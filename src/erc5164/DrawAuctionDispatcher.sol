@@ -3,10 +3,10 @@ pragma solidity 0.8.17;
 
 import { PrizePool } from "v5-prize-pool/PrizePool.sol";
 
-import { PhaseManager, Phase } from "src/abstract/PhaseManager.sol";
-import { ISingleMessageDispatcher } from "src/interfaces/ISingleMessageDispatcher.sol";
-import { RewardLib } from "src/libraries/RewardLib.sol";
-import { OnlyPhaseManager, IDrawAuction } from "src/interfaces/IDrawAuction.sol";
+import { PhaseManager, Phase } from "draw-auction-local/abstract/PhaseManager.sol";
+import { ISingleMessageDispatcher } from "draw-auction-local/interfaces/ISingleMessageDispatcher.sol";
+import { RewardLib } from "draw-auction-local/libraries/RewardLib.sol";
+import { OnlyPhaseManager, IDrawAuction } from "draw-auction-local/interfaces/IDrawAuction.sol";
 import { Ownable } from "owner-manager/Ownable.sol";
 
 /**

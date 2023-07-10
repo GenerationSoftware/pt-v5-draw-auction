@@ -4,7 +4,7 @@ pragma solidity 0.8.17;
 // import "forge-std/console2.sol";
 
 import { PrizePool } from "v5-prize-pool/PrizePool.sol";
-import { Phase } from "src/abstract/PhaseManager.sol";
+import { Phase } from "draw-auction-local/abstract/PhaseManager.sol";
 
 library RewardLib {
   /* ============ Internal Functions ============ */

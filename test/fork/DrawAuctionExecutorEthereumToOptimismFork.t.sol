@@ -6,9 +6,9 @@ import { AddressAliasHelper } from "optimism/vendor/AddressAliasHelper.sol";
 
 import { UD2x18, SD1x18, ConstructorParams, PrizePool, TieredLiquidityDistributor, TwabController } from "v5-prize-pool/PrizePool.sol";
 
-import { DrawAuctionDispatcher, ISingleMessageDispatcher } from "src/erc5164/DrawAuctionDispatcher.sol";
-import { IDrawAuction, DrawAuctionExecutor } from "src/erc5164/DrawAuctionExecutor.sol";
-import { Phase } from "src/abstract/PhaseManager.sol";
+import { DrawAuctionDispatcher, ISingleMessageDispatcher } from "draw-auction-local/erc5164/DrawAuctionDispatcher.sol";
+import { IDrawAuction, DrawAuctionExecutor } from "draw-auction-local/erc5164/DrawAuctionExecutor.sol";
+import { Phase } from "draw-auction-local/abstract/PhaseManager.sol";
 
 import { Helpers, RNGInterface } from "test/helpers/Helpers.t.sol";
 import { IMessageExecutor } from "test/interfaces/IMessageExecutor.sol";

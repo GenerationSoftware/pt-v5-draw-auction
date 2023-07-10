@@ -4,10 +4,10 @@ pragma solidity 0.8.17;
 // import "forge-std/console2.sol";
 
 import { PrizePool } from "v5-prize-pool/PrizePool.sol";
-import { PhaseManager, Phase } from "src/abstract/PhaseManager.sol";
-import { OnlyPhaseManager, IDrawAuction } from "src/interfaces/IDrawAuction.sol";
+import { PhaseManager, Phase } from "draw-auction-local/abstract/PhaseManager.sol";
+import { OnlyPhaseManager, IDrawAuction } from "draw-auction-local/interfaces/IDrawAuction.sol";
 import { RNGInterface } from "rng/RNGInterface.sol";
-import { RewardLib } from "src/libraries/RewardLib.sol";
+import { RewardLib } from "draw-auction-local/libraries/RewardLib.sol";
 
 /**
  * @title PoolTogether V5 DrawAuction

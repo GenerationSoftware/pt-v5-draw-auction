@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.17;
 
-import { ExecutorAware } from "src/abstract/ExecutorAware.sol";
-import { Phase } from "src/abstract/PhaseManager.sol";
-import { IDrawAuction } from "src/interfaces/IDrawAuction.sol";
+import { ExecutorAware } from "draw-auction-local/abstract/ExecutorAware.sol";
+import { Phase } from "draw-auction-local/abstract/PhaseManager.sol";
+import { IDrawAuction } from "draw-auction-local/interfaces/IDrawAuction.sol";
 
 contract DrawAuctionExecutor is ExecutorAware {
   /* ============ Events ============ */
