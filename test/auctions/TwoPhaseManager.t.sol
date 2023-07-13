@@ -40,7 +40,7 @@ contract TwoPhaseManagerTest is Test {
     vm.expectEmit();
     emit AuctionPhaseCompleted(1, address(this));
 
-    auction.afterRNGComplete(123456789, address(this));
+    auction.afterRNGComplete(123456789, uint64(block.timestamp), address(this));
   }
 
   /* ============ Constructor Params ============ */

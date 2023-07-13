@@ -16,7 +16,11 @@ contract TwoPhaseManagerHarness is TwoPhaseManager {
     _afterRNGStart(_rewardRecipient);
   }
 
-  function afterRNGComplete(uint256 _randomNumber, address _rewardRecipient) external {
-    _afterRNGComplete(_randomNumber, _rewardRecipient);
+  function afterRNGComplete(
+    uint256 _randomNumber,
+    uint64 _rngCompletedAt,
+    address _rewardRecipient
+  ) external {
+    _afterRNGComplete(_randomNumber, _rngCompletedAt, _rewardRecipient);
   }
 }

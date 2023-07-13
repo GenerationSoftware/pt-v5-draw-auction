@@ -59,6 +59,14 @@ contract Helpers is Test {
     );
   }
 
+  function _mockCompletedAt(address _rng, uint32 _requestId, uint64 _completedAt) internal {
+    vm.mockCall(
+      _rng,
+      abi.encodeWithSelector(RNGInterface.completedAt.selector, _requestId),
+      abi.encode(_completedAt)
+    );
+  }
+
   function _mockCompleteRNGRequest(
     address _rng,
     uint32 _requestId,
@@ -66,6 +74,7 @@ contract Helpers is Test {
   ) internal {
     _mockIsRequestComplete(_rng, _requestId, true);
     _mockRandomNumber(_rng, _requestId, _randomNumber);
+    _mockCompletedAt(_rng, _requestId, uint64(block.timestamp));
   }
 
   /* ============ PrizePool ============ */

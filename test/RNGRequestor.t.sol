@@ -101,6 +101,7 @@ contract RNGRequestorTest is Helpers {
 
     _mockIsRequestComplete(address(rng), _requestId, true);
     _mockRandomNumber(address(rng), _requestId, _randomNumber);
+    _mockCompletedAt(address(rng), _requestId, uint64(block.timestamp));
 
     vm.expectEmit();
     emit RNGRequestCompleted(_requestId, _randomNumber);

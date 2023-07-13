@@ -185,10 +185,11 @@ contract RNGRequestor is Ownable {
   function completeRNGRequest(address _rewardRecipient) external requireCanCompleteRNGRequest {
     uint32 _rngRequestId = _rngRequest.id;
     uint256 _randomNumber = _rng.randomNumber(_rngRequestId);
+    uint64 _completedAt = _rng.completedAt(_rngRequestId);
 
     delete _rngRequest;
 
-    _afterRNGComplete(_randomNumber, _rewardRecipient);
+    _afterRNGComplete(_randomNumber, _completedAt, _rewardRecipient);
 
     emit RNGRequestCompleted(_rngRequestId, _randomNumber);
   }
@@ -315,9 +316,14 @@ contract RNGRequestor is Ownable {
   /**
    * @notice Hook called after the RNG request has completed.
    * @param _randomNumber The random number that was generated
+   * @param _rngCompletedAt Timestamp at which the RNG request was completed
    * @param _rewardRecipient Address that will receive the auction reward for completing the RNG request
    */
-  function _afterRNGComplete(uint256 _randomNumber, address _rewardRecipient) internal virtual {}
+  function _afterRNGComplete(
+    uint256 _randomNumber,
+    uint64 _rngCompletedAt,
+    address _rewardRecipient
+  ) internal virtual {}
 
   /**
    * @notice Returns the current timestamp.
