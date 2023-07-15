@@ -274,7 +274,7 @@ contract RNGRequestorTest is Helpers {
   }
 
   function testSetRNGServiceFail() public {
-    vm.expectRevert(abi.encodeWithSelector(RNGRequestor.RNGNotZeroAddress.selector));
+    vm.expectRevert(abi.encodeWithSelector(RNGRequestor.RNGZeroAddress.selector));
 
     rngRequestor.setRNGService(RNGInterface(address(0)));
   }

@@ -9,7 +9,7 @@ import { TwoPhaseManagerHarness, RNGInterface } from "test/harness/TwoPhaseManag
 
 contract TwoPhaseManagerTest is Test {
   /* ============ Events ============ */
-  event AuctionPhaseCompleted(uint256 indexed phaseId, address indexed caller);
+  // event AuctionPhaseCompleted(uint256 indexed phaseId, address indexed caller);
 
   /* ============ Variables ============ */
   TwoPhaseManagerHarness public auction;
@@ -31,14 +31,14 @@ contract TwoPhaseManagerTest is Test {
 
   function testAfterRNGStart() public {
     vm.expectEmit();
-    emit AuctionPhaseCompleted(0, address(this));
+    // emit AuctionPhaseCompleted(0, address(this));
 
     auction.afterRNGStart(address(this));
   }
 
   function testAfterRNGComplete() public {
     vm.expectEmit();
-    emit AuctionPhaseCompleted(1, address(this));
+    // emit AuctionPhaseCompleted(1, address(this));
 
     auction.afterRNGComplete(123456789, uint64(block.timestamp), address(this));
   }

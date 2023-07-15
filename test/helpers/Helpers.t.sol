@@ -5,6 +5,7 @@ import "forge-std/Test.sol";
 
 import { PrizePool, TieredLiquidityDistributor } from "v5-prize-pool/PrizePool.sol";
 import { RNGInterface } from "rng/RNGInterface.sol";
+import { UD2x18 } from "prb-math/UD2x18.sol";
 
 import { Phase } from "src/abstract/PhaseManager.sol";
 
@@ -114,11 +115,9 @@ contract Helpers is Test {
   /* ============ Getters ============ */
 
   function _getPhase(
-    uint8 _phaseId,
-    uint64 _startTime,
-    uint64 _endTime,
+    UD2x18 _rewardPortion,
     address _recipient
   ) internal pure returns (Phase memory) {
-    return Phase({ id: _phaseId, startTime: _startTime, endTime: _endTime, recipient: _recipient });
+    return Phase({ rewardPortion: _rewardPortion, recipient: _recipient });
   }
 }

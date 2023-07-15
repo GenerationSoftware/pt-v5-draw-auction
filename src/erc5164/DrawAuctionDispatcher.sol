@@ -1,56 +1,33 @@
-// SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import { PrizePool } from "v5-prize-pool/PrizePool.sol";
-
-import { PhaseManager, Phase } from "src/abstract/PhaseManager.sol";
-import { ISingleMessageDispatcher } from "src/interfaces/ISingleMessageDispatcher.sol";
-import { RewardLib } from "src/libraries/RewardLib.sol";
-import { OnlyPhaseManager, IDrawAuction } from "src/interfaces/IDrawAuction.sol";
-import { Ownable } from "owner-manager/Ownable.sol";
+import { Phase } from "../abstract/PhaseManager.sol";
+import { ISingleMessageDispatcher } from "../interfaces/ISingleMessageDispatcher.sol";
 
 /**
  * @title PoolTogether V5 DrawAuctionDispatcher
- * @author PoolTogether Inc. Team
- * @notice The DrawAuctionDispatcher uses an auction mechanism to incentivize the completion of the Draw.
- *         This mechanism relies on a linear interpolation to incentivizes anyone to start and complete the Draw.
- *         The first user to complete the Draw gets rewarded with the partial or full PrizePool reserve amount.
+ * @author Generation Software Team
+ * @notice The DrawAuctionDispatcher extends the DrawAuction contract and sends the random
+ * number and auction data to the DrawAuctionExecutor on the destination chain when the 
+ * draw auction completes.
  */
-contract DrawAuctionDispatcher is Ownable, IDrawAuction {
+contract DrawAuctionDispatcher is DrawAuction {
   /* ============ Events ============ */
-
-  /**
-   * @notice Event emitted when the dispatcher is set.
-   * @param dispatcher Instance of the dispatcher on Ethereum that will dispatch the phases and random number
-   */
-  event DispatcherSet(ISingleMessageDispatcher indexed dispatcher);
-
-  /**
-   * @notice Event emitted when the drawAuctionExecutor is set.
-   * @param drawAuctionExecutor Address of the drawAuctionExecutor on the receiving chain that will complete the Draw
-   */
-  event DrawAuctionExecutorSet(address indexed drawAuctionExecutor);
-
-  /**
-   * @notice Event emitted when the phaseManager is set.
-   * @param phaseManager Address of the phaseManager on the receiving chain that will complete the Draw
-   */
-  event PhaseManagerSet(address indexed phaseManager);
 
   /**
    * @notice Event emitted when the RNG and auction phases have been dispatched.
    * @param dispatcher Instance of the dispatcher on Ethereum that dispatched the phases and random number
    * @param toChainId ID of the receiving chain
    * @param drawAuctionExecutor Address of the DrawAuctionExecutor on the receiving chain that will award the auction and complete the Draw
-   * @param phases Array of auction phases
    * @param randomNumber Random number computed by the RNG
+   * @param phases Array of auction phases
    */
   event AuctionDispatched(
     ISingleMessageDispatcher indexed dispatcher,
     uint256 indexed toChainId,
     address indexed drawAuctionExecutor,
-    Phase[] phases,
-    uint256 randomNumber
+    uint256 randomNumber,
+    Phase[] phases
   );
 
   /* ============ Custom Errors ============ */
@@ -64,9 +41,6 @@ contract DrawAuctionDispatcher is Ownable, IDrawAuction {
   /// @notice Thrown when the DrawAuctionExecutor address passed to the constructor is zero address.
   error DrawAuctionExecutorZeroAddress();
 
-  /// @notice Thrown when the DrawAuctionExecutor address passed to the constructor is zero address.
-  error PhaseManagerZeroAddress();
-
   /* ============ Variables ============ */
 
   /// @notice Instance of the dispatcher on Ethereum
@@ -78,25 +52,27 @@ contract DrawAuctionDispatcher is Ownable, IDrawAuction {
   /// @notice Address of the DrawAuctionExecutor to compute Draw for.
   address internal _drawAuctionExecutor;
 
-  /// @notice The phase manager that can call this contract
-  address internal _phaseManager;
-
   /* ============ Constructor ============ */
 
   /**
    * @notice Contract constructor.
    * @param dispatcher_ Instance of the dispatcher on Ethereum that will dispatch the phases and random number
+   * @param drawAuctionExecutor_ Address of the DrawAuctionExecutor on the destination chain
    * @param toChainId_ ID of the receiving chain
-   * @param _owner Address of the DrawAuctionDispatcher owner
+   * @param rngAuction_ The RNGAuction to get the random number from
+   * @param auctionDurationSeconds_ Auction duration in seconds
+   * @param auctionName_ Name of the auction
    */
   constructor(
     ISingleMessageDispatcher dispatcher_,
+    address drawAuctionExecutor_,
     uint256 toChainId_,
-    address phaseManager_,
-    address _owner
-  ) Ownable(_owner) {
+    RNGAuction rngAuction_,
+    uint64 auctionDurationSeconds_
+    string auctionName_
+  ) DrawAuction(rngAuction_, auctionDurationSeconds_, 2, auctionName_) {
     _setDispatcher(dispatcher_);
-    _setPhaseManager(phaseManager_);
+    _setDrawAuctionExecutor(drawAuctionExecutor_);
 
     if (toChainId_ == 0) revert ToChainIdZero();
     _toChainId = toChainId_;
@@ -122,10 +98,6 @@ contract DrawAuctionDispatcher is Ownable, IDrawAuction {
     return _drawAuctionExecutor;
   }
 
-  function phaseManager() external view returns (address) {
-    return _phaseManager;
-  }
-
   /**
    * @notice Get the toChainId.
    * @return ID of the receiving chain
@@ -134,43 +106,24 @@ contract DrawAuctionDispatcher is Ownable, IDrawAuction {
     return _toChainId;
   }
 
-  /* ============ Setters ============ */
+  /* ============ DrawAuction Overrides ============ */
 
   /**
-   * @notice Set the dispatcher.
-   * @dev Only callable by the owner.
-   * @param dispatcher_ Address of the dispatcher
+   * @inheritdoc DrawAuction
+   * @dev Completes the auction by dispatching the completed phases and random number through the dispatcher
    */
-  function setDispatcher(ISingleMessageDispatcher dispatcher_) external onlyOwner {
-    _setDispatcher(dispatcher_);
-  }
-
-  /**
-   * @notice Set the drawAuctionExecutor.
-   * @dev Only callable by the owner.
-   * @param drawAuctionExecutor_ Address of the drawAuctionExecutor
-   */
-  function setDrawAuctionExecutor(address drawAuctionExecutor_) external onlyOwner {
-    _setDrawAuctionExecutor(drawAuctionExecutor_);
-  }
-
-  /* ============ IDrawAuction Implementation ============ */
-
-  /**
-   * @notice Completes the auction by dispatching the completed phases and random number through the dispatcher
-   * @param _auctionPhases Array of auction phases
-   * @param _randomNumber Random number generated by the RNG service
-   */
-  function completeAuction(Phase[] memory _auctionPhases, uint256 _randomNumber) external {
-    if (msg.sender != _phaseManager) revert OnlyPhaseManager();
+  function _afterCompleteDraw(
+    uint256 _randomNumber,
+  ) internal override {
+    Phase[] memory _auctionPhases = _getPhases();
 
     _dispatcher.dispatchMessage(
       _toChainId,
       _drawAuctionExecutor,
       abi.encodeWithSignature(
-        "completeAuction((uint8,uint64,uint64,address)[],uint256)",
-        _auctionPhases,
-        _randomNumber
+        "completeAuction(uint256,(uint8,uint64,uint64,address)[])",
+        _randomNumber,
+        _auctionPhases
       )
     );
 
@@ -178,9 +131,17 @@ contract DrawAuctionDispatcher is Ownable, IDrawAuction {
       _dispatcher,
       _toChainId,
       _drawAuctionExecutor,
-      _auctionPhases,
-      _randomNumber
+      _randomNumber,
+      _auctionPhases
     );
+  }
+
+  /**
+   * @notice Completes the auction by dispatching the completed phases and random number through the dispatcher
+   * @param _randomNumber Random number generated by the RNG service
+   */
+  function completeAuction(uint256 _randomNumber) external {
+    
   }
 
   /* ============ Internal Functions ============ */
@@ -194,7 +155,6 @@ contract DrawAuctionDispatcher is Ownable, IDrawAuction {
   function _setDispatcher(ISingleMessageDispatcher dispatcher_) internal {
     if (address(dispatcher_) == address(0)) revert DispatcherZeroAddress();
     _dispatcher = dispatcher_;
-    emit DispatcherSet(dispatcher_);
   }
 
   /**
@@ -204,16 +164,5 @@ contract DrawAuctionDispatcher is Ownable, IDrawAuction {
   function _setDrawAuctionExecutor(address drawAuctionExecutor_) internal {
     if (drawAuctionExecutor_ == address(0)) revert DrawAuctionExecutorZeroAddress();
     _drawAuctionExecutor = drawAuctionExecutor_;
-    emit DrawAuctionExecutorSet(drawAuctionExecutor_);
-  }
-
-  /**
-   * @notice Set the phaseManager.
-   * @param phaseManager_ Address of the phaseManager
-   */
-  function _setPhaseManager(address phaseManager_) internal {
-    if (phaseManager_ == address(0)) revert PhaseManagerZeroAddress();
-    _phaseManager = phaseManager_;
-    emit PhaseManagerSet(phaseManager_);
   }
 }

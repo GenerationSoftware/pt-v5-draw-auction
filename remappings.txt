@@ -8,5 +8,4 @@ prb-math/=lib/prb-math/src/
 
 v5-prize-pool/=lib/pt-v5-prize-pool/src/
 
-src/=src/
 test/=test/

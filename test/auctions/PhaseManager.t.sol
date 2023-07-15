@@ -3,14 +3,15 @@ pragma solidity 0.8.17;
 
 import "forge-std/Test.sol";
 
+import { UD2x18 } from "prb-math/UD2x18.sol";
+
 import { PhaseManagerHarness, Phase } from "test/harness/PhaseManagerHarness.sol";
 
 contract PhaseManagerTest is Test {
   /* ============ Events ============ */
   event AuctionPhaseSet(
     uint8 indexed phaseId,
-    uint64 startTime,
-    uint64 endTime,
+    UD2x18 rewardPortion,
     address indexed recipient
   );
 
@@ -18,7 +19,6 @@ contract PhaseManagerTest is Test {
   PhaseManagerHarness public auction;
 
   uint8 public auctionPhases = 2;
-  uint32 public auctionDuration = 3 hours;
 
   /* ============ SetUp ============ */
   function setUp() public {
@@ -28,73 +28,60 @@ contract PhaseManagerTest is Test {
   /* ============ Getter Functions ============ */
 
   function testGetPhases() public {
-    uint8 _firstPhaseId = 0;
-    uint64 _startTime = uint64(block.timestamp);
-    address _recipient = address(this);
+    UD2x18 _portion0 = UD2x18(uint64(1));
+    address _recipient0 = address(this);
+    auction.setPhase(0, _portion0, _recipient0);
 
-    vm.warp(auctionDuration / 2);
-    uint64 _endTime = uint64(block.timestamp);
-
-    auction.setPhase(_firstPhaseId, _startTime, _endTime, _recipient);
-
-    vm.warp(auctionDuration);
-    uint8 _secondPhaseId = 1;
-    uint64 _secondPhaseEndTime = uint64(block.timestamp);
-
-    auction.setPhase(_secondPhaseId, _endTime, _secondPhaseEndTime, _recipient);
+    UD2x18 _portion1 = UD2x18(uint64(2));
+    address _recipient1 = address(1);
+    auction.setPhase(1, _portion1, _recipient1);
 
     Phase[] memory _phases = auction.getPhases();
-    Phase memory _firstPhase = _phases[0];
+    assertEq(_phases.length, auctionPhases);
 
-    assertEq(_firstPhase.id, _firstPhaseId);
-    assertEq(_firstPhase.startTime, _startTime);
-    assertEq(_firstPhase.endTime, _endTime);
-    assertEq(_firstPhase.recipient, _recipient);
+    Phase memory _phase0 = _phases[0];
 
-    Phase memory _secondPhase = _phases[1];
+    assertEq(_phase0.rewardPortion, _portion0);
+    assertEq(_phase0.recipient, _recipient0);
 
-    assertEq(_secondPhase.id, _secondPhaseId);
-    assertEq(_secondPhase.startTime, _endTime);
-    assertEq(_secondPhase.endTime, _secondPhaseEndTime);
-    assertEq(_secondPhase.recipient, _recipient);
+    Phase memory _phase1 = _phases[1];
+
+    assertEq(_phase1.rewardPortion, _portion1);
+    assertEq(_phase1.recipient, _recipient1);
   }
 
   function testGetPhase() public {
     uint8 _phaseId = 0;
-    uint64 _startTime = uint64(block.timestamp);
+    UD2x18 _portion = UD2x18(uint64(1));
     address _recipient = address(this);
 
-    vm.warp(auctionDuration / 2);
-    uint64 _endTime = uint64(block.timestamp);
-
-    auction.setPhase(_phaseId, _startTime, _endTime, _recipient);
+    auction.setPhase(_phaseId, _portion, _recipient);
 
     Phase memory _phase = auction.getPhase(_phaseId);
 
-    assertEq(_phase.id, _phaseId);
-    assertEq(_phase.startTime, _startTime);
-    assertEq(_phase.endTime, _endTime);
+    assertEq(_phase.rewardPortion, _portion);
     assertEq(_phase.recipient, _recipient);
+  }
+
+  function testGetPhase_ZeroOnInit() public {
+    Phase memory _phase = auction.getPhase(0);
+    assertEq(_phase.rewardPortion, UD2x18(uint64(0)));
+    assertEq(_phase.recipient, address(0));
   }
 
   /* ============ Setters ============ */
 
   function testSetPhase() public {
     uint8 _phaseId = 0;
-    uint64 _startTime = uint64(block.timestamp);
+    UD2x18 _rewardPortion = UD2x18(uint64(1));
     address _recipient = address(this);
 
-    vm.warp(auctionDuration / 2);
-    uint64 _endTime = uint64(block.timestamp);
-
     vm.expectEmit();
-    emit AuctionPhaseSet(_phaseId, _startTime, _endTime, _recipient);
+    emit AuctionPhaseSet(_phaseId, _rewardPortion, _recipient);
 
-    Phase memory _phase = auction.setPhase(_phaseId, _startTime, _endTime, _recipient);
+    Phase memory _phase = auction.setPhase(_phaseId, _rewardPortion, _recipient);
 
-    assertEq(_phase.id, _phaseId);
-    assertEq(_phase.startTime, _startTime);
-    assertEq(_phase.endTime, _endTime);
+    assertEq(_phase.rewardPortion, _rewardPortion);
     assertEq(_phase.recipient, _recipient);
   }
 }

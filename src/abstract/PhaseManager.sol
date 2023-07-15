@@ -1,24 +1,22 @@
-// SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
+
+import { UD2x18 } from "prb-math/UD2x18.sol";
 
 /**
  * @notice Struct representing the phase of an auction.
- * @param id Id of the phase
- * @param startTime Start time of the phase
- * @param endTime End time of the phase
+ * @param rewardPortion Portion of the max reward for the phase
  * @param recipient Recipient of the phase reward
  */
 struct Phase {
-  uint8 id;
-  uint64 startTime;
-  uint64 endTime;
+  UD2x18 rewardPortion;
   address recipient;
 }
 
-contract PhaseManager {
+abstract contract PhaseManager {
   /* ============ Variables ============ */
 
-  /// @notice Array storing phases per id in ascending order.
+  /// @notice Array storing the phases with the index equal to the phase ID
   Phase[] internal _phases;
 
   /* ============ Custom Errors ============ */
@@ -31,23 +29,14 @@ contract PhaseManager {
   /**
    @notice Emitted when a phase is set.
    @param phaseId Id of the phase
-   @param startTime Start time of the phase
-   @param endTime End time of the phase
+   @param rewardPortion Portion of the max reward for the phase
    @param recipient Recipient of the phase reward
    */
   event AuctionPhaseSet(
     uint8 indexed phaseId,
-    uint64 startTime,
-    uint64 endTime,
+    UD2x18 rewardPortion,
     address indexed recipient
   );
-
-  /**
-   * @notice Emitted when an auction phase has completed.
-   * @param phaseId Id of the phase
-   * @param caller Address of the caller
-   */
-  event AuctionPhaseCompleted(uint256 indexed phaseId, address indexed caller);
 
   /* ============ Constructor ============ */
 
@@ -60,7 +49,7 @@ contract PhaseManager {
 
     for (uint8 i = 0; i < _auctionPhases; i++) {
       _phases.push(
-        Phase({ id: i, startTime: uint64(0), endTime: uint64(0), recipient: address(0) })
+        Phase({ rewardPortion: UD2x18.wrap(0), recipient: address(0) })
       );
     }
   }
@@ -78,8 +67,8 @@ contract PhaseManager {
   }
 
   /**
-   * @notice Get phase by id.
-   * @param _phaseId Id of the phase
+   * @notice Get phase by ID.
+   * @param _phaseId ID of the phase
    * @return Phase
    */
   function getPhase(uint256 _phaseId) external view returns (Phase memory) {
@@ -99,8 +88,8 @@ contract PhaseManager {
   }
 
   /**
-   * @notice Get phase by id.
-   * @param _phaseId Id of the phase
+   * @notice Get phase by ID.
+   * @param _phaseId ID of the phase
    * @return Phase
    */
   function _getPhase(uint256 _phaseId) internal view returns (Phase memory) {
@@ -111,29 +100,21 @@ contract PhaseManager {
 
   /**
    * @notice Set phase.
-   * @param _phaseId Id of the phase
-   * @param _startTime Start time of the phase
-   * @param _endTime End time of the phase
+   * @param _phaseId ID of the phase
+   * @param _rewardPortion Portion of the max reward for the phase
    * @param _recipient Recipient of the phase reward
    * @return Phase
    */
   function _setPhase(
     uint8 _phaseId,
-    uint64 _startTime,
-    uint64 _endTime,
+    UD2x18 _rewardPortion,
     address _recipient
   ) internal returns (Phase memory) {
-    Phase memory _phase = Phase({
-      id: _phaseId,
-      startTime: _startTime,
-      endTime: _endTime,
-      recipient: _recipient
-    });
+    _phases[_phaseId].rewardPortion = _rewardPortion;
+    _phases[_phaseId].recipient = _recipient;
 
-    _phases[_phaseId] = _phase;
+    emit AuctionPhaseSet(_phaseId, _rewardPortion, _recipient);
 
-    emit AuctionPhaseSet(_phaseId, _startTime, _endTime, _recipient);
-
-    return _phase;
+    return _phases[_phaseId];
   }
 }
