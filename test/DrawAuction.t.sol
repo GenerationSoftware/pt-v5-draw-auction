@@ -1,191 +1,82 @@
-// SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import { ERC20Mock } from "openzeppelin/mocks/ERC20Mock.sol";
+import { DrawAuctionHarness } from "test/harness/DrawAuctionHarness.sol";
+import { Helpers, RNGInterface, UD2x18, Phase } from "test/helpers/Helpers.t.sol";
 
-import { UD2x18, SD1x18, ConstructorParams, PrizePool, TieredLiquidityDistributor, TwabController } from "v5-prize-pool/PrizePool.sol";
-
-import { DrawAuction } from "src/DrawAuction.sol";
-import { OnlyPhaseManager } from "src/interfaces/IDrawAuction.sol";
-import { Phase } from "src/abstract/PhaseManager.sol";
-import { Helpers, RNGInterface } from "test/helpers/Helpers.t.sol";
+import { RNGAuction } from "local-draw-auction/RNGAuction.sol";
 
 contract DrawAuctionTest is Helpers {
-  /* ============ Events ============ */
-  event AuctionRewardsDistributed(Phase[] phases, uint256 randomNumber, uint256[] rewardAmounts);
-
   /* ============ Variables ============ */
 
-  Phase[] public phases;
-
-  DrawAuction public drawAuction;
-  ERC20Mock public prizeToken;
-  PrizePool public prizePool;
+  DrawAuctionHarness public drawAuction;
+  RNGAuction public rngAuction;
   RNGInterface public rng;
 
-  uint32 public auctionDuration = 3 hours;
-  uint32 public rngTimeOut = 1 hours;
-  uint32 public drawPeriodSeconds = 1 days;
-  // uint256 public randomNumber = 123456789;
+  uint64 public auctionDuration = 3 hours;
+  uint8 public auctionPhases = 2;
+  string public auctionName = "Draw Auction Test";
+
   address public recipient = address(this);
 
   function setUp() public {
     vm.warp(0);
 
-    prizeToken = new ERC20Mock();
-    prizePool = PrizePool(makeAddr("prizePool"));
-    vm.etch(address(prizePool), "prizePool");
+    rngAuction = RNGAuction(makeAddr("rngAuction"));
+    vm.etch(address(rngAuction), "rngAuction");
 
-    while (phases.length > 0) {
-      phases.pop();
-    }
+    rng = RNGInterface(makeAddr("rng"));
+    vm.etch(address(rng), "rng");
 
-    rng = RNGInterface(address(1));
-
-    drawAuction = new DrawAuction(prizePool, address(this), auctionDuration);
+    drawAuction = new DrawAuctionHarness(rngAuction, auctionDuration, auctionPhases, auctionName);
   }
 
   /* ============ Getter Functions ============ */
 
-  function testPrizePool() public {
-    assertEq(address(drawAuction.prizePool()), address(prizePool));
+  function testRNGAuction() public {
+    assertEq(address(drawAuction.rngAuction()), address(rngAuction));
   }
 
-  function testPhaseManager() public {
-    assertEq(address(drawAuction.phaseManager()), address(this));
+  function testAuctionDurationSeconds() public {
+    assertEq(drawAuction.auctionDurationSeconds(), auctionDuration);
   }
 
-  /* ============ State Functions ============ */
-
-  function testReward() public {
-    uint64 _warpTimestamp = drawPeriodSeconds + (auctionDuration / 2);
-    vm.warp(_warpTimestamp);
-
-    Phase memory _phase = Phase({
-      id: 0,
-      startTime: 0,
-      endTime: _warpTimestamp,
-      recipient: address(this)
-    });
-
-    mockOpenDrawEndsAt(drawPeriodSeconds);
-    mockReserve(20e18);
-
-    assertEq(drawAuction.reward(_phase), 10e18);
+  function testAuctionName() public {
+    assertEq(drawAuction.auctionName(), auctionName);
   }
 
-  /* ============ completeAuction ============ */
+  /* ============ completeDraw ============ */
 
-  function testCompleteAuction_notPhaseManager() public {
-    vm.expectRevert(abi.encodeWithSelector(OnlyPhaseManager.selector));
-    vm.prank(makeAddr("fake"));
-    drawAuction.completeAuction(phases, 0x1234);
-  }
+  function testCompleteDraw() public {
+    // Warp
+    vm.warp(auctionDuration / 2); // reward portion will be 0.5
 
-  function testCompleteAuction_captureFullReserve() public {
-    vm.warp(10 days);
+    // Variables
+    uint32 _rngRequestId = 1;
+    bool _rngCompleted = true;
+    Phase memory _rngPhaseMock = Phase(UD2x18.wrap(1), address(this));
+    uint256 _randomNumber = 123;
+    address _recipient = address(2);
 
-    uint256 _reserveAmount = 200e18;
+    // Mock Calls
+    _mockRNGAuction_getRNGRequestId(rngAuction, _rngRequestId);
+    _mockRNGAuction_isRNGCompleted(rngAuction, _rngCompleted);
+    _mockRNGAuction_getRNGService(rngAuction, rng);
+    _mockRNGInterface_completedAt(rng, _rngRequestId, 0);
+    _mockPhaseManager_getPhase(rngAuction, 0, _rngPhaseMock);
+    _mockRNGInterface_randomNumber(rng, _rngRequestId, _randomNumber);
 
-    // current time is at the end of the duration
-    uint openDrawEndsAt = block.timestamp - auctionDuration;
+    // Test
+    drawAuction.completeDraw(_recipient);
+    assertEq(drawAuction.lastRandomNumber(), _randomNumber);
+    assertEq(drawAuction.afterCompleteDrawCounter(), 1);
 
-    mockOpenDrawEndsAt(openDrawEndsAt);
-    mockReserve(_reserveAmount);
-    mockCloseDraw(0x1234);
-    mockWithdrawReserve(recipient, _reserveAmount);
-
-    phases.push(
-      Phase({
-        id: 0,
-        startTime: uint64(openDrawEndsAt),
-        endTime: uint64(openDrawEndsAt + auctionDuration),
-        recipient: recipient
-      })
-    );
-
-    uint256[] memory rewards = new uint256[](1);
-    rewards[0] = _reserveAmount;
-
-    vm.expectEmit();
-    emit AuctionRewardsDistributed(phases, 0x1234, rewards);
-    drawAuction.completeAuction(phases, 0x1234);
-  }
-
-  function testCompleteAuction_MultipleRecipients() public {
-    vm.warp(10 days);
-
-    uint256 _reserveAmount = 200e18;
-
-    // current time is at the end of the duration
-    uint openDrawEndsAt = block.timestamp - auctionDuration;
-
-    mockOpenDrawEndsAt(openDrawEndsAt);
-    mockReserve(_reserveAmount);
-    mockCloseDraw(0x1234);
-    mockWithdrawReserve(recipient, _reserveAmount);
-
-    phases.push(
-      Phase({
-        id: 0,
-        startTime: uint64(openDrawEndsAt),
-        endTime: uint64(openDrawEndsAt + auctionDuration / 2),
-        recipient: recipient
-      })
-    );
-
-    phases.push(
-      Phase({
-        id: 1,
-        startTime: uint64(openDrawEndsAt),
-        endTime: uint64(openDrawEndsAt + auctionDuration / 2),
-        recipient: recipient
-      })
-    );
-
-    uint256[] memory rewards = new uint256[](2);
-    rewards[0] = _reserveAmount / 2;
-    rewards[1] = _reserveAmount / 2;
-
-    vm.expectEmit();
-    emit AuctionRewardsDistributed(phases, 0x1234, rewards);
-    drawAuction.completeAuction(phases, 0x1234);
-  }
-
-  function mockOpenDrawEndsAt(uint time) public {
-    vm.mockCall(
-      address(prizePool),
-      abi.encodeWithSelector(prizePool.openDrawEndsAt.selector),
-      abi.encode(time)
-    );
-  }
-
-  function mockReserve(uint reserve) public {
-    vm.mockCall(
-      address(prizePool),
-      abi.encodeWithSelector(prizePool.reserve.selector),
-      abi.encode(reserve)
-    );
-    vm.mockCall(
-      address(prizePool),
-      abi.encodeWithSelector(prizePool.reserveForOpenDraw.selector),
-      abi.encode(0)
-    );
-  }
-
-  function mockCloseDraw(uint _randomNumber) public {
-    vm.mockCall(
-      address(prizePool),
-      abi.encodeWithSelector(prizePool.closeDraw.selector, _randomNumber),
-      abi.encode(1)
-    );
-  }
-
-  function mockWithdrawReserve(address _recipient, uint amount) public {
-    vm.mockCall(
-      address(prizePool),
-      abi.encodeWithSelector(prizePool.withdrawReserve.selector, _recipient, amount),
-      abi.encode()
-    );
+    // Check phases
+    Phase memory _rngPhase = drawAuction.getPhase(0);
+    Phase memory _drawPhase = drawAuction.getPhase(1);
+    assertEq(UD2x18.unwrap(_rngPhase.rewardPortion), UD2x18.unwrap(_rngPhaseMock.rewardPortion));
+    assertEq(_rngPhase.recipient, _rngPhaseMock.recipient);
+    assertEq(UD2x18.unwrap(_drawPhase.rewardPortion), uint64(5e17)); // 0.5
+    assertEq(_drawPhase.recipient, _recipient);
   }
 }

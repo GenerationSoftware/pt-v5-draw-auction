@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import { Phase } from "../abstract/PhaseManager.sol";
+import { Phase } from "local-draw-auction/abstract/PhaseManager.sol";
 
 import { UD2x18 } from "prb-math/UD2x18.sol";
 import { UD60x18, toUD60x18, fromUD60x18 } from "prb-math/UD60x18.sol";
@@ -14,8 +14,11 @@ library RewardLib {
    * @dev This function does not do any checks to see if the elapsed time is greater than the auction duration.
    * @return The reward portion as a UD2x18 fraction
    */
-  function rewardPortion(uint64 _elapsedTime, uint64 _auctionDuration) internal pure returns (UD2x18) {
-    UD2x18.wrap(uint64(toUD60x18(_elapsedTime).div(toUD60x18(_auctionDuration)).unwrap()));
+  function rewardPortion(
+    uint64 _elapsedTime,
+    uint64 _auctionDuration
+  ) internal pure returns (UD2x18) {
+    return UD2x18.wrap(uint64(toUD60x18(_elapsedTime).div(toUD60x18(_auctionDuration)).unwrap()));
   }
 
   /**
@@ -30,7 +33,7 @@ library RewardLib {
   function rewards(
     Phase[] memory _phases,
     uint256 _reserve
-  ) internal view returns (uint256[] memory) {
+  ) internal pure returns (uint256[] memory) {
     uint256 _phasesLength = _phases.length;
     uint256[] memory _rewards = new uint256[](_phasesLength);
     for (uint256 i; i < _phasesLength; i++) {
@@ -47,10 +50,7 @@ library RewardLib {
    * @param _reserve Reserve available for the reward
    * @return Reward amount
    */
-  function reward(
-    Phase memory _phase,
-    uint256 _reserve
-  ) internal view returns (uint256) {
+  function reward(Phase memory _phase, uint256 _reserve) internal pure returns (uint256) {
     if (_phase.recipient == address(0)) return 0;
     if (_reserve == 0) return 0;
     return fromUD60x18(UD60x18.wrap(UD2x18.unwrap(_phase.rewardPortion)).mul(toUD60x18(_reserve)));

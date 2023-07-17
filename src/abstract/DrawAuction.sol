@@ -4,22 +4,21 @@ pragma solidity 0.8.17;
 import { RNGInterface } from "rng/RNGInterface.sol";
 import { UD2x18 } from "prb-math/UD2x18.sol";
 
-import { PhaseManager, Phase } from "./abstract/PhaseManager.sol";
-import { RewardLib } from "./libraries/RewardLib.sol";
-import { RNGAuction } from "./RNGAuction.sol";
+import { PhaseManager, Phase } from "local-draw-auction/abstract/PhaseManager.sol";
+import { RewardLib } from "local-draw-auction/libraries/RewardLib.sol";
+import { RNGAuction } from "local-draw-auction/RNGAuction.sol";
 
 /**
  * @title   PoolTogether V5 DrawAuction
  * @author  Generation Software Team
  * @notice  The DrawAuction uses an auction mechanism to incentivize the completion of the Draw.
- *          There is a draw auction for each prize pool. The draw auction starts when the new 
+ *          There is a draw auction for each prize pool. The draw auction starts when the new
  *          random number is available for the current draw.
- * @dev     This contract runs synchronously with the RNGAuction contract, waiting till the RNG 
- *          auction is complete and the random number is available before starting the draw 
+ * @dev     This contract runs synchronously with the RNGAuction contract, waiting till the RNG
+ *          auction is complete and the random number is available before starting the draw
  *          auction.
  */
 abstract contract DrawAuction is PhaseManager {
-
   /* ============ Constants ============ */
 
   /// @notice The RNG Auction to get the random number from
@@ -28,14 +27,14 @@ abstract contract DrawAuction is PhaseManager {
   /// @notice The auction duration in seconds
   uint64 public immutable auctionDurationSeconds;
 
-  /// @notice The name of the draw auction
-  /// @dev This is used to help identify draw auctions since all chains have a draw auction on L1.
-  string public immutable auctionName;
-
   /* ============ Variables ============ */
 
   /// @notice The RNG request ID that was used in the last auction
   uint32 internal _lastRNGRequestId;
+
+  /// @notice The name of the draw auction
+  /// @dev This is used to help identify draw auctions since all chains have a draw auction on L1.
+  string internal _auctionName;
 
   /* ============ Custom Errors ============ */
 
@@ -45,7 +44,7 @@ abstract contract DrawAuction is PhaseManager {
   /// @notice Thrown if the RNGAuction address is the zero address.
   error RNGAuctionZeroAddress();
 
-  /// @notice Thrown if there are less than the minumum.
+  /// @notice Thrown if there are less auction phases than the minumum.
   error TooFewAuctionPhases(uint8 auctionPhases, uint8 minAuctionPhases);
 
   /// @notice Thrown if the current draw is already completed.
@@ -66,7 +65,12 @@ abstract contract DrawAuction is PhaseManager {
    * @param rngRequestId The ID of the RNG request that was used for the random number
    * @param rewardPortion The portion of the available reserve that will be rewarded
    */
-  event DrawAuctionCompleted(address indexed completedBy, address indexed rewardRecipient, uint32 rngRequestId, UD2x18 rewardPortion);
+  event DrawAuctionCompleted(
+    address indexed completedBy,
+    address indexed rewardRecipient,
+    uint32 rngRequestId,
+    UD2x18 rewardPortion
+  );
 
   /* ============ Constructor ============ */
 
@@ -79,19 +83,27 @@ abstract contract DrawAuction is PhaseManager {
    */
   constructor(
     RNGAuction rngAuction_,
-    uint64 auctionDurationSeconds_
-    uint8 auctionPhases_
-    string auctionName_
+    uint64 auctionDurationSeconds_,
+    uint8 auctionPhases_,
+    string memory auctionName_
   ) PhaseManager(auctionPhases_) {
     if (address(rngAuction_) == address(0)) revert RNGAuctionZeroAddress();
     if (auctionDurationSeconds_ == 0) revert AuctionDurationZero();
     if (auctionPhases_ < 2) revert TooFewAuctionPhases(auctionPhases_, 2);
     rngAuction = rngAuction_;
     auctionDurationSeconds = auctionDurationSeconds_;
-    auctionName = auctionName_;
+    _auctionName = auctionName_;
   }
 
   /* ============ External Functions ============ */
+
+  /**
+   * @notice Gets the auction name
+   * @return string The draw auction name
+   */
+  function auctionName() external view returns (string memory) {
+    return _auctionName;
+  }
 
   /**
    * @notice Completes the current draw with the random number from the RNGAuction.
@@ -100,7 +112,7 @@ abstract contract DrawAuction is PhaseManager {
   function completeDraw(address _rewardRecipient) external {
     uint32 _rngRequestId = rngAuction.getRNGRequestId();
     if (_rngRequestId == _lastRNGRequestId) revert DrawAlreadyCompleted();
-    if (!rngAuction.isRNGCompleted()) revert RNGNotCompleted(); 
+    if (!rngAuction.isRNGCompleted()) revert RNGNotCompleted();
 
     RNGInterface _rng = rngAuction.getRNGService();
     uint64 _auctionElapsedSeconds = uint64(block.timestamp) - _rng.completedAt(_rngRequestId);
@@ -109,7 +121,7 @@ abstract contract DrawAuction is PhaseManager {
     // Copy the rng auction phase data to this phase array
     Phase memory rngStartPhase = rngAuction.getPhase(0);
     _setPhase(0, rngStartPhase.rewardPortion, rngStartPhase.recipient);
-    
+
     // Calculate the reward portion and set the draw auction phase
     UD2x18 _rewardPortion = RewardLib.rewardPortion(_auctionElapsedSeconds, auctionDurationSeconds);
     _setPhase(1, _rewardPortion, _rewardRecipient);
@@ -126,9 +138,7 @@ abstract contract DrawAuction is PhaseManager {
    * @dev Override this in a parent contract to send the random number and auction results to
    * the DrawController or to add more phases if needed for multi-stage bridging.
    */
-  function _afterCompleteDraw(
-    uint256 _randomNumber,
-  ) internal virtual {}
+  function _afterCompleteDraw(uint256 _randomNumber) internal virtual {}
 
   /**
    * @notice Computes if the current draw can be completed.
@@ -137,13 +147,10 @@ abstract contract DrawAuction is PhaseManager {
    */
   function canCompleteDraw() external view returns (bool) {
     RNGInterface _rng = rngAuction.getRNGService();
-    uint32 _requestId = rngAuction.getRNGRequestId();
+    uint32 _rngRequestId = rngAuction.getRNGRequestId();
     uint64 _auctionElapsedSeconds = uint64(block.timestamp) - _rng.completedAt(_rngRequestId);
-    return  (
-      _requestId != _lastRNGRequestId
-      && rngAuction.isRNGCompleted()
-      && _auctionElapsedSeconds <= auctionDurationSeconds
-    );
+    return (_rngRequestId != _lastRNGRequestId &&
+      rngAuction.isRNGCompleted() &&
+      _auctionElapsedSeconds <= auctionDurationSeconds);
   }
-
 }

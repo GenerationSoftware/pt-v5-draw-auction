@@ -8,13 +8,14 @@ import { RNGInterface } from "rng/RNGInterface.sol";
 import { UD2x18 } from "prb-math/UD2x18.sol";
 import { UD60x18, toUD60x18, fromUD60x18 } from "prb-math/UD60x18.sol";
 
-import { RewardLib } from "./libraries/RewardLib.sol";
+import { RewardLib } from "local-draw-auction/libraries/RewardLib.sol";
+import { PhaseManager } from "local-draw-auction/abstract/PhaseManager.sol";
 
 /**
  * @title PoolTogether V5 RNGAuction
  * @author Generation Software Team
  * @notice The RNGAuction allows anyone to request a new random number using the RNG service set.
- *         The auction is a single phase that incetivises RNG requests to be started in-sync with 
+ *         The auction is a single phase that incetivises RNG requests to be started in-sync with
  *         prize pool draw periods across all chains. DrawAuction contracts per-chain will then
  *         auction off the remaining phases to complete the active draw and bridge the random
  *         number along with the auction information.
@@ -30,7 +31,7 @@ contract RNGAuction is PhaseManager, Ownable {
    * @param lockBlock   The block number at which the RNG service will start generating time-delayed randomness
    * @param drawWindow  Draw window identifier that the RNG was requested during.
    * @param requestedAt Time at which the RNG was requested
-   * @dev   The `drawWindow` value should not be assumed to be the same as a prize pool drawId even though the 
+   * @dev   The `drawWindow` value should not be assumed to be the same as a prize pool drawId even though the
    *        timing of the auctions are designed to align as best as possible.
    */
   struct RNGRequest {
@@ -93,7 +94,7 @@ contract RNGAuction is PhaseManager, Ownable {
 
   /**
    * @notice Emitted when the auction duration is updated.
-   * @param auctionDucationSeconds The new auction duration in seconds
+   * @param auctionDurationSeconds The new auction duration in seconds
    */
   event SetAuctionDuration(uint64 auctionDurationSeconds);
 
@@ -104,7 +105,12 @@ contract RNGAuction is PhaseManager, Ownable {
    * @param rngRequestId ID of the RNG request
    * @param rewardPortion The portion of the available reserves that will be rewarded
    */
-  event RNGAuctionCompleted(uint32 indexed rngRequestId, uint32 rngLockBlock);
+  event RNGAuctionCompleted(
+    address indexed completedBy,
+    address indexed rewardRecipient,
+    uint32 indexed rngRequestId,
+    UD2x18 rewardPortion
+  );
 
   /**
    * @notice Emitted when the RNG service address is set.
@@ -147,7 +153,7 @@ contract RNGAuction is PhaseManager, Ownable {
   /* ============ External Functions ============ */
 
   /**
-   * @notice  Starts the RNG Request, ends the current auction, and stores the reward portion to 
+   * @notice  Starts the RNG Request, ends the current auction, and stores the reward portion to
    *          be allocated to the recipient.
    * @dev     Will revert if the current RNG auction has already been closed or elapsed.
    * @dev     If the RNG Service request a `feeToken` for payment, the RNG-Request-Fee is expected
@@ -171,7 +177,10 @@ contract RNGAuction is PhaseManager, Ownable {
     _rngRequest.drawWindow = _currentDrawWindow();
     _rngRequest.requestedAt = _currentTime();
 
-    UD2x18 _rewardPortion = RewardLib.rewardPortion(_auctionElapsedSeconds, _auctionDurationSeconds);
+    UD2x18 _rewardPortion = RewardLib.rewardPortion(
+      _auctionElapsedSeconds,
+      _auctionDurationSeconds
+    );
     _setPhase(0, _rewardPortion, _rewardRecipient);
 
     emit RNGAuctionCompleted(msg.sender, _rewardRecipient, _requestId, _rewardPortion);
@@ -252,7 +261,7 @@ contract RNGAuction is PhaseManager, Ownable {
    * @return The draw period duration in seconds
    */
   function getDrawPeriod() external view returns (uint64) {
-    return _drawPeriod;
+    return _drawPeriodSeconds;
   }
 
   /**
@@ -279,7 +288,7 @@ contract RNGAuction is PhaseManager, Ownable {
    * @notice Sets the auction duration
    * @param auctionDurationSeconds_ The new auction duration in seconds
    */
-  function _setAuctionDuration(uint64 auctionDurationSeconds_) external onlyOwner {
+  function setAuctionDuration(uint64 auctionDurationSeconds_) external onlyOwner {
     _setAuctionDuration(auctionDurationSeconds_);
   }
 
@@ -342,7 +351,8 @@ contract RNGAuction is PhaseManager, Ownable {
    */
   function _setAuctionDuration(uint64 auctionDurationSeconds_) internal {
     if (auctionDurationSeconds_ == 0) revert AuctionDurationZero();
-    if (auctionDurationSeconds_ >= _drawPeriodSeconds) revert AuctionDuration_GTE_DrawPeriod(auctionDuration_, _drawPeriodSeconds);
+    if (auctionDurationSeconds_ >= _drawPeriodSeconds)
+      revert AuctionDuration_GTE_DrawPeriod(auctionDurationSeconds_, _drawPeriodSeconds);
     _auctionDurationSeconds = auctionDurationSeconds_;
     emit SetAuctionDuration(_auctionDurationSeconds);
   }

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
 import "forge-std/Test.sol";
@@ -7,117 +7,73 @@ import { PrizePool, TieredLiquidityDistributor } from "v5-prize-pool/PrizePool.s
 import { RNGInterface } from "rng/RNGInterface.sol";
 import { UD2x18 } from "prb-math/UD2x18.sol";
 
-import { Phase } from "src/abstract/PhaseManager.sol";
+import { Phase, PhaseManager } from "local-draw-auction/abstract/PhaseManager.sol";
+import { RNGAuction } from "local-draw-auction/RNGAuction.sol";
 
 contract Helpers is Test {
-  /* ============ Mock Functions ============ */
+  /* ============ RNGAuction ============ */
 
-  /* ============ RNGRequestor ============ */
-  function _mockGetRequestFee(address _rng, address _feeToken, uint256 _requestFee) internal {
+  function _mockRNGAuction_getRNGRequestId(RNGAuction _rngAuction, uint32 _requestId) internal {
     vm.mockCall(
-      _rng,
-      abi.encodeWithSelector(RNGInterface.getRequestFee.selector),
-      abi.encode(_feeToken, _requestFee)
+      address(_rngAuction),
+      abi.encodeWithSelector(RNGAuction.getRNGRequestId.selector),
+      abi.encode(_requestId)
     );
   }
 
-  function _mockRequestRandomNumber(address _rng, uint32 _requestId, uint32 _lockBlock) internal {
+  function _mockRNGAuction_isRNGCompleted(RNGAuction _rngAuction, bool _isCompleted) internal {
     vm.mockCall(
-      _rng,
-      abi.encodeWithSelector(RNGInterface.requestRandomNumber.selector),
-      abi.encode(_requestId, _lockBlock)
+      address(_rngAuction),
+      abi.encodeWithSelector(RNGAuction.isRNGCompleted.selector),
+      abi.encode(_isCompleted)
     );
   }
 
-  function _mockStartRNGRequest(
-    address _rng,
-    address _feeToken,
-    uint256 _requestFee,
-    uint32 _requestId,
-    uint32 _lockBlock
-  ) internal {
-    _mockGetRequestFee(_rng, _feeToken, _requestFee);
-    _mockRequestRandomNumber(_rng, _requestId, _lockBlock);
+  function _mockRNGAuction_getRNGService(RNGAuction _rngAuction, RNGInterface _rng) internal {
+    vm.mockCall(
+      address(_rngAuction),
+      abi.encodeWithSelector(RNGAuction.getRNGService.selector),
+      abi.encode(_rng)
+    );
   }
 
-  function _mockIsRequestComplete(
-    address _rng,
-    uint32 _requestId,
-    bool _isRequestComplete
+  /* ============ PhaseManager ============ */
+
+  function _mockPhaseManager_getPhase(
+    PhaseManager _phaseManager,
+    uint256 _phaseId,
+    Phase memory _phase
   ) internal {
     vm.mockCall(
-      _rng,
-      abi.encodeWithSelector(RNGInterface.isRequestComplete.selector, _requestId),
-      abi.encode(_isRequestComplete)
+      address(_phaseManager),
+      abi.encodeWithSelector(PhaseManager.getPhase.selector, _phaseId),
+      abi.encode(_phase)
     );
   }
 
-  function _mockRandomNumber(address _rng, uint32 _requestId, uint256 _randomNumber) internal {
-    vm.mockCall(
-      _rng,
-      abi.encodeWithSelector(RNGInterface.randomNumber.selector, _requestId),
-      abi.encode(_randomNumber)
-    );
-  }
+  /* ============ RNGInterface ============ */
 
-  function _mockCompletedAt(address _rng, uint32 _requestId, uint64 _completedAt) internal {
+  function _mockRNGInterface_completedAt(
+    RNGInterface _rng,
+    uint32 _requestId,
+    uint64 _completedAt
+  ) internal {
     vm.mockCall(
-      _rng,
+      address(_rng),
       abi.encodeWithSelector(RNGInterface.completedAt.selector, _requestId),
       abi.encode(_completedAt)
     );
   }
 
-  function _mockCompleteRNGRequest(
-    address _rng,
+  function _mockRNGInterface_randomNumber(
+    RNGInterface _rng,
     uint32 _requestId,
     uint256 _randomNumber
   ) internal {
-    _mockIsRequestComplete(_rng, _requestId, true);
-    _mockRandomNumber(_rng, _requestId, _randomNumber);
-    _mockCompletedAt(_rng, _requestId, uint64(block.timestamp));
-  }
-
-  /* ============ PrizePool ============ */
-  function _mockReserve(address _prizePool, uint256 _amount) internal {
     vm.mockCall(
-      _prizePool,
-      abi.encodeWithSelector(TieredLiquidityDistributor.reserve.selector),
-      abi.encode(_amount)
+      address(_rng),
+      abi.encodeWithSelector(RNGInterface.randomNumber.selector, _requestId),
+      abi.encode(_randomNumber)
     );
-  }
-
-  function _mockReserveForOpenDraw(address _prizePool, uint256 _amount) internal {
-    vm.mockCall(
-      _prizePool,
-      abi.encodeWithSelector(PrizePool.reserveForOpenDraw.selector),
-      abi.encode(_amount)
-    );
-  }
-
-  function _mockReserves(address _prizePool, uint256 _reserveAmount) internal {
-    uint256 _amount = _reserveAmount / 2;
-
-    _mockReserve(_prizePool, _amount);
-    _mockReserveForOpenDraw(_prizePool, _amount);
-  }
-
-  /* ============ Computations ============ */
-
-  function _computeReward(
-    uint64 _elapsedTime,
-    uint256 _reserve,
-    uint32 _auctionDuration
-  ) internal pure returns (uint256) {
-    return (_elapsedTime * _reserve) / _auctionDuration;
-  }
-
-  /* ============ Getters ============ */
-
-  function _getPhase(
-    UD2x18 _rewardPortion,
-    address _recipient
-  ) internal pure returns (Phase memory) {
-    return Phase({ rewardPortion: _rewardPortion, recipient: _recipient });
   }
 }

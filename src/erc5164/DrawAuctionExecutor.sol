@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import { ExecutorAware } from "../abstract/ExecutorAware.sol";
-import { Phase } from "../abstract/PhaseManager.sol";
-import { DrawManager } from "../DrawManager.sol";
+import { ExecutorAware } from "local-draw-auction/abstract/ExecutorAware.sol";
+import { Phase } from "local-draw-auction/abstract/PhaseManager.sol";
+import { DrawManager } from "local-draw-auction/DrawManager.sol";
 
 contract DrawAuctionExecutor is ExecutorAware {
   /* ============ Events ============ */

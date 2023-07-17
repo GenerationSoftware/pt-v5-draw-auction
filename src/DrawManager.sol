@@ -4,8 +4,8 @@ pragma solidity 0.8.17;
 import { Ownable } from "owner-manager/Ownable.sol";
 import { PrizePool } from "v5-prize-pool/PrizePool.sol";
 
-import { Phase } from "../abstract/PhaseManager.sol";
-import { RewardLib } from "../libraries/RewardLib.sol";
+import { Phase } from "local-draw-auction/abstract/PhaseManager.sol";
+import { RewardLib } from "local-draw-auction/libraries/RewardLib.sol";
 
 /**
  * @title PoolTogether V5 DrawManager
@@ -14,11 +14,10 @@ import { RewardLib } from "../libraries/RewardLib.sol";
  * and awards the auction phase recipients with rewards from the prize pool reserve.
  */
 contract DrawManager is Ownable {
-
   /* ============ Constants ============ */
 
   /// @notice The prize pool to manage draws for
-  address public immutable prizePool;
+  PrizePool public immutable prizePool;
 
   /* ============ Variables ============ */
 
@@ -58,11 +57,7 @@ contract DrawManager is Ownable {
    * @param drawCloser_ Address allowed to close draws
    * @param owner_ Owner of this contract
    */
-  constructor(
-    PrizePool prizePool_,
-    address drawCloser_,
-    address owner_
-  ) Ownable(owner_) {
+  constructor(PrizePool prizePool_, address drawCloser_, address owner_) Ownable(owner_) {
     if (address(prizePool_) == address(0)) revert PrizePoolZeroAddress();
     _setDrawCloser(drawCloser_);
     prizePool = prizePool_;
@@ -85,10 +80,10 @@ contract DrawManager is Ownable {
 
     uint256[] memory _rewards = RewardLib.rewards(_auctionPhases, prizePool.reserve());
 
-    for (uint i = 0; i < _rewards.length; i++) {
+    for (uint8 i = 0; i < _rewards.length; i++) {
       uint104 _reward = uint104(_rewards[i]);
       prizePool.withdrawReserve(_auctionPhases[i].recipient, _reward);
-      emit AuctionRewardDistributed(_auctionPhases[i].recipient, i, _reward)
+      emit AuctionRewardDistributed(_auctionPhases[i].recipient, i, _reward);
     }
   }
 
@@ -96,7 +91,7 @@ contract DrawManager is Ownable {
    * @notice Getter for the draw closer address.
    * @return The draw closer address
    */
-  function drawCloser() external returns (address) {
+  function drawCloser() external view returns (address) {
     return _drawCloser;
   }
 
@@ -116,7 +111,7 @@ contract DrawManager is Ownable {
    * @param drawCloser_ The new draw closer address
    */
   function _setDrawCloser(address drawCloser_) internal {
-    if (address(drawCloser_) == address(0)) revert DrawCloserZeroAddresss();
+    if (address(drawCloser_) == address(0)) revert DrawCloserZeroAddress();
     _drawCloser = drawCloser_;
   }
 }

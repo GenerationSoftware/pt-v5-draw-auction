@@ -3,7 +3,9 @@ pragma solidity 0.8.17;
 
 import { RNGInterface } from "rng/RNGInterface.sol";
 
-import { DrawManager } from "./DrawManager.sol";
+import { RNGAuction } from "local-draw-auction/RNGAuction.sol";
+import { DrawManager } from "local-draw-auction/DrawManager.sol";
+import { DrawAuction } from "local-draw-auction/abstract/DrawAuction.sol";
 
 /**
  * @title   PoolTogether V5 DirectDrawAuction
@@ -12,7 +14,6 @@ import { DrawManager } from "./DrawManager.sol";
  *          pool on the same chain.
  */
 contract DirectDrawAuction is DrawAuction {
-
   /* ============ Constants ============ */
 
   /// @notice The DrawManager to send the auction results to
@@ -35,8 +36,8 @@ contract DirectDrawAuction is DrawAuction {
   constructor(
     DrawManager drawManager_,
     RNGAuction rngAuction_,
-    uint64 auctionDurationSeconds_
-    string auctionName_
+    uint64 auctionDurationSeconds_,
+    string memory auctionName_
   ) DrawAuction(rngAuction_, auctionDurationSeconds_, 2, auctionName_) {
     if (address(drawManager_) == address(0)) revert DrawManagerZeroAddress();
     drawManager = drawManager_;
@@ -51,5 +52,4 @@ contract DirectDrawAuction is DrawAuction {
   function _afterCompleteDraw(uint256 _randomNumber) internal override {
     drawManager.closeDraw(_randomNumber, _getPhases());
   }
-
 }

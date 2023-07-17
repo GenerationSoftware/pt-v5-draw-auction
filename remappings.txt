@@ -9,3 +9,4 @@ prb-math/=lib/prb-math/src/
 v5-prize-pool/=lib/pt-v5-prize-pool/src/
 
 test/=test/
+local-draw-auction/=src/
