@@ -57,9 +57,12 @@ contract RNGAuction is PhaseManager, Ownable {
   /// @dev This will always be greater than the auction duration.
   uint64 internal _drawPeriodSeconds;
 
-  /// @notice Offset of the draw period in seconds
-  /// @dev If the next draw period starts at unix timestamp `t`, then a valid offset is equal to `t % _drawPeriodSeconds`.
-  /// @dev If the offset is set to some point in the future, some calculations will fail until that time, effectively preventing any auctions until then.
+  /**
+   * @notice Offset of the draw period in seconds
+   * @dev If the next draw period starts at unix timestamp `t`, then a valid offset is equal to `t % _drawPeriodSeconds`.
+   * @dev If the offset is set to some point in the future, some calculations will fail until that time, effectively
+   * preventing any auctions until then.
+   */
   uint64 internal _drawPeriodOffset;
 
   /// @notice Identifier of the last draw window that had a completed RNG auction
@@ -307,7 +310,10 @@ contract RNGAuction is PhaseManager, Ownable {
    * @return The current draw window ID.
    */
   function _currentDrawWindow() internal view returns (uint32) {
-    // Use integer division to calculate a unique ID based off the current timestamp that will remain the same throughout the entire draw period
+    /**
+     * Use integer division to calculate a unique ID based off the current timestamp that will remain the same
+     * throughout the entire draw period.
+     */
     return uint32((_currentTime() - _drawPeriodOffset) / _drawPeriodSeconds);
   }
 
