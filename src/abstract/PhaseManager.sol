@@ -32,11 +32,7 @@ abstract contract PhaseManager {
    @param rewardPortion Portion of the max reward for the phase
    @param recipient Recipient of the phase reward
    */
-  event AuctionPhaseSet(
-    uint8 indexed phaseId,
-    UD2x18 rewardPortion,
-    address indexed recipient
-  );
+  event AuctionPhaseSet(uint8 indexed phaseId, UD2x18 rewardPortion, address indexed recipient);
 
   /* ============ Constructor ============ */
 
@@ -48,9 +44,7 @@ abstract contract PhaseManager {
     if (_auctionPhases == 0) revert AuctionPhasesNotZero();
 
     for (uint8 i = 0; i < _auctionPhases; i++) {
-      _phases.push(
-        Phase({ rewardPortion: UD2x18.wrap(0), recipient: address(0) })
-      );
+      _phases.push(Phase({ rewardPortion: UD2x18.wrap(0), recipient: address(0) }));
     }
   }
 
