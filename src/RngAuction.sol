@@ -12,15 +12,15 @@ import { RewardLib } from "local-draw-auction/libraries/RewardLib.sol";
 import { PhaseManager } from "local-draw-auction/abstract/PhaseManager.sol";
 
 /**
- * @title PoolTogether V5 RNGAuction
+ * @title PoolTogether V5 RngAuction
  * @author Generation Software Team
- * @notice The RNGAuction allows anyone to request a new random number using the RNG service set.
+ * @notice The RngAuction allows anyone to request a new random number using the RNG service set.
  *         The auction is a single phase that incetivises RNG requests to be started in-sync with
  *         prize pool draw periods across all chains. DrawAuction contracts per-chain will then
  *         auction off the remaining phases to complete the active draw and bridge the random
  *         number along with the auction information.
  */
-contract RNGAuction is PhaseManager, Ownable {
+contract RngAuction is PhaseManager, Ownable {
   using SafeERC20 for IERC20;
 
   /* ============ Structs ============ */
@@ -34,7 +34,7 @@ contract RNGAuction is PhaseManager, Ownable {
    * @dev   The `drawWindow` value should not be assumed to be the same as a prize pool drawId even though the
    *        timing of the auctions are designed to align as best as possible.
    */
-  struct RNGRequest {
+  struct RngRequest {
     uint32 id;
     uint32 lockBlock;
     uint32 drawWindow;
@@ -47,7 +47,7 @@ contract RNGAuction is PhaseManager, Ownable {
   RNGInterface internal _rng;
 
   /// @notice Current RNG Request
-  RNGRequest internal _rngRequest;
+  RngRequest internal _rngRequest;
 
   /// @notice Duration of the auction in seconds
   /// @dev This will always be less than the draw period since the auction needs to complete each period.
@@ -82,16 +82,16 @@ contract RNGAuction is PhaseManager, Ownable {
    * @param auctionDuration The auction duration in seconds
    * @param drawPeriod The draw period in seconds
    */
-  error AuctionDuration_GTE_DrawPeriod(uint64 auctionDuration, uint64 drawPeriod);
+  error AuctionDurationGteDrawPeriod(uint64 auctionDuration, uint64 drawPeriod);
 
   /// @notice Thrown when the RNG address passed to the setter function is zero address.
-  error RNGZeroAddress();
+  error RngZeroAddress();
 
   /// @notice Thrown if an RNG request has already been made for the current draw period.
-  error RNGAlreadyStarted();
+  error RngAlreadyStarted();
 
   /// @notice Thrown if the RNG auction duration has completely elapsed for the current draw period.
-  error RNGAuctionExpired();
+  error RngAuctionExpired();
 
   /* ============ Events ============ */
 
@@ -108,7 +108,7 @@ contract RNGAuction is PhaseManager, Ownable {
    * @param rngRequestId ID of the RNG request
    * @param rewardPortion The portion of the available reserves that will be rewarded
    */
-  event RNGAuctionCompleted(
+  event RngAuctionCompleted(
     address indexed completedBy,
     address indexed rewardRecipient,
     uint32 indexed rngRequestId,
@@ -119,14 +119,14 @@ contract RNGAuction is PhaseManager, Ownable {
    * @notice Emitted when the RNG service address is set.
    * @param rngService RNG service address
    */
-  event RNGServiceSet(RNGInterface indexed rngService);
+  event RngServiceSet(RNGInterface indexed rngService);
 
   /* ============ Constructor ============ */
 
   /**
-   * @notice Deploy the RNGAuction smart contract.
+   * @notice Deploy the RngAuction smart contract.
    * @param rng_ Address of the RNG service
-   * @param owner_ Address of the RNGAuction owner
+   * @param owner_ Address of the RngAuction owner
    * @param drawPeriodSeconds_ Draw period in seconds
    * @param drawPeriodOffset_ Draw period offset in seconds
    * @param auctionDurationSeconds_ Auction duration in seconds
@@ -142,14 +142,14 @@ contract RNGAuction is PhaseManager, Ownable {
     _drawPeriodSeconds = drawPeriodSeconds_;
     _drawPeriodOffset = drawPeriodOffset_;
     _setAuctionDuration(auctionDurationSeconds_);
-    _setRNGService(rng_);
+    _setRngService(rng_);
   }
 
   /* ============ Modifiers ============ */
 
   /// @notice Reverts if an RNG request has been started for the current draw period.
-  modifier requireRNGNotRequested() {
-    if (_isRNGRequested()) revert RNGAlreadyStarted();
+  modifier requireRngNotRequested() {
+    if (_isRngRequested()) revert RngAlreadyStarted();
     _;
   }
 
@@ -163,10 +163,10 @@ contract RNGAuction is PhaseManager, Ownable {
    *          to be held within this contract before calling this function.
    * @param _rewardRecipient Address that will receive the auction reward for starting the RNG request
    */
-  function startRNGRequest(address _rewardRecipient) external requireRNGNotRequested {
+  function startRngRequest(address _rewardRecipient) external requireRngNotRequested {
     // Calculate the elapsed auction time by taking the remainder of the current time over the draw period.
     uint64 _auctionElapsedSeconds = _rngAuctionElapsedTime();
-    if (_auctionElapsedSeconds > _auctionDurationSeconds) revert RNGAuctionExpired();
+    if (_auctionElapsedSeconds > _auctionDurationSeconds) revert RngAuctionExpired();
 
     (address _feeToken, uint256 _requestFee) = _rng.getRequestFee();
 
@@ -186,7 +186,7 @@ contract RNGAuction is PhaseManager, Ownable {
     );
     _setPhase(0, _rewardPortion, _rewardRecipient);
 
-    emit RNGAuctionCompleted(msg.sender, _rewardRecipient, _requestId, _rewardPortion);
+    emit RngAuctionCompleted(msg.sender, _rewardRecipient, _requestId, _rewardPortion);
   }
 
   /* ============ State Functions ============ */
@@ -195,16 +195,16 @@ contract RNGAuction is PhaseManager, Ownable {
    * @notice Returns whether the RNG request has been started for the current draw period.
    * @return True if the RNG request has been started, false otherwise.
    */
-  function isRNGRequested() external view returns (bool) {
-    return _isRNGRequested();
+  function isRngRequested() external view returns (bool) {
+    return _isRngRequested();
   }
 
   /**
    * @notice Returns whether the RNG request has completed or not for the current draw window.
    * @return True if the RNG request has completed, false otherwise.
    */
-  function isRNGCompleted() external view returns (bool) {
-    return _isRNGCompleted();
+  function isRngCompleted() external view returns (bool) {
+    return _isRngCompleted();
   }
 
   /**
@@ -212,8 +212,8 @@ contract RNGAuction is PhaseManager, Ownable {
    * @return True if the RNG auction is still open, false otherwise.
    * @dev Use this to determine if you can still start the RNG request for the current draw period.
    */
-  function isRNGAuctionOpen() external view returns (bool) {
-    return !_isRNGRequested() && _rngAuctionElapsedTime() <= _auctionDurationSeconds;
+  function isRngAuctionOpen() external view returns (bool) {
+    return !_isRngRequested() && _rngAuctionElapsedTime() <= _auctionDurationSeconds;
   }
 
   /**
@@ -230,7 +230,7 @@ contract RNGAuction is PhaseManager, Ownable {
    * @notice Returns the current RNG request.
    * @return The current RNG request data
    */
-  function getRNGRequest() external view returns (RNGRequest memory) {
+  function getRngRequest() external view returns (RngRequest memory) {
     return _rngRequest;
   }
 
@@ -239,7 +239,7 @@ contract RNGAuction is PhaseManager, Ownable {
    * @dev Will return 0 if there is no RNG request in progress.
    * @return ID of the current RNG request
    */
-  function getRNGRequestId() external view returns (uint32) {
+  function getRngRequestId() external view returns (uint32) {
     return _rngRequest.id;
   }
 
@@ -247,7 +247,7 @@ contract RNGAuction is PhaseManager, Ownable {
    * @notice Returns the RNG service used to generate random numbers.
    * @return RNG service instance
    */
-  function getRNGService() external view returns (RNGInterface) {
+  function getRngService() external view returns (RNGInterface) {
     return _rng;
   }
 
@@ -283,8 +283,8 @@ contract RNGAuction is PhaseManager, Ownable {
    * @dev Will revert if an RNG request is in progress (if the auction is open, then there is no active RNG request).
    * @param _rngService Address of the new RNG service
    */
-  function setRNGService(RNGInterface _rngService) external onlyOwner requireRNGNotRequested {
-    _setRNGService(_rngService);
+  function setRngService(RNGInterface _rngService) external onlyOwner requireRngNotRequested {
+    _setRngService(_rngService);
   }
 
   /**
@@ -329,7 +329,7 @@ contract RNGAuction is PhaseManager, Ownable {
    * @notice Returns whether the RNG request has been started for the current draw period.
    * @return True if the RNG request has been started, false otherwise.
    */
-  function _isRNGRequested() internal view returns (bool) {
+  function _isRngRequested() internal view returns (bool) {
     return _rngRequest.drawWindow == _currentDrawWindow();
   }
 
@@ -337,18 +337,18 @@ contract RNGAuction is PhaseManager, Ownable {
    * @notice Returns whether the RNG request has completed or not for the current draw window.
    * @return True if the RNG request has completed, false otherwise.
    */
-  function _isRNGCompleted() internal view returns (bool) {
-    return _isRNGRequested() && _rng.isRequestComplete(_rngRequest.id);
+  function _isRngCompleted() internal view returns (bool) {
+    return _isRngRequested() && _rng.isRequestComplete(_rngRequest.id);
   }
 
   /**
    * @notice Sets the RNG service used to generate random numbers.
    * @param rng_ Address of the new RNG service
    */
-  function _setRNGService(RNGInterface rng_) internal {
-    if (address(rng_) == address(0)) revert RNGZeroAddress();
+  function _setRngService(RNGInterface rng_) internal {
+    if (address(rng_) == address(0)) revert RngZeroAddress();
     _rng = rng_;
-    emit RNGServiceSet(rng_);
+    emit RngServiceSet(rng_);
   }
 
   /**
@@ -358,7 +358,7 @@ contract RNGAuction is PhaseManager, Ownable {
   function _setAuctionDuration(uint64 auctionDurationSeconds_) internal {
     if (auctionDurationSeconds_ == 0) revert AuctionDurationZero();
     if (auctionDurationSeconds_ >= _drawPeriodSeconds)
-      revert AuctionDuration_GTE_DrawPeriod(auctionDurationSeconds_, _drawPeriodSeconds);
+      revert AuctionDurationGteDrawPeriod(auctionDurationSeconds_, _drawPeriodSeconds);
     _auctionDurationSeconds = auctionDurationSeconds_;
     emit SetAuctionDuration(_auctionDurationSeconds);
   }

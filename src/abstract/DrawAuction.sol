@@ -6,7 +6,7 @@ import { UD2x18 } from "prb-math/UD2x18.sol";
 
 import { PhaseManager, Phase } from "local-draw-auction/abstract/PhaseManager.sol";
 import { RewardLib } from "local-draw-auction/libraries/RewardLib.sol";
-import { RNGAuction } from "local-draw-auction/RNGAuction.sol";
+import { RngAuction } from "local-draw-auction/RngAuction.sol";
 
 /**
  * @title   PoolTogether V5 DrawAuction
@@ -14,7 +14,7 @@ import { RNGAuction } from "local-draw-auction/RNGAuction.sol";
  * @notice  The DrawAuction uses an auction mechanism to incentivize the completion of the Draw.
  *          There is a draw auction for each prize pool. The draw auction starts when the new
  *          random number is available for the current draw.
- * @dev     This contract runs synchronously with the RNGAuction contract, waiting till the RNG
+ * @dev     This contract runs synchronously with the RngAuction contract, waiting till the RNG
  *          auction is complete and the random number is available before starting the draw
  *          auction.
  */
@@ -22,7 +22,7 @@ abstract contract DrawAuction is PhaseManager {
   /* ============ Constants ============ */
 
   /// @notice The RNG Auction to get the random number from
-  RNGAuction public immutable rngAuction;
+  RngAuction public immutable rngAuction;
 
   /// @notice The auction duration in seconds
   uint64 public immutable auctionDurationSeconds;
@@ -30,15 +30,15 @@ abstract contract DrawAuction is PhaseManager {
   /* ============ Variables ============ */
 
   /// @notice The RNG request ID that was used in the last auction
-  uint32 internal _lastRNGRequestId;
+  uint32 internal _lastRngRequestId;
 
   /* ============ Custom Errors ============ */
 
   /// @notice Thrown if the auction period is zero.
   error AuctionDurationZero();
 
-  /// @notice Thrown if the RNGAuction address is the zero address.
-  error RNGAuctionZeroAddress();
+  /// @notice Thrown if the RngAuction address is the zero address.
+  error RngAuctionZeroAddress();
 
   /// @notice Thrown if there are less auction phases than the minumum.
   error TooFewAuctionPhases(uint8 auctionPhases, uint8 minAuctionPhases);
@@ -47,7 +47,7 @@ abstract contract DrawAuction is PhaseManager {
   error DrawAlreadyCompleted();
 
   /// @notice Thrown if the RNG request is not completed.
-  error RNGNotCompleted();
+  error RngNotCompleted();
 
   /// @notice Thrown if the current draw auction has expired.
   error DrawAuctionExpired();
@@ -72,16 +72,16 @@ abstract contract DrawAuction is PhaseManager {
 
   /**
    * @notice Deploy the DrawAuction smart contract.
-   * @param rngAuction_ The RNGAuction to get the random number from
+   * @param rngAuction_ The RngAuction to get the random number from
    * @param auctionDurationSeconds_ Auction duration in seconds
    * @param auctionPhases_ Number of auction phases (@dev must be at least 2)
    */
   constructor(
-    RNGAuction rngAuction_,
+    RngAuction rngAuction_,
     uint64 auctionDurationSeconds_,
     uint8 auctionPhases_
   ) PhaseManager(auctionPhases_) {
-    if (address(rngAuction_) == address(0)) revert RNGAuctionZeroAddress();
+    if (address(rngAuction_) == address(0)) revert RngAuctionZeroAddress();
     if (auctionDurationSeconds_ == 0) revert AuctionDurationZero();
     if (auctionPhases_ < 2) revert TooFewAuctionPhases(auctionPhases_, 2);
     rngAuction = rngAuction_;
@@ -91,15 +91,15 @@ abstract contract DrawAuction is PhaseManager {
   /* ============ External Functions ============ */
 
   /**
-   * @notice Completes the current draw with the random number from the RNGAuction.
+   * @notice Completes the current draw with the random number from the RngAuction.
    * @param _rewardRecipient The address to send the reward to
    */
   function completeDraw(address _rewardRecipient) external {
-    uint32 _rngRequestId = rngAuction.getRNGRequestId();
-    if (_rngRequestId == _lastRNGRequestId) revert DrawAlreadyCompleted();
-    if (!rngAuction.isRNGCompleted()) revert RNGNotCompleted();
+    uint32 _rngRequestId = rngAuction.getRngRequestId();
+    if (_rngRequestId == _lastRngRequestId) revert DrawAlreadyCompleted();
+    if (!rngAuction.isRngCompleted()) revert RngNotCompleted();
 
-    RNGInterface _rng = rngAuction.getRNGService();
+    RNGInterface _rng = rngAuction.getRngService();
     uint64 _auctionElapsedSeconds = uint64(block.timestamp) - _rng.completedAt(_rngRequestId);
     if (_auctionElapsedSeconds > auctionDurationSeconds) revert DrawAuctionExpired();
 
@@ -131,11 +131,11 @@ abstract contract DrawAuction is PhaseManager {
    * @dev Use this to determine if all the requirements to call `completeDraw` are met.
    */
   function canCompleteDraw() external view returns (bool) {
-    RNGInterface _rng = rngAuction.getRNGService();
-    uint32 _rngRequestId = rngAuction.getRNGRequestId();
+    RNGInterface _rng = rngAuction.getRngService();
+    uint32 _rngRequestId = rngAuction.getRngRequestId();
     uint64 _auctionElapsedSeconds = uint64(block.timestamp) - _rng.completedAt(_rngRequestId);
-    return (_rngRequestId != _lastRNGRequestId &&
-      rngAuction.isRNGCompleted() &&
+    return (_rngRequestId != _lastRngRequestId &&
+      rngAuction.isRngCompleted() &&
       _auctionElapsedSeconds <= auctionDurationSeconds);
   }
 }

@@ -8,31 +8,31 @@ import { RNGInterface } from "rng/RNGInterface.sol";
 import { UD2x18 } from "prb-math/UD2x18.sol";
 
 import { Phase, PhaseManager } from "local-draw-auction/abstract/PhaseManager.sol";
-import { RNGAuction } from "local-draw-auction/RNGAuction.sol";
+import { RngAuction } from "local-draw-auction/RngAuction.sol";
 
 contract Helpers is Test {
-  /* ============ RNGAuction ============ */
+  /* ============ RngAuction ============ */
 
-  function _mockRNGAuction_getRNGRequestId(RNGAuction _rngAuction, uint32 _requestId) internal {
+  function _mockRngAuction_getRngRequestId(RngAuction _rngAuction, uint32 _requestId) internal {
     vm.mockCall(
       address(_rngAuction),
-      abi.encodeWithSelector(RNGAuction.getRNGRequestId.selector),
+      abi.encodeWithSelector(RngAuction.getRngRequestId.selector),
       abi.encode(_requestId)
     );
   }
 
-  function _mockRNGAuction_isRNGCompleted(RNGAuction _rngAuction, bool _isCompleted) internal {
+  function _mockRngAuction_isRngCompleted(RngAuction _rngAuction, bool _isCompleted) internal {
     vm.mockCall(
       address(_rngAuction),
-      abi.encodeWithSelector(RNGAuction.isRNGCompleted.selector),
+      abi.encodeWithSelector(RngAuction.isRngCompleted.selector),
       abi.encode(_isCompleted)
     );
   }
 
-  function _mockRNGAuction_getRNGService(RNGAuction _rngAuction, RNGInterface _rng) internal {
+  function _mockRngAuction_getRngService(RngAuction _rngAuction, RNGInterface _rng) internal {
     vm.mockCall(
       address(_rngAuction),
-      abi.encodeWithSelector(RNGAuction.getRNGService.selector),
+      abi.encodeWithSelector(RngAuction.getRngService.selector),
       abi.encode(_rng)
     );
   }
@@ -53,7 +53,7 @@ contract Helpers is Test {
 
   /* ============ RNGInterface ============ */
 
-  function _mockRNGInterface_completedAt(
+  function _mockRngInterface_completedAt(
     RNGInterface _rng,
     uint32 _requestId,
     uint64 _completedAt
@@ -65,7 +65,7 @@ contract Helpers is Test {
     );
   }
 
-  function _mockRNGInterface_randomNumber(
+  function _mockRngInterface_randomNumber(
     RNGInterface _rng,
     uint32 _requestId,
     uint256 _randomNumber

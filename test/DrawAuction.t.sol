@@ -4,13 +4,13 @@ pragma solidity 0.8.17;
 import { DrawAuctionHarness } from "test/harness/DrawAuctionHarness.sol";
 import { Helpers, RNGInterface, UD2x18, Phase } from "test/helpers/Helpers.t.sol";
 
-import { RNGAuction } from "local-draw-auction/RNGAuction.sol";
+import { RngAuction } from "local-draw-auction/RngAuction.sol";
 
 contract DrawAuctionTest is Helpers {
   /* ============ Variables ============ */
 
   DrawAuctionHarness public drawAuction;
-  RNGAuction public rngAuction;
+  RngAuction public rngAuction;
   RNGInterface public rng;
 
   uint64 public auctionDuration = 3 hours;
@@ -21,7 +21,7 @@ contract DrawAuctionTest is Helpers {
   function setUp() public {
     vm.warp(0);
 
-    rngAuction = RNGAuction(makeAddr("rngAuction"));
+    rngAuction = RngAuction(makeAddr("rngAuction"));
     vm.etch(address(rngAuction), "rngAuction");
 
     rng = RNGInterface(makeAddr("rng"));
@@ -32,7 +32,7 @@ contract DrawAuctionTest is Helpers {
 
   /* ============ Getter Functions ============ */
 
-  function testRNGAuction() public {
+  function testRngAuction() public {
     assertEq(address(drawAuction.rngAuction()), address(rngAuction));
   }
 
@@ -54,12 +54,12 @@ contract DrawAuctionTest is Helpers {
     address _recipient = address(2);
 
     // Mock Calls
-    _mockRNGAuction_getRNGRequestId(rngAuction, _rngRequestId);
-    _mockRNGAuction_isRNGCompleted(rngAuction, _rngCompleted);
-    _mockRNGAuction_getRNGService(rngAuction, rng);
-    _mockRNGInterface_completedAt(rng, _rngRequestId, 0);
+    _mockRngAuction_getRngRequestId(rngAuction, _rngRequestId);
+    _mockRngAuction_isRngCompleted(rngAuction, _rngCompleted);
+    _mockRngAuction_getRngService(rngAuction, rng);
+    _mockRngInterface_completedAt(rng, _rngRequestId, 0);
     _mockPhaseManager_getPhase(rngAuction, 0, _rngPhaseMock);
-    _mockRNGInterface_randomNumber(rng, _rngRequestId, _randomNumber);
+    _mockRngInterface_randomNumber(rng, _rngRequestId, _randomNumber);
 
     // Test
     drawAuction.completeDraw(_recipient);

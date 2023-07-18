@@ -2,7 +2,7 @@
 pragma solidity 0.8.17;
 
 import { DrawAuction } from "local-draw-auction/abstract/DrawAuction.sol";
-import { RNGAuction } from "local-draw-auction/RNGAuction.sol";
+import { RngAuction } from "local-draw-auction/RngAuction.sol";
 import { Phase } from "local-draw-auction/abstract/PhaseManager.sol";
 import { ISingleMessageDispatcher } from "local-draw-auction/interfaces/ISingleMessageDispatcher.sol";
 
@@ -61,14 +61,14 @@ contract DrawAuctionDispatcher is DrawAuction {
    * @param dispatcher_ Instance of the dispatcher on Ethereum that will dispatch the phases and random number
    * @param drawAuctionExecutor_ Address of the DrawAuctionExecutor on the destination chain
    * @param toChainId_ ID of the receiving chain
-   * @param rngAuction_ The RNGAuction to get the random number from
+   * @param rngAuction_ The RngAuction to get the random number from
    * @param auctionDurationSeconds_ Auction duration in seconds
    */
   constructor(
     ISingleMessageDispatcher dispatcher_,
     address drawAuctionExecutor_,
     uint256 toChainId_,
-    RNGAuction rngAuction_,
+    RngAuction rngAuction_,
     uint64 auctionDurationSeconds_
   ) DrawAuction(rngAuction_, auctionDurationSeconds_, 2) {
     _setDispatcher(dispatcher_);

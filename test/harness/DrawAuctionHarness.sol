@@ -7,14 +7,14 @@ import { UD2x18 } from "prb-math/UD2x18.sol";
 import { DrawAuction } from "local-draw-auction/abstract/DrawAuction.sol";
 import { PhaseManager, Phase } from "local-draw-auction/abstract/PhaseManager.sol";
 import { RewardLib } from "local-draw-auction/libraries/RewardLib.sol";
-import { RNGAuction } from "local-draw-auction/RNGAuction.sol";
+import { RngAuction } from "local-draw-auction/RngAuction.sol";
 
 contract DrawAuctionHarness is DrawAuction {
   uint256 public afterCompleteDrawCounter;
   uint256 public lastRandomNumber;
 
   constructor(
-    RNGAuction rngAuction_,
+    RngAuction rngAuction_,
     uint64 auctionDurationSeconds_,
     uint8 auctionPhases_
   ) DrawAuction(rngAuction_, auctionDurationSeconds_, auctionPhases_) {}

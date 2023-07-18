@@ -3,7 +3,7 @@ pragma solidity 0.8.17;
 
 import { RNGInterface } from "rng/RNGInterface.sol";
 
-import { RNGAuction } from "local-draw-auction/RNGAuction.sol";
+import { RngAuction } from "local-draw-auction/RngAuction.sol";
 import { DrawManager } from "local-draw-auction/DrawManager.sol";
 import { DrawAuction } from "local-draw-auction/abstract/DrawAuction.sol";
 
@@ -29,12 +29,12 @@ contract DirectDrawAuction is DrawAuction {
   /**
    * @notice Deploy the DirectDrawAuction smart contract.
    * @param drawManager_ The DrawManager to send the auction results to
-   * @param rngAuction_ The RNGAuction to get the random number from
+   * @param rngAuction_ The RngAuction to get the random number from
    * @param auctionDurationSeconds_ Auction duration in seconds
    */
   constructor(
     DrawManager drawManager_,
-    RNGAuction rngAuction_,
+    RngAuction rngAuction_,
     uint64 auctionDurationSeconds_
   ) DrawAuction(rngAuction_, auctionDurationSeconds_, 2) {
     if (address(drawManager_) == address(0)) revert DrawManagerZeroAddress();
