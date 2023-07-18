@@ -31,14 +31,12 @@ contract DirectDrawAuction is DrawAuction {
    * @param drawManager_ The DrawManager to send the auction results to
    * @param rngAuction_ The RNGAuction to get the random number from
    * @param auctionDurationSeconds_ Auction duration in seconds
-   * @param auctionName_ Name of the auction
    */
   constructor(
     DrawManager drawManager_,
     RNGAuction rngAuction_,
-    uint64 auctionDurationSeconds_,
-    string memory auctionName_
-  ) DrawAuction(rngAuction_, auctionDurationSeconds_, 2, auctionName_) {
+    uint64 auctionDurationSeconds_
+  ) DrawAuction(rngAuction_, auctionDurationSeconds_, 2) {
     if (address(drawManager_) == address(0)) revert DrawManagerZeroAddress();
     drawManager = drawManager_;
   }

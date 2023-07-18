@@ -15,7 +15,6 @@ contract DrawAuctionTest is Helpers {
 
   uint64 public auctionDuration = 3 hours;
   uint8 public auctionPhases = 2;
-  string public auctionName = "Draw Auction Test";
 
   address public recipient = address(this);
 
@@ -28,7 +27,7 @@ contract DrawAuctionTest is Helpers {
     rng = RNGInterface(makeAddr("rng"));
     vm.etch(address(rng), "rng");
 
-    drawAuction = new DrawAuctionHarness(rngAuction, auctionDuration, auctionPhases, auctionName);
+    drawAuction = new DrawAuctionHarness(rngAuction, auctionDuration, auctionPhases);
   }
 
   /* ============ Getter Functions ============ */
@@ -39,10 +38,6 @@ contract DrawAuctionTest is Helpers {
 
   function testAuctionDurationSeconds() public {
     assertEq(drawAuction.auctionDurationSeconds(), auctionDuration);
-  }
-
-  function testAuctionName() public {
-    assertEq(drawAuction.auctionName(), auctionName);
   }
 
   /* ============ completeDraw ============ */

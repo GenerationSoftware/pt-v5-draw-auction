@@ -32,10 +32,6 @@ abstract contract DrawAuction is PhaseManager {
   /// @notice The RNG request ID that was used in the last auction
   uint32 internal _lastRNGRequestId;
 
-  /// @notice The name of the draw auction
-  /// @dev This is used to help identify draw auctions since all chains have a draw auction on L1.
-  string internal _auctionName;
-
   /* ============ Custom Errors ============ */
 
   /// @notice Thrown if the auction period is zero.
@@ -79,31 +75,20 @@ abstract contract DrawAuction is PhaseManager {
    * @param rngAuction_ The RNGAuction to get the random number from
    * @param auctionDurationSeconds_ Auction duration in seconds
    * @param auctionPhases_ Number of auction phases (@dev must be at least 2)
-   * @param auctionName_ Name of the auction
    */
   constructor(
     RNGAuction rngAuction_,
     uint64 auctionDurationSeconds_,
-    uint8 auctionPhases_,
-    string memory auctionName_
+    uint8 auctionPhases_
   ) PhaseManager(auctionPhases_) {
     if (address(rngAuction_) == address(0)) revert RNGAuctionZeroAddress();
     if (auctionDurationSeconds_ == 0) revert AuctionDurationZero();
     if (auctionPhases_ < 2) revert TooFewAuctionPhases(auctionPhases_, 2);
     rngAuction = rngAuction_;
     auctionDurationSeconds = auctionDurationSeconds_;
-    _auctionName = auctionName_;
   }
 
   /* ============ External Functions ============ */
-
-  /**
-   * @notice Gets the auction name
-   * @return string The draw auction name
-   */
-  function auctionName() external view returns (string memory) {
-    return _auctionName;
-  }
 
   /**
    * @notice Completes the current draw with the random number from the RNGAuction.

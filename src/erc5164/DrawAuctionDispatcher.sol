@@ -63,16 +63,14 @@ contract DrawAuctionDispatcher is DrawAuction {
    * @param toChainId_ ID of the receiving chain
    * @param rngAuction_ The RNGAuction to get the random number from
    * @param auctionDurationSeconds_ Auction duration in seconds
-   * @param auctionName_ Name of the auction
    */
   constructor(
     ISingleMessageDispatcher dispatcher_,
     address drawAuctionExecutor_,
     uint256 toChainId_,
     RNGAuction rngAuction_,
-    uint64 auctionDurationSeconds_,
-    string memory auctionName_
-  ) DrawAuction(rngAuction_, auctionDurationSeconds_, 2, auctionName_) {
+    uint64 auctionDurationSeconds_
+  ) DrawAuction(rngAuction_, auctionDurationSeconds_, 2) {
     _setDispatcher(dispatcher_);
     _setDrawAuctionExecutor(drawAuctionExecutor_);
 
