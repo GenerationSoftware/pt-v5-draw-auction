@@ -39,14 +39,10 @@ contract Helpers is Test {
 
   /* ============ PhaseManager ============ */
 
-  function _mockPhaseManager_getPhase(
-    PhaseManager _phaseManager,
-    uint256 _phaseId,
-    Phase memory _phase
-  ) internal {
+  function _mockPhaseManager_getPhase(PhaseManager _phaseManager, Phase memory _phase) internal {
     vm.mockCall(
       address(_phaseManager),
-      abi.encodeWithSelector(PhaseManager.getPhase.selector, _phaseId),
+      abi.encodeWithSelector(PhaseManager.getPhase.selector),
       abi.encode(_phase)
     );
   }

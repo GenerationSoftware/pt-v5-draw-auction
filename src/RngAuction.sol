@@ -15,10 +15,8 @@ import { PhaseManager } from "local-draw-auction/abstract/PhaseManager.sol";
  * @title PoolTogether V5 RngAuction
  * @author Generation Software Team
  * @notice The RngAuction allows anyone to request a new random number using the RNG service set.
- *         The auction is a single phase that incetivises RNG requests to be started in-sync with
- *         prize pool draw periods across all chains. DrawAuction contracts per-chain will then
- *         auction off the remaining phases to complete the active draw and bridge the random
- *         number along with the auction information.
+ *         The auction incetivises RNG requests to be started in-sync with prize pool draw
+ *         periods across all chains.
  */
 contract RngAuction is PhaseManager, Ownable {
   using SafeERC20 for IERC20;
@@ -137,7 +135,7 @@ contract RngAuction is PhaseManager, Ownable {
     uint64 drawPeriodSeconds_,
     uint64 drawPeriodOffset_,
     uint64 auctionDurationSeconds_
-  ) PhaseManager(1) Ownable(owner_) {
+  ) PhaseManager() Ownable(owner_) {
     if (drawPeriodSeconds_ == 0) revert DrawPeriodZero();
     _drawPeriodSeconds = drawPeriodSeconds_;
     _drawPeriodOffset = drawPeriodOffset_;
@@ -184,7 +182,7 @@ contract RngAuction is PhaseManager, Ownable {
       _auctionElapsedSeconds,
       _auctionDurationSeconds
     );
-    _setPhase(0, _rewardPortion, _rewardRecipient);
+    _setPhase(_rewardPortion, _rewardRecipient);
 
     emit RngAuctionCompleted(msg.sender, _rewardRecipient, _requestId, _rewardPortion);
   }

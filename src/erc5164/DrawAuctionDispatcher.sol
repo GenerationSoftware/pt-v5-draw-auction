@@ -70,7 +70,7 @@ contract DrawAuctionDispatcher is DrawAuction {
     uint256 toChainId_,
     RngAuction rngAuction_,
     uint64 auctionDurationSeconds_
-  ) DrawAuction(rngAuction_, auctionDurationSeconds_, 2) {
+  ) DrawAuction(rngAuction_, auctionDurationSeconds_) {
     _setDispatcher(dispatcher_);
     _setDrawAuctionExecutor(drawAuctionExecutor_);
 
@@ -113,7 +113,9 @@ contract DrawAuctionDispatcher is DrawAuction {
    * @dev Completes the auction by dispatching the completed phases and random number through the dispatcher
    */
   function _afterCompleteDraw(uint256 _randomNumber) internal override {
-    Phase[] memory _auctionPhases = _getPhases();
+    Phase[] memory _auctionPhases = new Phase[](2);
+    _auctionPhases[0] = rngAuction.getPhase();
+    _auctionPhases[1] = _phase;
 
     _dispatcher.dispatchMessage(
       _toChainId,

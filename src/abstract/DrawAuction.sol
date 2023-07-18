@@ -40,9 +40,6 @@ abstract contract DrawAuction is PhaseManager {
   /// @notice Thrown if the RngAuction address is the zero address.
   error RngAuctionZeroAddress();
 
-  /// @notice Thrown if there are less auction phases than the minumum.
-  error TooFewAuctionPhases(uint8 auctionPhases, uint8 minAuctionPhases);
-
   /// @notice Thrown if the current draw is already completed.
   error DrawAlreadyCompleted();
 
@@ -74,16 +71,10 @@ abstract contract DrawAuction is PhaseManager {
    * @notice Deploy the DrawAuction smart contract.
    * @param rngAuction_ The RngAuction to get the random number from
    * @param auctionDurationSeconds_ Auction duration in seconds
-   * @param auctionPhases_ Number of auction phases (@dev must be at least 2)
    */
-  constructor(
-    RngAuction rngAuction_,
-    uint64 auctionDurationSeconds_,
-    uint8 auctionPhases_
-  ) PhaseManager(auctionPhases_) {
+  constructor(RngAuction rngAuction_, uint64 auctionDurationSeconds_) PhaseManager() {
     if (address(rngAuction_) == address(0)) revert RngAuctionZeroAddress();
     if (auctionDurationSeconds_ == 0) revert AuctionDurationZero();
-    if (auctionPhases_ < 2) revert TooFewAuctionPhases(auctionPhases_, 2);
     rngAuction = rngAuction_;
     auctionDurationSeconds = auctionDurationSeconds_;
   }
@@ -103,13 +94,9 @@ abstract contract DrawAuction is PhaseManager {
     uint64 _auctionElapsedSeconds = uint64(block.timestamp) - _rng.completedAt(_rngRequestId);
     if (_auctionElapsedSeconds > auctionDurationSeconds) revert DrawAuctionExpired();
 
-    // Copy the rng auction phase data to this phase array
-    Phase memory rngStartPhase = rngAuction.getPhase(0);
-    _setPhase(0, rngStartPhase.rewardPortion, rngStartPhase.recipient);
-
     // Calculate the reward portion and set the draw auction phase
     UD2x18 _rewardPortion = RewardLib.rewardPortion(_auctionElapsedSeconds, auctionDurationSeconds);
-    _setPhase(1, _rewardPortion, _rewardRecipient);
+    _setPhase(_rewardPortion, _rewardRecipient);
 
     // Hook after draw auction is complete
     _afterCompleteDraw(_rng.randomNumber(_rngRequestId));

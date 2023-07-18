@@ -5,13 +5,13 @@ import { RNGInterface } from "rng/RNGInterface.sol";
 
 import { RngAuction } from "local-draw-auction/RngAuction.sol";
 import { DrawManager } from "local-draw-auction/DrawManager.sol";
+import { Phase } from "local-draw-auction/abstract/PhaseManager.sol";
 import { DrawAuction } from "local-draw-auction/abstract/DrawAuction.sol";
 
 /**
  * @title   PoolTogether V5 DirectDrawAuction
  * @author  Generation Software Team
- * @notice  The DirectDrawAuction sends the results of the draw auction directly to the prize
- *          pool on the same chain.
+ * @notice  The DirectDrawAuction sends the results of the draw auction to the draw manager.
  */
 contract DirectDrawAuction is DrawAuction {
   /* ============ Constants ============ */
@@ -36,7 +36,7 @@ contract DirectDrawAuction is DrawAuction {
     DrawManager drawManager_,
     RngAuction rngAuction_,
     uint64 auctionDurationSeconds_
-  ) DrawAuction(rngAuction_, auctionDurationSeconds_, 2) {
+  ) DrawAuction(rngAuction_, auctionDurationSeconds_) {
     if (address(drawManager_) == address(0)) revert DrawManagerZeroAddress();
     drawManager = drawManager_;
   }
@@ -48,6 +48,9 @@ contract DirectDrawAuction is DrawAuction {
    * @dev Calls the DrawManager with the random number and auction results.
    */
   function _afterCompleteDraw(uint256 _randomNumber) internal override {
-    drawManager.closeDraw(_randomNumber, _getPhases());
+    Phase[] memory _phases = new Phase[](2);
+    _phases[0] = rngAuction.getPhase();
+    _phases[1] = _phase;
+    drawManager.closeDraw(_randomNumber, _phases);
   }
 }

@@ -14,7 +14,6 @@ contract DrawAuctionTest is Helpers {
   RNGInterface public rng;
 
   uint64 public auctionDuration = 3 hours;
-  uint8 public auctionPhases = 2;
 
   address public recipient = address(this);
 
@@ -27,7 +26,7 @@ contract DrawAuctionTest is Helpers {
     rng = RNGInterface(makeAddr("rng"));
     vm.etch(address(rng), "rng");
 
-    drawAuction = new DrawAuctionHarness(rngAuction, auctionDuration, auctionPhases);
+    drawAuction = new DrawAuctionHarness(rngAuction, auctionDuration);
   }
 
   /* ============ Getter Functions ============ */
@@ -49,7 +48,6 @@ contract DrawAuctionTest is Helpers {
     // Variables
     uint32 _rngRequestId = 1;
     bool _rngCompleted = true;
-    Phase memory _rngPhaseMock = Phase(UD2x18.wrap(1), address(this));
     uint256 _randomNumber = 123;
     address _recipient = address(2);
 
@@ -58,7 +56,6 @@ contract DrawAuctionTest is Helpers {
     _mockRngAuction_isRngCompleted(rngAuction, _rngCompleted);
     _mockRngAuction_getRngService(rngAuction, rng);
     _mockRngInterface_completedAt(rng, _rngRequestId, 0);
-    _mockPhaseManager_getPhase(rngAuction, 0, _rngPhaseMock);
     _mockRngInterface_randomNumber(rng, _rngRequestId, _randomNumber);
 
     // Test
@@ -66,11 +63,8 @@ contract DrawAuctionTest is Helpers {
     assertEq(drawAuction.lastRandomNumber(), _randomNumber);
     assertEq(drawAuction.afterCompleteDrawCounter(), 1);
 
-    // Check phases
-    Phase memory _rngPhase = drawAuction.getPhase(0);
-    Phase memory _drawPhase = drawAuction.getPhase(1);
-    assertEq(UD2x18.unwrap(_rngPhase.rewardPortion), UD2x18.unwrap(_rngPhaseMock.rewardPortion));
-    assertEq(_rngPhase.recipient, _rngPhaseMock.recipient);
+    // Check phase
+    Phase memory _drawPhase = drawAuction.getPhase();
     assertEq(UD2x18.unwrap(_drawPhase.rewardPortion), uint64(5e17)); // 0.5
     assertEq(_drawPhase.recipient, _recipient);
   }
