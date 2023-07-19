@@ -26,6 +26,7 @@ abstract contract AddressRemapper {
   /**
    * @notice Retrieves the remapping for the given address.
    * @dev If the address does not have a remapping, the input address will be returned.
+   * @return The remapped destination address
    */
   function remappingOf(address _addr) public view returns (address) {
     if (_destinationAddress[_addr] == address(0)) {
