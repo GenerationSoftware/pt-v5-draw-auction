@@ -3,21 +3,21 @@ pragma solidity 0.8.17;
 
 import { RNGInterface } from "rng/RNGInterface.sol";
 
-import { RngAuction } from "local-draw-auction/RngAuction.sol";
-import { DrawManager } from "local-draw-auction/DrawManager.sol";
-import { Phase } from "local-draw-auction/abstract/PhaseManager.sol";
 import { DrawAuction } from "local-draw-auction/abstract/DrawAuction.sol";
+import { RngAuction } from "local-draw-auction/RngAuction.sol";
+import { IDrawManager } from "local-draw-auction/interfaces/IDrawManager.sol";
+import { Phase } from "local-draw-auction/abstract/PhaseManager.sol";
 
 /**
- * @title   PoolTogether V5 DirectDrawAuction
+ * @title   PoolTogether V5 DrawAuctionDirect
  * @author  Generation Software Team
- * @notice  The DirectDrawAuction sends the results of the draw auction to the draw manager.
+ * @notice  This contract sends the results of the draw auction directly to the draw manager.
  */
-contract DirectDrawAuction is DrawAuction {
+contract DrawAuctionDirect is DrawAuction {
   /* ============ Constants ============ */
 
   /// @notice The DrawManager to send the auction results to
-  DrawManager public immutable drawManager;
+  IDrawManager public immutable drawManager;
 
   /* ============ Custom Errors ============ */
 
@@ -27,13 +27,13 @@ contract DirectDrawAuction is DrawAuction {
   /* ============ Constructor ============ */
 
   /**
-   * @notice Deploy the DirectDrawAuction smart contract.
+   * @notice Deploy the DrawAuction smart contract.
    * @param drawManager_ The DrawManager to send the auction results to
    * @param rngAuction_ The RngAuction to get the random number from
    * @param auctionDurationSeconds_ Auction duration in seconds
    */
   constructor(
-    DrawManager drawManager_,
+    IDrawManager drawManager_,
     RngAuction rngAuction_,
     uint64 auctionDurationSeconds_
   ) DrawAuction(rngAuction_, auctionDurationSeconds_) {
