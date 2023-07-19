@@ -81,7 +81,7 @@ abstract contract DrawAuction is PhaseManager, IAuction {
    * @notice Completes the current draw with the random number from the RngAuction.
    * @param _rewardRecipient The address to send the reward to
    */
-  function completeAuction(address _rewardRecipient) external {
+  function completeDraw(address _rewardRecipient) external {
     (RngAuction.RngRequest memory _rngRequest, uint64 _rngCompletedAt) = rngAuction.getResults();
     if (_isAuctionComplete()) revert DrawAlreadyCompleted();
 

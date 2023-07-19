@@ -30,9 +30,4 @@ interface IAuction {
    * @return True if the auction is complete, false otherwise
    */
   function isAuctionComplete() external view returns (bool);
-
-  /**
-   * @notice Completes the auction and records the reward recipient as the receiver of the auction rewards.
-   */
-  function completeAuction(address _rewardRecipient) external;
 }

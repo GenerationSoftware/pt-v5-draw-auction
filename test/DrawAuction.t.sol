@@ -43,18 +43,14 @@ contract DrawAuctionTest is Helpers {
 
   function testCompleteAuction() public {
     // Variables
-    uint32 _sequenceId = 101;
-    uint32 _rngRequestId = 1;
-    uint32 _rngLockBlock = uint32(block.number + 1);
-    uint64 _rngRequestedAt = 0;
     uint64 _rngCompletedAt = uint64(block.timestamp + 1);
     uint256 _randomNumber = 123;
     address _recipient = address(2);
     RngAuction.RngRequest memory _rngRequest = RngAuction.RngRequest(
-      _rngRequestId,
-      _rngLockBlock,
-      _sequenceId,
-      _rngRequestedAt
+      1, // rngRequestId
+      uint32(block.number + 1), // lockBlock
+      101, // sequenceId
+      0 //rngRequestedAt
     );
 
     // Warp
@@ -66,7 +62,7 @@ contract DrawAuctionTest is Helpers {
     _mockRngAuction_randomNumber(rngAuction, _randomNumber);
 
     // Test
-    drawAuction.completeAuction(_recipient);
+    drawAuction.completeDraw(_recipient);
     assertEq(drawAuction.lastRandomNumber(), _randomNumber);
     assertEq(drawAuction.afterDrawAuctionCounter(), 1);
 

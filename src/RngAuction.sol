@@ -149,7 +149,6 @@ contract RngAuction is PhaseManager, Ownable, IAuction {
   /* ============ External Functions ============ */
 
   /**
-   * @inheritdoc IAuction
    * @notice  Starts the RNG Request, ends the current auction, and stores the reward portion to
    *          be allocated to the recipient.
    * @dev     Will revert if the current auction has already been completed or expired.
@@ -159,7 +158,7 @@ contract RngAuction is PhaseManager, Ownable, IAuction {
    *          auction is completed.
    * @param _rewardRecipient Address that will receive the auction reward for starting the RNG request
    */
-  function completeAuction(address _rewardRecipient) external {
+  function startRngRequest(address _rewardRecipient) external {
     if (address(_pendingRng) != address(_rng)) {
       _rng = _pendingRng;
     }
