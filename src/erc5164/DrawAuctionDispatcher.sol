@@ -112,7 +112,7 @@ contract DrawAuctionDispatcher is DrawAuction {
    * @inheritdoc DrawAuction
    * @dev Completes the auction by dispatching the completed phases and random number through the dispatcher
    */
-  function _afterCompleteDraw(uint256 _randomNumber) internal override {
+  function _afterDrawAuction(uint256 _randomNumber) internal override {
     Phase[] memory _auctionPhases = new Phase[](2);
     _auctionPhases[0] = rngAuction.getPhase();
     _auctionPhases[1] = _phase;

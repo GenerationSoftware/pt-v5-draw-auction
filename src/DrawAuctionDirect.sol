@@ -47,7 +47,7 @@ contract DirectDrawAuction is DrawAuction {
    * @inheritdoc DrawAuction
    * @dev Calls the DrawManager with the random number and auction results.
    */
-  function _afterCompleteDraw(uint256 _randomNumber) internal override {
+  function _afterDrawAuction(uint256 _randomNumber) internal override {
     Phase[] memory _phases = new Phase[](2);
     _phases[0] = rngAuction.getPhase();
     _phases[1] = _phase;

@@ -13,18 +13,30 @@ import { RngAuction } from "local-draw-auction/RngAuction.sol";
 contract Helpers is Test {
   /* ============ RngAuction ============ */
 
-  function _mockRngAuction_getRngRequestId(RngAuction _rngAuction, uint32 _requestId) internal {
+  function _mockRngAuction_getResults(
+    RngAuction _rngAuction,
+    RngAuction.RngRequest memory _rngRequest,
+    uint64 _rngCompletedAt
+  ) internal {
     vm.mockCall(
       address(_rngAuction),
-      abi.encodeWithSelector(RngAuction.getRngRequestId.selector),
-      abi.encode(_requestId)
+      abi.encodeWithSelector(RngAuction.getResults.selector),
+      abi.encode(_rngRequest, _rngCompletedAt)
     );
   }
 
-  function _mockRngAuction_isRngCompleted(RngAuction _rngAuction, bool _isCompleted) internal {
+  function _mockRngAuction_randomNumber(RngAuction _rngAuction, uint256 _randomNumber) internal {
     vm.mockCall(
       address(_rngAuction),
-      abi.encodeWithSelector(RngAuction.isRngCompleted.selector),
+      abi.encodeWithSelector(RngAuction.randomNumber.selector),
+      abi.encode(_randomNumber)
+    );
+  }
+
+  function _mockRngAuction_isRngComplete(RngAuction _rngAuction, bool _isCompleted) internal {
+    vm.mockCall(
+      address(_rngAuction),
+      abi.encodeWithSelector(RngAuction.isRngComplete.selector),
       abi.encode(_isCompleted)
     );
   }
@@ -34,6 +46,17 @@ contract Helpers is Test {
       address(_rngAuction),
       abi.encodeWithSelector(RngAuction.getRngService.selector),
       abi.encode(_rng)
+    );
+  }
+
+  function _mockRngAuction_currentSequenceId(
+    RngAuction _rngAuction,
+    uint32 _currentSequenceId
+  ) internal {
+    vm.mockCall(
+      address(_rngAuction),
+      abi.encodeWithSelector(RngAuction.currentSequenceId.selector),
+      abi.encode(_currentSequenceId)
     );
   }
 

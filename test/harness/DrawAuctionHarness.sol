@@ -10,7 +10,7 @@ import { RewardLib } from "local-draw-auction/libraries/RewardLib.sol";
 import { RngAuction } from "local-draw-auction/RngAuction.sol";
 
 contract DrawAuctionHarness is DrawAuction {
-  uint256 public afterCompleteDrawCounter;
+  uint256 public afterDrawAuctionCounter;
   uint256 public lastRandomNumber;
 
   constructor(
@@ -21,8 +21,8 @@ contract DrawAuctionHarness is DrawAuction {
   /**
    * @dev counts the number of times the hook is called
    */
-  function _afterCompleteDraw(uint256 _randomNumber) internal override {
+  function _afterDrawAuction(uint256 _randomNumber) internal override {
     lastRandomNumber = _randomNumber;
-    afterCompleteDrawCounter = afterCompleteDrawCounter + 1;
+    afterDrawAuctionCounter = afterDrawAuctionCounter + 1;
   }
 }

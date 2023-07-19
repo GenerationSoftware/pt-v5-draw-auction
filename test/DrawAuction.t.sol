@@ -35,33 +35,40 @@ contract DrawAuctionTest is Helpers {
     assertEq(address(drawAuction.rngAuction()), address(rngAuction));
   }
 
-  function testAuctionDurationSeconds() public {
-    assertEq(drawAuction.auctionDurationSeconds(), auctionDuration);
+  function testAuctionDuration() public {
+    assertEq(drawAuction.auctionDuration(), auctionDuration);
   }
 
-  /* ============ completeDraw ============ */
+  /* ============ completeAuction ============ */
 
-  function testCompleteDraw() public {
-    // Warp
-    vm.warp(auctionDuration / 2); // reward portion will be 0.5
-
+  function testCompleteAuction() public {
     // Variables
+    uint32 _sequenceId = 101;
     uint32 _rngRequestId = 1;
-    bool _rngCompleted = true;
+    uint32 _rngLockBlock = uint32(block.number + 1);
+    uint64 _rngRequestedAt = 0;
+    uint64 _rngCompletedAt = uint64(block.timestamp + 1);
     uint256 _randomNumber = 123;
     address _recipient = address(2);
+    RngAuction.RngRequest memory _rngRequest = RngAuction.RngRequest(
+      _rngRequestId,
+      _rngLockBlock,
+      _sequenceId,
+      _rngRequestedAt
+    );
+
+    // Warp
+    vm.warp(_rngCompletedAt + auctionDuration / 2); // reward portion will be 0.5
 
     // Mock Calls
-    _mockRngAuction_getRngRequestId(rngAuction, _rngRequestId);
-    _mockRngAuction_isRngCompleted(rngAuction, _rngCompleted);
-    _mockRngAuction_getRngService(rngAuction, rng);
-    _mockRngInterface_completedAt(rng, _rngRequestId, 0);
-    _mockRngInterface_randomNumber(rng, _rngRequestId, _randomNumber);
+    _mockRngAuction_getResults(rngAuction, _rngRequest, _rngCompletedAt);
+    _mockRngAuction_currentSequenceId(rngAuction, 101);
+    _mockRngAuction_randomNumber(rngAuction, _randomNumber);
 
     // Test
-    drawAuction.completeDraw(_recipient);
+    drawAuction.completeAuction(_recipient);
     assertEq(drawAuction.lastRandomNumber(), _randomNumber);
-    assertEq(drawAuction.afterCompleteDrawCounter(), 1);
+    assertEq(drawAuction.afterDrawAuctionCounter(), 1);
 
     // Check phase
     Phase memory _drawPhase = drawAuction.getPhase();
