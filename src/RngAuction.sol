@@ -45,6 +45,9 @@ contract RngAuction is PhaseManager, Ownable, IAuction {
   /// @notice RNG instance
   RNGInterface internal _rng;
 
+  /// @notice New RNG instance that will be applied before the next auction completion
+  RNGInterface internal _pendingRng;
+
   /// @notice Current RNG Request
   RngRequest internal _rngRequest;
 
@@ -152,9 +155,14 @@ contract RngAuction is PhaseManager, Ownable, IAuction {
    * @dev     Will revert if the current auction has already been completed or expired.
    * @dev     If the RNG Service requests a `feeToken` for payment, the RNG-Request-Fee is expected
    *          to be held within this contract before calling this function.
+   * @dev     If there is a pending RNGInstance (see _pendingRng), it will be swapped in before the
+   *          auction is completed.
    * @param _rewardRecipient Address that will receive the auction reward for starting the RNG request
    */
   function completeAuction(address _rewardRecipient) external {
+    if (address(_pendingRng) != address(_rng)) {
+      _rng = _pendingRng;
+    }
     if (_isRngRequested()) revert RngAlreadyStarted();
     if (_elapsedTime() > _auctionDurationSeconds) revert AuctionExpired();
 
@@ -270,6 +278,14 @@ contract RngAuction is PhaseManager, Ownable, IAuction {
   }
 
   /**
+   * @notice Returns the pending RNG service that will replace the current service before the next auction completes.
+   * @return RNG service instance
+   */
+  function getPendingRngService() external view returns (RNGInterface) {
+    return _pendingRng;
+  }
+
+  /**
    * @notice Returns the sequence offset.
    * @return The sequence offset in seconds
    */
@@ -290,7 +306,8 @@ contract RngAuction is PhaseManager, Ownable, IAuction {
   /**
    * @notice Sets the RNG service used to generate random numbers.
    * @dev Only callable by the owner.
-   * @dev Will revert if an RNG request is in progress (if the auction is open, then there is no active RNG request).
+   * @dev The service will not be udpated immediately so the current auction is not disturbed. Instead,
+   * it will be swapped out right before the next auction is completed.
    * @param _rngService Address of the new RNG service
    */
   function setRngService(RNGInterface _rngService) external onlyOwner {
@@ -365,7 +382,7 @@ contract RngAuction is PhaseManager, Ownable, IAuction {
    */
   function _setRngService(RNGInterface rng_) internal {
     if (address(rng_) == address(0)) revert RngZeroAddress();
-    _rng = rng_;
+    _pendingRng = rng_;
     emit RngServiceSet(rng_);
   }
 
