@@ -5,6 +5,7 @@ import { AccessControl } from "openzeppelin/access/AccessControl.sol";
 
 import { IDrawManager } from "local-draw-auction/interfaces/IDrawManager.sol";
 import { Phase } from "local-draw-auction/abstract/PhaseManager.sol";
+import { AddressRemapper } from "local-draw-auction/abstract/AddressRemapper.sol";
 import { ISingleMessageDispatcher } from "local-draw-auction/interfaces/ISingleMessageDispatcher.sol";
 
 /**
@@ -12,7 +13,7 @@ import { ISingleMessageDispatcher } from "local-draw-auction/interfaces/ISingleM
  * @author Generation Software Team
  * @notice The DrawManagerAdapter acts as a proxy to send messages through a DrawManager on a receiving chain.
  */
-contract DrawManagerAdapter is IDrawManager, AccessControl {
+contract DrawManagerAdapter is IDrawManager, AccessControl, AddressRemapper {
   /* ============ Events ============ */
 
   /**
@@ -116,12 +117,17 @@ contract DrawManagerAdapter is IDrawManager, AccessControl {
   /**
    * @inheritdoc IDrawManager
    * @dev Completes the draw by dispatching the completed phases and random number through the dispatcher.
-   * @dev Requires that sender is manager
+   * @dev Requires that sender is manager.
+   * @dev Remaps the reward recipient addresses if they have a remapping set.
    */
   function closeDraw(
     uint256 _randomNumber,
     Phase[] memory _auctionPhases
   ) external onlyRole(DRAW_CLOSER_ROLE) {
+    for (uint8 i; i < _auctionPhases.length; i++) {
+      _auctionPhases[i].recipient = remappingOf(_auctionPhases[i].recipient);
+    }
+
     _dispatcher.dispatchMessage(
       _toChainId,
       _drawManagerReceiver,
