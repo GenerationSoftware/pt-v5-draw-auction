@@ -53,6 +53,17 @@ contract Helpers is Test {
     );
   }
 
+  function _mockRngAuction_startRngRequest(
+    RNGInterface _rng,
+    address _feeToken,
+    uint256 _requestFee,
+    uint32 _requestId,
+    uint32 _lockBlock
+  ) internal {
+    _mockRngInterface_getRequestFee(_rng, _feeToken, _requestFee);
+    _mockRngInterface_requestRandomNumber(_rng, _requestId, _lockBlock);
+  }
+
   /* ============ IAuction ============ */
 
   function _mockIAuction_getAuctionResults(
@@ -90,6 +101,42 @@ contract Helpers is Test {
       address(_rng),
       abi.encodeWithSelector(RNGInterface.randomNumber.selector, _requestId),
       abi.encode(_randomNumber)
+    );
+  }
+
+  function _mockRngInterface_getRequestFee(
+    RNGInterface _rng,
+    address _feeToken,
+    uint256 _requestFee
+  ) internal {
+    vm.mockCall(
+      address(_rng),
+      abi.encodeWithSelector(RNGInterface.getRequestFee.selector),
+      abi.encode(_feeToken, _requestFee)
+    );
+  }
+
+  function _mockRngInterface_requestRandomNumber(
+    RNGInterface _rng,
+    uint32 _requestId,
+    uint32 _lockBlock
+  ) internal {
+    vm.mockCall(
+      address(_rng),
+      abi.encodeWithSelector(RNGInterface.requestRandomNumber.selector),
+      abi.encode(_requestId, _lockBlock)
+    );
+  }
+
+  function _mockRngInterface_isRequestComplete(
+    RNGInterface _rng,
+    uint32 _requestId,
+    bool _isRequestComplete
+  ) internal {
+    vm.mockCall(
+      address(_rng),
+      abi.encodeWithSelector(RNGInterface.isRequestComplete.selector, _requestId),
+      abi.encode(_isRequestComplete)
     );
   }
 }

@@ -389,14 +389,15 @@ contract RngAuction is IAuction, Ownable {
    */
   function _setRngService(RNGInterface _newRng) internal {
     if (address(_newRng) == address(0)) revert RngZeroAddress();
+
+    // Set as pending if RNG is being replaced.
+    // The RNG will be swapped with the pending one before the next random number is requested.
+    _pendingRng = _newRng;
     if (address(_rng) == address(0)) {
       // Set immediately if no RNG is set.
       _rng = _newRng;
-    } else {
-      // Set as pending if RNG is being replaced.
-      // The RNG will be swapped with the pending one before the next random number is requested.
-      _pendingRng = _newRng;
     }
+
     emit RngServiceSet(_newRng);
   }
 

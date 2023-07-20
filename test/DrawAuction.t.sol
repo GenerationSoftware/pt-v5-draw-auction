@@ -7,15 +7,50 @@ import { Helpers, RNGInterface, UD2x18, AuctionResults } from "test/helpers/Help
 import { RngAuction } from "local-draw-auction/RngAuction.sol";
 
 contract DrawAuctionTest is Helpers {
+  /* ============ Errors ============ */
+
+  /// @notice Thrown if the auction period is zero.
+  error AuctionDurationZero();
+
+  /// @notice Thrown if the RngAuction address is the zero address.
+  error RngAuctionZeroAddress();
+
+  /// @notice Thrown if the current draw auction has already been completed.
+  error DrawAlreadyCompleted();
+
+  /// @notice Thrown if the current draw auction has expired.
+  error DrawAuctionExpired();
+
+  /// @notice Thrown if the RNG request is not complete for the current sequence.
+  error RngNotCompleted();
+
+  /* ============ Events ============ */
+
+  event AuctionCompleted(
+    address indexed recipient,
+    uint32 indexed sequenceId,
+    uint64 elapsedTime,
+    UD2x18 rewardPortion
+  );
+
   /* ============ Variables ============ */
 
   DrawAuctionHarness public drawAuction;
   RngAuction public rngAuction;
   RNGInterface public rng;
 
-  uint64 public auctionDuration = 3 hours;
-
-  address public recipient = address(this);
+  uint64 _auctionDuration = 3 hours;
+  uint64 _rngCompletedAt = uint64(block.timestamp + 1);
+  uint256 _randomNumber = 123;
+  address _recipient = address(2);
+  uint32 _currentSequenceId = 101;
+  RngAuction.RngRequest _rngRequest =
+    RngAuction.RngRequest(
+      1, // rngRequestId
+      uint32(block.number + 1), // lockBlock
+      _currentSequenceId, // sequenceId
+      0 //rngRequestedAt
+    );
 
   function setUp() public {
     vm.warp(0);
@@ -26,7 +61,7 @@ contract DrawAuctionTest is Helpers {
     rng = RNGInterface(makeAddr("rng"));
     vm.etch(address(rng), "rng");
 
-    drawAuction = new DrawAuctionHarness(rngAuction, auctionDuration);
+    drawAuction = new DrawAuctionHarness(rngAuction, _auctionDuration);
   }
 
   /* ============ Getter Functions ============ */
@@ -36,26 +71,14 @@ contract DrawAuctionTest is Helpers {
   }
 
   function testAuctionDuration() public {
-    assertEq(drawAuction.auctionDuration(), auctionDuration);
+    assertEq(drawAuction.auctionDuration(), _auctionDuration);
   }
 
   /* ============ completeAuction ============ */
 
   function testCompleteAuction() public {
-    // Variables
-    uint64 _rngCompletedAt = uint64(block.timestamp + 1);
-    uint256 _randomNumber = 123;
-    address _recipient = address(2);
-    uint32 _currentSequenceId = 101;
-    RngAuction.RngRequest memory _rngRequest = RngAuction.RngRequest(
-      1, // rngRequestId
-      uint32(block.number + 1), // lockBlock
-      _currentSequenceId, // sequenceId
-      0 //rngRequestedAt
-    );
-
     // Warp
-    vm.warp(_rngCompletedAt + auctionDuration / 2); // reward portion will be 0.5
+    vm.warp(_rngCompletedAt + _auctionDuration / 2); // reward portion will be 0.5
 
     // Mock Calls
     _mockRngAuction_isRngComplete(rngAuction, true);
@@ -72,5 +95,109 @@ contract DrawAuctionTest is Helpers {
     assertEq(_sequenceId, _currentSequenceId);
     assertEq(UD2x18.unwrap(_auctionResults.rewardPortion), uint64(5e17)); // 0.5
     assertEq(_auctionResults.recipient, _recipient);
+  }
+
+  function testCompleteAuction_EmitsEvent() public {
+    // Warp
+    vm.warp(_rngCompletedAt + _auctionDuration / 2); // reward portion will be 0.5
+
+    // Mock Calls
+    _mockRngAuction_isRngComplete(rngAuction, true);
+    _mockRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
+    _mockRngAuction_getRngResults(rngAuction, _rngRequest, _randomNumber, _rngCompletedAt);
+
+    // Test
+    vm.expectEmit();
+    emit AuctionCompleted(
+      _recipient,
+      _currentSequenceId,
+      _auctionDuration / 2,
+      UD2x18.wrap(uint64(5e17))
+    );
+    drawAuction.completeDraw(_recipient);
+  }
+
+  function testCompleteAuction_RequiresAuctionNotCompleted() public {
+    vm.warp(_rngCompletedAt + _auctionDuration / 2);
+
+    // Complete draw once
+    _mockRngAuction_isRngComplete(rngAuction, true);
+    _mockRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
+    _mockRngAuction_getRngResults(rngAuction, _rngRequest, _randomNumber, _rngCompletedAt);
+    drawAuction.completeDraw(_recipient);
+
+    // Try to complete again
+    _mockRngAuction_isRngComplete(rngAuction, true);
+    _mockRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
+    _mockRngAuction_getRngResults(rngAuction, _rngRequest, _randomNumber, _rngCompletedAt);
+
+    vm.expectRevert(abi.encodeWithSelector(DrawAlreadyCompleted.selector));
+    drawAuction.completeDraw(_recipient);
+  }
+
+  function testCompleteAuction_RequiresRngCompleted() public {
+    // Mock Calls
+    _mockRngAuction_isRngComplete(rngAuction, false);
+
+    // Test
+    vm.expectRevert(abi.encodeWithSelector(RngNotCompleted.selector));
+    drawAuction.completeDraw(address(this));
+  }
+
+  function testCompleteAuction_RequiresAuctionNotExpired() public {
+    // Warp to after auction duration
+    vm.warp(_rngCompletedAt + _auctionDuration + 1);
+
+    // Mock calls
+    _mockRngAuction_isRngComplete(rngAuction, true);
+    _mockRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
+    _mockRngAuction_getRngResults(rngAuction, _rngRequest, _randomNumber, _rngCompletedAt);
+
+    // Test
+    vm.expectRevert(abi.encodeWithSelector(DrawAuctionExpired.selector));
+    drawAuction.completeDraw(_recipient);
+  }
+
+  function testCompleteAuction_TwoSequences() public {
+    // Warp
+    vm.warp(_rngCompletedAt + _auctionDuration / 2);
+
+    // Mock calls
+    _mockRngAuction_isRngComplete(rngAuction, true);
+    _mockRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
+    _mockRngAuction_getRngResults(rngAuction, _rngRequest, _randomNumber, _rngCompletedAt);
+
+    // Test
+    drawAuction.completeDraw(_recipient);
+    (AuctionResults memory _auctionResults0, uint32 _sequenceId0) = drawAuction.getAuctionResults();
+    assertEq(_sequenceId0, _currentSequenceId);
+    assertEq(UD2x18.unwrap(_auctionResults0.rewardPortion), uint64(5e17)); // 0.5
+    assertEq(_auctionResults0.recipient, _recipient);
+
+    // Warp
+    vm.warp(_rngCompletedAt + (_auctionDuration * 2) + (_auctionDuration / 4));
+
+    // Mock calls for next sequence
+    RngAuction.RngRequest memory _nextRngRequest = RngAuction.RngRequest(
+      _rngRequest.id + 1,
+      uint32(block.number),
+      _currentSequenceId + 1,
+      _rngRequest.requestedAt + _auctionDuration * 2
+    );
+    _mockRngAuction_isRngComplete(rngAuction, true);
+    _mockRngAuction_currentSequenceId(rngAuction, _currentSequenceId + 1);
+    _mockRngAuction_getRngResults(
+      rngAuction,
+      _nextRngRequest,
+      _randomNumber + 1,
+      _rngCompletedAt + _auctionDuration * 2
+    );
+
+    // Test
+    drawAuction.completeDraw(address(this));
+    (AuctionResults memory _auctionResults1, uint32 _sequenceId1) = drawAuction.getAuctionResults();
+    assertEq(_sequenceId1, _currentSequenceId + 1);
+    assertEq(UD2x18.unwrap(_auctionResults1.rewardPortion), uint64(25e16)); // 0.25
+    assertEq(_auctionResults1.recipient, address(this));
   }
 }
