@@ -2,7 +2,7 @@
 pragma solidity 0.8.17;
 
 import { DrawAuctionHarness } from "test/harness/DrawAuctionHarness.sol";
-import { Helpers, RNGInterface, UD2x18, Phase } from "test/helpers/Helpers.t.sol";
+import { Helpers, RNGInterface, UD2x18, AuctionResults } from "test/helpers/Helpers.t.sol";
 
 import { RngAuction } from "local-draw-auction/RngAuction.sol";
 
@@ -46,10 +46,11 @@ contract DrawAuctionTest is Helpers {
     uint64 _rngCompletedAt = uint64(block.timestamp + 1);
     uint256 _randomNumber = 123;
     address _recipient = address(2);
+    uint32 _currentSequenceId = 101;
     RngAuction.RngRequest memory _rngRequest = RngAuction.RngRequest(
       1, // rngRequestId
       uint32(block.number + 1), // lockBlock
-      101, // sequenceId
+      _currentSequenceId, // sequenceId
       0 //rngRequestedAt
     );
 
@@ -57,18 +58,19 @@ contract DrawAuctionTest is Helpers {
     vm.warp(_rngCompletedAt + auctionDuration / 2); // reward portion will be 0.5
 
     // Mock Calls
-    _mockRngAuction_getResults(rngAuction, _rngRequest, _rngCompletedAt);
-    _mockRngAuction_currentSequenceId(rngAuction, 101);
-    _mockRngAuction_randomNumber(rngAuction, _randomNumber);
+    _mockRngAuction_isRngComplete(rngAuction, true);
+    _mockRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
+    _mockRngAuction_getRngResults(rngAuction, _rngRequest, _randomNumber, _rngCompletedAt);
 
     // Test
     drawAuction.completeDraw(_recipient);
     assertEq(drawAuction.lastRandomNumber(), _randomNumber);
     assertEq(drawAuction.afterDrawAuctionCounter(), 1);
 
-    // Check phase
-    Phase memory _drawPhase = drawAuction.getPhase();
-    assertEq(UD2x18.unwrap(_drawPhase.rewardPortion), uint64(5e17)); // 0.5
-    assertEq(_drawPhase.recipient, _recipient);
+    // Check results
+    (AuctionResults memory _auctionResults, uint32 _sequenceId) = drawAuction.getAuctionResults();
+    assertEq(_sequenceId, _currentSequenceId);
+    assertEq(UD2x18.unwrap(_auctionResults.rewardPortion), uint64(5e17)); // 0.5
+    assertEq(_auctionResults.recipient, _recipient);
   }
 }

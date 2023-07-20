@@ -9,8 +9,7 @@ import { UD2x18 } from "prb-math/UD2x18.sol";
 import { UD60x18, toUD60x18, fromUD60x18 } from "prb-math/UD60x18.sol";
 
 import { RewardLib } from "local-draw-auction/libraries/RewardLib.sol";
-import { PhaseManager } from "local-draw-auction/abstract/PhaseManager.sol";
-import { IAuction } from "local-draw-auction/interfaces/IAuction.sol";
+import { IAuction, AuctionResults } from "local-draw-auction/interfaces/IAuction.sol";
 
 /**
  * @title PoolTogether V5 RngAuction
@@ -19,7 +18,7 @@ import { IAuction } from "local-draw-auction/interfaces/IAuction.sol";
  *         The auction incetivises RNG requests to be started in-sync with prize pool draw
  *         periods across all chains.
  */
-contract RngAuction is PhaseManager, Ownable, IAuction {
+contract RngAuction is IAuction, Ownable {
   using SafeERC20 for IERC20;
 
   /* ============ Structs ============ */
@@ -50,6 +49,9 @@ contract RngAuction is PhaseManager, Ownable, IAuction {
 
   /// @notice Current RNG Request
   RngRequest internal _rngRequest;
+
+  /// @notice The last completed auction results
+  AuctionResults internal _auctionResults;
 
   /// @notice Duration of the auction in seconds
   /// @dev This will always be less than the sequence since the auction needs to complete each period.
@@ -88,9 +90,6 @@ contract RngAuction is PhaseManager, Ownable, IAuction {
   /// @notice Thrown if an RNG request has already been made for the current sequence.
   error RngAlreadyStarted();
 
-  /// @notice Thrown if the RNG request is not complete for the current sequence.
-  error RngNotCompleted();
-
   /// @notice Thrown if the time elapsed since the start of the auction is greater than the auction duration.
   error AuctionExpired();
 
@@ -101,20 +100,6 @@ contract RngAuction is PhaseManager, Ownable, IAuction {
    * @param auctionDurationSeconds The new auction duration in seconds
    */
   event SetAuctionDuration(uint64 auctionDurationSeconds);
-
-  /**
-   * @notice Emitted when the RNG auction is completed.
-   * @param rewardRecipient The address that will receive the reward
-   * @param sequenceId The sequence ID of the auction
-   * @param rngRequestId ID of the RNG request
-   * @param rewardPortion The portion of the available reserves that will be rewarded
-   */
-  event RngAuctionCompleted(
-    address indexed rewardRecipient,
-    uint32 indexed sequenceId,
-    uint32 indexed rngRequestId,
-    UD2x18 rewardPortion
-  );
 
   /**
    * @notice Emitted when the RNG service address is set.
@@ -138,7 +123,7 @@ contract RngAuction is PhaseManager, Ownable, IAuction {
     uint64 sequencePeriodSeconds_,
     uint64 sequenceOffsetSeconds_,
     uint64 auctionDurationSeconds_
-  ) PhaseManager() Ownable(owner_) {
+  ) Ownable(owner_) {
     if (sequencePeriodSeconds_ == 0) revert SequencePeriodZero();
     _sequencePeriodSeconds = sequencePeriodSeconds_;
     _sequenceOffsetSeconds = sequenceOffsetSeconds_;
@@ -162,11 +147,13 @@ contract RngAuction is PhaseManager, Ownable, IAuction {
     if (address(_pendingRng) != address(_rng)) {
       _rng = _pendingRng;
     }
+
     if (_isRngRequested()) revert RngAlreadyStarted();
-    if (_elapsedTime() > _auctionDurationSeconds) revert AuctionExpired();
+
+    uint64 _elapsedTimeSeconds = _elapsedTime();
+    if (_elapsedTimeSeconds > _auctionDurationSeconds) revert AuctionExpired();
 
     (address _feeToken, uint256 _requestFee) = _rng.getRequestFee();
-
     if (_feeToken != address(0) && _requestFee > 0) {
       IERC20(_feeToken).safeIncreaseAllowance(address(_rng), _requestFee);
     }
@@ -178,12 +165,13 @@ contract RngAuction is PhaseManager, Ownable, IAuction {
     _rngRequest.requestedAt = _currentTime();
 
     UD2x18 _rewardPortion = _currentRewardPortion();
-    _setPhase(_rewardPortion, _rewardRecipient);
+    _auctionResults.recipient = _rewardRecipient;
+    _auctionResults.rewardPortion = _rewardPortion;
 
-    emit RngAuctionCompleted(
+    emit AuctionCompleted(
       _rewardRecipient,
       _rngRequest.sequenceId,
-      _rngRequestId,
+      _elapsedTimeSeconds,
       _rewardPortion
     );
   }
@@ -196,6 +184,14 @@ contract RngAuction is PhaseManager, Ownable, IAuction {
    */
   function isAuctionComplete() external view returns (bool) {
     return _isRngRequested();
+  }
+
+  /**
+   * @inheritdoc IAuction
+   * @dev The auction is open if RNG has not been requested yet this sequence.
+   */
+  function isAuctionOpen() external view returns (bool) {
+    return !_isRngRequested();
   }
 
   /**
@@ -220,6 +216,17 @@ contract RngAuction is PhaseManager, Ownable, IAuction {
   }
 
   /**
+   * @inheritdoc IAuction
+   */
+  function getAuctionResults()
+    external
+    view
+    returns (AuctionResults memory auctionResults, uint32 sequenceId)
+  {
+    return (_auctionResults, _rngRequest.sequenceId);
+  }
+
+  /**
    * @notice Calculates a unique identifier for the current sequence.
    * @return The current sequence ID.
    */
@@ -236,26 +243,26 @@ contract RngAuction is PhaseManager, Ownable, IAuction {
   }
 
   /**
-   * @notice Returns the random number for the RNG request.
-   * @return The random number provided by the RNG service
+   * @notice Returns the completion time of the current RNG request.
+   * @return RNG request completion time in seconds
    */
-  function randomNumber() external returns (uint256) {
-    return _rng.randomNumber(_rngRequest.id);
+  function rngCompletedAt() external view returns (uint64) {
+    return _rng.completedAt(_rngRequest.id);
   }
 
   /**
-   * @notice Returns the result of the last completed auction.
-   * @dev Reverts if the current RNG request is not complete.
-   * @return rngRequest The RNG request
-   * @return rngCompletedAt The timestamp at which the random number request was completed
+   * @notice Returns the result of the last RNG Request.
+   * @dev The RNG service may revert if the current RNG request is not complete.
+   * @dev Not marked as view since RNGInterface.randomNumber is not a view function.
+   * @return rngRequest_ The RNG request
+   * @return randomNumber_ The random number result
+   * @return rngCompletedAt_ The timestamp at which the random number request was completed
    */
-  function getResults()
+  function getRngResults()
     external
-    view
-    returns (RngRequest memory rngRequest, uint64 rngCompletedAt)
+    returns (RngRequest memory rngRequest_, uint256 randomNumber_, uint64 rngCompletedAt_)
   {
-    if (!_isRngComplete()) revert RngNotCompleted();
-    return (_rngRequest, _rng.completedAt(_rngRequest.id));
+    return (_rngRequest, _rng.randomNumber(_rngRequest.id), _rng.completedAt(_rngRequest.id));
   }
 
   /* ============ Getter Functions ============ */

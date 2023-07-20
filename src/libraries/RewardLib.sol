@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import { Phase } from "local-draw-auction/abstract/PhaseManager.sol";
+import { AuctionResults } from "local-draw-auction/interfaces/IAuction.sol";
 
 import { UD2x18 } from "prb-math/UD2x18.sol";
 import { UD60x18, toUD60x18, fromUD60x18 } from "prb-math/UD60x18.sol";
@@ -22,37 +22,43 @@ library RewardLib {
   }
 
   /**
-   * @notice Calculates rewards to distribute given the available reserve and completed auction phases.
-   * @dev Each phase takes a portion of the remaining reserve. This means that if the reserve is equal
-   * to 100 and the first phase takes 50% and the second takes 50%, then the first reward will be equal
+   * @notice Calculates rewards to distribute given the available reserve and completed auction results.
+   * @dev Each auction takes a portion of the remaining reserve. This means that if the reserve is equal
+   * to 100 and the first auction takes 50% and the second takes 50%, then the first reward will be equal
    * to 50 while the second will be 25.
-   * @param _phases Phases to get reward for
+   * @param _auctionResults Auction results to get rewards for
    * @param _reserve Reserve available for the rewards
-   * @return Rewards in the same order as the phases they correspond to
+   * @return Rewards in the same order as the auction results they correspond to
    */
   function rewards(
-    Phase[] memory _phases,
+    AuctionResults[] memory _auctionResults,
     uint256 _reserve
   ) internal pure returns (uint256[] memory) {
-    uint256 _phasesLength = _phases.length;
-    uint256[] memory _rewards = new uint256[](_phasesLength);
-    for (uint256 i; i < _phasesLength; i++) {
-      _rewards[i] = reward(_phases[i], _reserve);
+    uint256 _auctionResultsLength = _auctionResults.length;
+    uint256[] memory _rewards = new uint256[](_auctionResultsLength);
+    for (uint256 i; i < _auctionResultsLength; i++) {
+      _rewards[i] = reward(_auctionResults[i], _reserve);
       _reserve = _reserve - _rewards[i];
     }
     return _rewards;
   }
 
   /**
-   * @notice Calculates the reward for the given phase and available reserve.
-   * @dev If the phase reward recipient is the zero address, no reward will be given.
-   * @param _phase Phase to get reward for
+   * @notice Calculates the reward for the given auction result and available reserve.
+   * @dev If the auction reward recipient is the zero address, no reward will be given.
+   * @param _auctionResult Auction result to get reward for
    * @param _reserve Reserve available for the reward
    * @return Reward amount
    */
-  function reward(Phase memory _phase, uint256 _reserve) internal pure returns (uint256) {
-    if (_phase.recipient == address(0)) return 0;
+  function reward(
+    AuctionResults memory _auctionResult,
+    uint256 _reserve
+  ) internal pure returns (uint256) {
+    if (_auctionResult.recipient == address(0)) return 0;
     if (_reserve == 0) return 0;
-    return fromUD60x18(UD60x18.wrap(UD2x18.unwrap(_phase.rewardPortion)).mul(toUD60x18(_reserve)));
+    return
+      fromUD60x18(
+        UD60x18.wrap(UD2x18.unwrap(_auctionResult.rewardPortion)).mul(toUD60x18(_reserve))
+      );
   }
 }

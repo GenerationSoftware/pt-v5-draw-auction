@@ -6,7 +6,7 @@ import { RNGInterface } from "rng/RNGInterface.sol";
 import { DrawAuction } from "local-draw-auction/abstract/DrawAuction.sol";
 import { RngAuction } from "local-draw-auction/RngAuction.sol";
 import { IDrawManager } from "local-draw-auction/interfaces/IDrawManager.sol";
-import { Phase } from "local-draw-auction/abstract/PhaseManager.sol";
+import { AuctionResults } from "local-draw-auction/interfaces/IAuction.sol";
 
 /**
  * @title   PoolTogether V5 DrawAuctionDirect
@@ -48,9 +48,9 @@ contract DrawAuctionDirect is DrawAuction {
    * @dev Calls the DrawManager with the random number and auction results.
    */
   function _afterDrawAuction(uint256 _randomNumber) internal override {
-    Phase[] memory _phases = new Phase[](2);
-    _phases[0] = rngAuction.getPhase();
-    _phases[1] = _phase;
-    drawManager.closeDraw(_randomNumber, _phases);
+    AuctionResults[] memory _results = new AuctionResults[](2);
+    (_results[0], ) = rngAuction.getAuctionResults();
+    _results[1] = _auctionResults;
+    drawManager.closeDraw(_randomNumber, _results);
   }
 }

@@ -4,10 +4,9 @@ pragma solidity 0.8.17;
 import { RNGInterface } from "rng/RNGInterface.sol";
 import { UD2x18 } from "prb-math/UD2x18.sol";
 
-import { PhaseManager, Phase } from "local-draw-auction/abstract/PhaseManager.sol";
 import { RewardLib } from "local-draw-auction/libraries/RewardLib.sol";
 import { RngAuction } from "local-draw-auction/RngAuction.sol";
-import { IAuction } from "local-draw-auction/interfaces/IAuction.sol";
+import { IAuction, AuctionResults } from "local-draw-auction/interfaces/IAuction.sol";
 
 /**
  * @title   PoolTogether V5 DrawAuction
@@ -19,7 +18,7 @@ import { IAuction } from "local-draw-auction/interfaces/IAuction.sol";
  *          auction is complete and the random number is available before starting the draw
  *          auction.
  */
-abstract contract DrawAuction is PhaseManager, IAuction {
+abstract contract DrawAuction is IAuction {
   /* ============ Constants ============ */
 
   /// @notice The RNG Auction to get the random number from
@@ -32,6 +31,9 @@ abstract contract DrawAuction is PhaseManager, IAuction {
 
   /// @notice The auction duration in seconds
   uint64 internal _auctionDurationSeconds;
+
+  /// @notice The last completed auction results
+  AuctionResults internal _auctionResults;
 
   /* ============ Custom Errors ============ */
 
@@ -47,19 +49,8 @@ abstract contract DrawAuction is PhaseManager, IAuction {
   /// @notice Thrown if the current draw auction has expired.
   error DrawAuctionExpired();
 
-  /* ============ Events ============ */
-
-  /**
-   * @notice Emitted when the draw auction is completed.
-   * @param rewardRecipient The recipient of the auction reward
-   * @param sequenceId The sequence ID of the auction
-   * @param rewardPortion The portion of the available reserve that will be rewarded
-   */
-  event DrawAuctionCompleted(
-    address indexed rewardRecipient,
-    uint32 indexed sequenceId,
-    UD2x18 rewardPortion
-  );
+  /// @notice Thrown if the RNG request is not complete for the current sequence.
+  error RngNotCompleted();
 
   /* ============ Constructor ============ */
 
@@ -68,7 +59,7 @@ abstract contract DrawAuction is PhaseManager, IAuction {
    * @param rngAuction_ The RngAuction to get the random number from
    * @param auctionDurationSeconds_ Auction duration in seconds
    */
-  constructor(RngAuction rngAuction_, uint64 auctionDurationSeconds_) PhaseManager() {
+  constructor(RngAuction rngAuction_, uint64 auctionDurationSeconds_) {
     if (address(rngAuction_) == address(0)) revert RngAuctionZeroAddress();
     if (auctionDurationSeconds_ == 0) revert AuctionDurationZero();
     rngAuction = rngAuction_;
@@ -79,27 +70,37 @@ abstract contract DrawAuction is PhaseManager, IAuction {
 
   /**
    * @notice Completes the current draw with the random number from the RngAuction.
+   * @dev Requires that the RNG is complete and that the current auction is open.
    * @param _rewardRecipient The address to send the reward to
    */
   function completeDraw(address _rewardRecipient) external {
-    (RngAuction.RngRequest memory _rngRequest, uint64 _rngCompletedAt) = rngAuction.getResults();
+    if (!rngAuction.isRngComplete()) revert RngNotCompleted();
     if (_isAuctionComplete()) revert DrawAlreadyCompleted();
+
+    (
+      RngAuction.RngRequest memory _rngRequest,
+      uint256 _randomNumber,
+      uint64 _rngCompletedAt
+    ) = rngAuction.getRngResults();
 
     uint64 _auctionElapsedSeconds = uint64(block.timestamp) - _rngCompletedAt;
     if (_auctionElapsedSeconds > _auctionDurationSeconds) revert DrawAuctionExpired();
 
-    // Calculate the reward portion and set the draw auction phase
-    UD2x18 _rewardPortion = RewardLib.rewardPortion(
-      _auctionElapsedSeconds,
-      _auctionDurationSeconds
-    );
-    _setPhase(_rewardPortion, _rewardRecipient);
+    // Calculate the reward portion and set the draw auction results
+    UD2x18 _reward = _rewardPortion(_auctionElapsedSeconds);
+    _auctionResults.recipient = _rewardRecipient;
+    _auctionResults.rewardPortion = _reward;
     _lastSequenceId = _rngRequest.sequenceId;
 
     // Hook after draw auction is complete
-    _afterDrawAuction(rngAuction.randomNumber());
+    _afterDrawAuction(_randomNumber);
 
-    emit DrawAuctionCompleted(_rewardRecipient, _rngRequest.sequenceId, _rewardPortion);
+    emit AuctionCompleted(
+      _rewardRecipient,
+      _rngRequest.sequenceId,
+      _auctionElapsedSeconds,
+      _reward
+    );
   }
 
   /* ============ IAuction Functions ============ */
@@ -114,9 +115,18 @@ abstract contract DrawAuction is PhaseManager, IAuction {
   /**
    * @inheritdoc IAuction
    */
-  function elapsedTime() external view returns (uint64) {
-    (, uint64 _rngCompletedAt) = rngAuction.getResults();
-    return uint64(block.timestamp) - _rngCompletedAt;
+  function isAuctionOpen() external view returns (bool) {
+    return
+      rngAuction.isRngComplete() &&
+      !_isAuctionComplete() &&
+      elapsedTime() <= _auctionDurationSeconds;
+  }
+
+  /**
+   * @inheritdoc IAuction
+   */
+  function elapsedTime() public view returns (uint64) {
+    return uint64(block.timestamp) - rngAuction.rngCompletedAt();
   }
 
   /**
@@ -130,9 +140,18 @@ abstract contract DrawAuction is PhaseManager, IAuction {
    * @inheritdoc IAuction
    */
   function currentRewardPortion() external view returns (UD2x18) {
-    (, uint64 _rngCompletedAt) = rngAuction.getResults();
-    uint64 _auctionElapsedSeconds = uint64(block.timestamp) - _rngCompletedAt;
-    return RewardLib.rewardPortion(_auctionElapsedSeconds, _auctionDurationSeconds);
+    return _rewardPortion(elapsedTime());
+  }
+
+  /**
+   * @inheritdoc IAuction
+   */
+  function getAuctionResults()
+    external
+    view
+    returns (AuctionResults memory auctionResults, uint32 sequenceId)
+  {
+    return (_auctionResults, _lastSequenceId);
   }
 
   /* ============ Internal Functions ============ */
@@ -146,13 +165,21 @@ abstract contract DrawAuction is PhaseManager, IAuction {
     return _lastSequenceId == rngAuction.currentSequenceId();
   }
 
+  /**
+   * @notice Calculates the reward portion for an auction if it were to be completed after the elapsed time.
+   * @return The reward portion as a UD2x18 value
+   */
+  function _rewardPortion(uint64 _elapsedSeconds) internal view returns (UD2x18) {
+    return RewardLib.rewardPortion(_elapsedSeconds, _auctionDurationSeconds);
+  }
+
   /* ============ Hooks ============ */
 
   /**
    * @notice Hook called after the draw auction is completed.
    * @param _randomNumber The random number from the auction
-   * @dev Override this in a parent contract to send the random number and auction results to
-   * the DrawController or to add more phases if needed for multi-stage bridging.
+   * @dev Override this in a parent contract to send the random number the DrawManager or
+   * to start more auctions if needed.
    */
   function _afterDrawAuction(uint256 _randomNumber) internal virtual {}
 }

@@ -5,7 +5,6 @@ import { RNGInterface } from "rng/RNGInterface.sol";
 import { UD2x18 } from "prb-math/UD2x18.sol";
 
 import { DrawAuction } from "local-draw-auction/abstract/DrawAuction.sol";
-import { PhaseManager, Phase } from "local-draw-auction/abstract/PhaseManager.sol";
 import { RewardLib } from "local-draw-auction/libraries/RewardLib.sol";
 import { RngAuction } from "local-draw-auction/RngAuction.sol";
 

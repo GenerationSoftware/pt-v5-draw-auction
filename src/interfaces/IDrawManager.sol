@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import { Phase } from "local-draw-auction/abstract/PhaseManager.sol";
+import { AuctionResults } from "local-draw-auction/interfaces/IAuction.sol";
 
 /**
  * @title PoolTogether V5 IDrawManager
@@ -10,9 +10,9 @@ import { Phase } from "local-draw-auction/abstract/PhaseManager.sol";
  */
 interface IDrawManager {
   /**
-   * @notice Closes a draw and awards the completers of each auction phase.
+   * @notice Closes a draw and awards the completers of each auction.
    * @param _randomNumber Random number to close the draw with
-   * @param _auctionPhases Array of auction phases
+   * @param _auctionResults Array of auction results
    */
-  function closeDraw(uint256 _randomNumber, Phase[] memory _auctionPhases) external;
+  function closeDraw(uint256 _randomNumber, AuctionResults[] memory _auctionResults) external;
 }

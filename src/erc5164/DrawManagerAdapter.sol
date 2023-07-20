@@ -4,7 +4,7 @@ pragma solidity 0.8.17;
 import { AccessControl } from "openzeppelin/access/AccessControl.sol";
 
 import { IDrawManager } from "local-draw-auction/interfaces/IDrawManager.sol";
-import { Phase } from "local-draw-auction/abstract/PhaseManager.sol";
+import { AuctionResults } from "local-draw-auction/interfaces/IAuction.sol";
 import { AddressRemapper } from "local-draw-auction/abstract/AddressRemapper.sol";
 import { ISingleMessageDispatcher } from "local-draw-auction/interfaces/ISingleMessageDispatcher.sol";
 
@@ -17,19 +17,19 @@ contract DrawManagerAdapter is IDrawManager, AccessControl, AddressRemapper {
   /* ============ Events ============ */
 
   /**
-   * @notice Event emitted when the random number and auction phases have been dispatched.
-   * @param dispatcher Instance of the dispatcher on Ethereum that dispatched the phases and random number
+   * @notice Event emitted when the random number and auction results have been dispatched.
+   * @param dispatcher Instance of the dispatcher on Ethereum that dispatched the message
    * @param toChainId ID of the receiving chain
    * @param drawManagerReceiver Address of the DrawManagerReceiver on the receiving chain that will award the auctions and complete the Draw
    * @param randomNumber Random number computed by the RNG
-   * @param phases Array of auction phases
+   * @param auctionResults Array of auction results
    */
   event MessageDispatched(
     ISingleMessageDispatcher indexed dispatcher,
     uint256 indexed toChainId,
     address indexed drawManagerReceiver,
     uint256 randomNumber,
-    Phase[] phases
+    AuctionResults[] auctionResults
   );
 
   /* ============ Custom Errors ============ */
@@ -62,7 +62,7 @@ contract DrawManagerAdapter is IDrawManager, AccessControl, AddressRemapper {
 
   /**
    * @notice Contract constructor.
-   * @param dispatcher_ Instance of the dispatcher on Ethereum that will dispatch the phases and random number
+   * @param dispatcher_ Instance of the dispatcher on Ethereum that will dispatch the auction results and random number
    * @param drawManagerReceiver_ Address of the DrawManagerReceiver on the destination chain
    * @param toChainId_ ID of the receiving chain
    * @param admin_ The admin of the contract
@@ -116,16 +116,16 @@ contract DrawManagerAdapter is IDrawManager, AccessControl, AddressRemapper {
 
   /**
    * @inheritdoc IDrawManager
-   * @dev Completes the draw by dispatching the completed phases and random number through the dispatcher.
+   * @dev Completes the draw by dispatching the completed auction results and random number through the dispatcher.
    * @dev Requires that sender is manager.
    * @dev Remaps the reward recipient addresses if they have a remapping set.
    */
   function closeDraw(
     uint256 _randomNumber,
-    Phase[] memory _auctionPhases
+    AuctionResults[] memory _auctionResults
   ) external onlyRole(DRAW_CLOSER_ROLE) {
-    for (uint8 i; i < _auctionPhases.length; i++) {
-      _auctionPhases[i].recipient = remappingOf(_auctionPhases[i].recipient);
+    for (uint8 i; i < _auctionResults.length; i++) {
+      _auctionResults[i].recipient = remappingOf(_auctionResults[i].recipient);
     }
 
     _dispatcher.dispatchMessage(
@@ -134,7 +134,7 @@ contract DrawManagerAdapter is IDrawManager, AccessControl, AddressRemapper {
       abi.encodeWithSignature(
         "closeDraw(uint256,(uint64,address)[])",
         _randomNumber,
-        _auctionPhases
+        _auctionResults
       )
     );
 
@@ -143,7 +143,7 @@ contract DrawManagerAdapter is IDrawManager, AccessControl, AddressRemapper {
       _toChainId,
       _drawManagerReceiver,
       _randomNumber,
-      _auctionPhases
+      _auctionResults
     );
   }
 

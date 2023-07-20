@@ -3,7 +3,7 @@ pragma solidity 0.8.17;
 
 import { UD2x18 } from "prb-math/UD2x18.sol";
 
-import { Phase } from "local-draw-auction/abstract/PhaseManager.sol";
+import { AuctionResults } from "local-draw-auction/interfaces/IAuction.sol";
 import { RewardLib } from "local-draw-auction/libraries/RewardLib.sol";
 
 // Note: Need to store the results from the library in a variable to be picked up by forge coverage
@@ -18,15 +18,18 @@ contract RewardLibWrapper {
   }
 
   function rewards(
-    Phase[] memory _phases,
+    AuctionResults[] memory _auctionResults,
     uint256 _reserve
   ) public pure returns (uint256[] memory) {
-    uint256[] memory result = RewardLib.rewards(_phases, _reserve);
+    uint256[] memory result = RewardLib.rewards(_auctionResults, _reserve);
     return result;
   }
 
-  function reward(Phase memory _phase, uint256 _reserve) public pure returns (uint256) {
-    uint256 result = RewardLib.reward(_phase, _reserve);
+  function reward(
+    AuctionResults memory _auctionResults,
+    uint256 _reserve
+  ) public pure returns (uint256) {
+    uint256 result = RewardLib.reward(_auctionResults, _reserve);
     return result;
   }
 }

@@ -2,7 +2,7 @@
 pragma solidity 0.8.17;
 
 import { ExecutorAware } from "local-draw-auction/abstract/ExecutorAware.sol";
-import { Phase } from "local-draw-auction/abstract/PhaseManager.sol";
+import { AuctionResults } from "local-draw-auction/interfaces/IAuction.sol";
 import { IDrawManager } from "local-draw-auction/interfaces/IDrawManager.sol";
 
 contract DrawManagerReceiver is IDrawManager, ExecutorAware {
@@ -39,10 +39,10 @@ contract DrawManagerReceiver is IDrawManager, ExecutorAware {
 
   /* ============ Variables ============ */
 
-  /// @notice ID of the origin chain that dispatches the auction phases and random number.
+  /// @notice ID of the origin chain that dispatches the auction auction results and random number.
   uint256 internal immutable _originChainId;
 
-  /// @notice Address of the DrawManagerAdapter on the origin chain that dispatches the auction phases and random number.
+  /// @notice Address of the DrawManagerAdapter on the origin chain that dispatches the auction auction results and random number.
   address internal _drawManagerAdapter;
 
   /// @notice Address of the DrawManager on L2 to complete
@@ -74,9 +74,9 @@ contract DrawManagerReceiver is IDrawManager, ExecutorAware {
    * @inheritdoc IDrawManager
    * @dev Calls the DrawManager to close the draw.
    */
-  function closeDraw(uint256 _randomNumber, Phase[] memory _auctionPhases) external {
+  function closeDraw(uint256 _randomNumber, AuctionResults[] memory _auctionResults) external {
     _checkSender();
-    _drawManager.closeDraw(_randomNumber, _auctionPhases);
+    _drawManager.closeDraw(_randomNumber, _auctionResults);
   }
 
   /* ============ Getter Functions ============ */

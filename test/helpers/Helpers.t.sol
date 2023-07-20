@@ -7,29 +7,22 @@ import { PrizePool, TieredLiquidityDistributor } from "v5-prize-pool/PrizePool.s
 import { RNGInterface } from "rng/RNGInterface.sol";
 import { UD2x18 } from "prb-math/UD2x18.sol";
 
-import { Phase, PhaseManager } from "local-draw-auction/abstract/PhaseManager.sol";
+import { IAuction, AuctionResults } from "local-draw-auction/interfaces/IAuction.sol";
 import { RngAuction } from "local-draw-auction/RngAuction.sol";
 
 contract Helpers is Test {
   /* ============ RngAuction ============ */
 
-  function _mockRngAuction_getResults(
+  function _mockRngAuction_getRngResults(
     RngAuction _rngAuction,
     RngAuction.RngRequest memory _rngRequest,
+    uint256 _randomNumber,
     uint64 _rngCompletedAt
   ) internal {
     vm.mockCall(
       address(_rngAuction),
-      abi.encodeWithSelector(RngAuction.getResults.selector),
-      abi.encode(_rngRequest, _rngCompletedAt)
-    );
-  }
-
-  function _mockRngAuction_randomNumber(RngAuction _rngAuction, uint256 _randomNumber) internal {
-    vm.mockCall(
-      address(_rngAuction),
-      abi.encodeWithSelector(RngAuction.randomNumber.selector),
-      abi.encode(_randomNumber)
+      abi.encodeWithSelector(RngAuction.getRngResults.selector),
+      abi.encode(_rngRequest, _randomNumber, _rngCompletedAt)
     );
   }
 
@@ -60,13 +53,17 @@ contract Helpers is Test {
     );
   }
 
-  /* ============ PhaseManager ============ */
+  /* ============ IAuction ============ */
 
-  function _mockPhaseManager_getPhase(PhaseManager _phaseManager, Phase memory _phase) internal {
+  function _mockIAuction_getAuctionResults(
+    IAuction _auction,
+    AuctionResults memory _auctionResults,
+    uint32 _sequenceId
+  ) internal {
     vm.mockCall(
-      address(_phaseManager),
-      abi.encodeWithSelector(PhaseManager.getPhase.selector),
-      abi.encode(_phase)
+      address(_auction),
+      abi.encodeWithSelector(IAuction.getAuctionResults.selector),
+      abi.encode(_auctionResults, _sequenceId)
     );
   }
 

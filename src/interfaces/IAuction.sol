@@ -1,11 +1,41 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import { Phase } from "local-draw-auction/abstract/PhaseManager.sol";
-
 import { UD2x18 } from "prb-math/UD2x18.sol";
 
+/* ============ Structs ============ */
+
+/**
+ * @notice Stores the results of an auction.
+ * @param recipient The recipient of the auction awards
+ * @param rewardPortion The portion of the available rewards to be sent to the recipient
+ */
+struct AuctionResults {
+  address recipient;
+  UD2x18 rewardPortion;
+}
+
+/* ============ Interface ============ */
+
 interface IAuction {
+  /* ============ Events ============ */
+
+  /**
+   * @notice Emitted when the auction is completed.
+   * @param recipient The recipient of the auction awards
+   * @param sequenceId The sequence ID for the auction
+   * @param elapsedTime The amount of time that the auction ran for in seconds
+   * @param rewardPortion The portion of the available rewards to be sent to the recipient
+   */
+  event AuctionCompleted(
+    address indexed recipient,
+    uint32 indexed sequenceId,
+    uint64 elapsedTime,
+    UD2x18 rewardPortion
+  );
+
+  /* ============ Functions ============ */
+
   /**
    * @notice Returns the auction duration in seconds.
    * @return The auction duration in seconds
@@ -30,4 +60,20 @@ interface IAuction {
    * @return True if the auction is complete, false otherwise
    */
   function isAuctionComplete() external view returns (bool);
+
+  /**
+   * @notice Calculates if the current auction is open and can be completed.
+   * @return True if the auction is open, false otherwise
+   */
+  function isAuctionOpen() external view returns (bool);
+
+  /**
+   * @notice Returns the results of the last completed auction.
+   * @return auctionResults The completed auction results
+   * @return sequenceId The sequence ID of the completed auction
+   */
+  function getAuctionResults()
+    external
+    view
+    returns (AuctionResults memory auctionResults, uint32 sequenceId);
 }
