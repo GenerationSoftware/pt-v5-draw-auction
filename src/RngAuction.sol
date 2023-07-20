@@ -188,10 +188,11 @@ contract RngAuction is IAuction, Ownable {
 
   /**
    * @inheritdoc IAuction
-   * @dev The auction is open if RNG has not been requested yet this sequence.
+   * @dev The auction is open if RNG has not been requested yet this sequence and the
+   * auction has not expired.
    */
   function isAuctionOpen() external view returns (bool) {
-    return !_isRngRequested();
+    return !_isRngRequested() && _elapsedTime() <= _auctionDurationSeconds;
   }
 
   /**
@@ -384,12 +385,19 @@ contract RngAuction is IAuction, Ownable {
 
   /**
    * @notice Sets the RNG service used to generate random numbers.
-   * @param rng_ Address of the new RNG service
+   * @param _newRng Address of the new RNG service
    */
-  function _setRngService(RNGInterface rng_) internal {
-    if (address(rng_) == address(0)) revert RngZeroAddress();
-    _pendingRng = rng_;
-    emit RngServiceSet(rng_);
+  function _setRngService(RNGInterface _newRng) internal {
+    if (address(_newRng) == address(0)) revert RngZeroAddress();
+    if (address(_rng) == address(0)) {
+      // Set immediately if no RNG is set.
+      _rng = _newRng;
+    } else {
+      // Set as pending if RNG is being replaced.
+      // The RNG will be swapped with the pending one before the next random number is requested.
+      _pendingRng = _newRng;
+    }
+    emit RngServiceSet(_newRng);
   }
 
   /**
