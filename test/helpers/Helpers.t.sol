@@ -64,6 +64,14 @@ contract Helpers is Test {
     _mockRngInterface_requestRandomNumber(_rng, _requestId, _lockBlock);
   }
 
+  function _mockRngAuction_rngCompletedAt(RngAuction _rngAuction, uint64 _rngCompletedAt) internal {
+    vm.mockCall(
+      address(_rngAuction),
+      abi.encodeWithSelector(RngAuction.rngCompletedAt.selector),
+      abi.encode(_rngCompletedAt)
+    );
+  }
+
   /* ============ IAuction ============ */
 
   function _mockIAuction_getAuctionResults(
