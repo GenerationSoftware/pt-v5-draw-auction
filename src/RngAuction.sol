@@ -134,7 +134,7 @@ contract RngAuction is IAuction, Ownable {
   /* ============ External Functions ============ */
 
   /**
-   * @notice  Starts the RNG Request, ends the current auction, and stores the reward portion to
+   * @notice  Starts the RNG Request, ends the current auction, and stores the reward fraction to
    *          be allocated to the recipient.
    * @dev     Will revert if the current auction has already been completed or expired.
    * @dev     If the RNG Service requests a `feeToken` for payment, the RNG-Request-Fee is expected
@@ -164,15 +164,15 @@ contract RngAuction is IAuction, Ownable {
     _rngRequest.sequenceId = _currentSequenceId();
     _rngRequest.requestedAt = _currentTime();
 
-    UD2x18 _rewardPortion = _currentRewardPortion();
+    UD2x18 _rewardFraction = _currentFractionalReward();
     _auctionResults.recipient = _rewardRecipient;
-    _auctionResults.rewardPortion = _rewardPortion;
+    _auctionResults.rewardFraction = _rewardFraction;
 
     emit AuctionCompleted(
       _rewardRecipient,
       _rngRequest.sequenceId,
       _elapsedTimeSeconds,
-      _rewardPortion
+      _rewardFraction
     );
   }
 
@@ -212,8 +212,8 @@ contract RngAuction is IAuction, Ownable {
   /**
    * @inheritdoc IAuction
    */
-  function currentRewardPortion() external view returns (UD2x18) {
-    return _currentRewardPortion();
+  function currentFractionalReward() external view returns (UD2x18) {
+    return _currentFractionalReward();
   }
 
   /**
@@ -360,11 +360,11 @@ contract RngAuction is IAuction, Ownable {
   }
 
   /**
-   * @notice Calculates the reward portion for the current auction if it were to be completed at this time.
-   * @return The current reward portion as a UD2x18 value
+   * @notice Calculates the reward fraction for the current auction if it were to be completed at this time.
+   * @return The current reward fraction as a UD2x18 value
    */
-  function _currentRewardPortion() internal view returns (UD2x18) {
-    return RewardLib.rewardPortion(_elapsedTime(), _auctionDurationSeconds);
+  function _currentFractionalReward() internal view returns (UD2x18) {
+    return RewardLib.fractionalReward(_elapsedTime(), _auctionDurationSeconds);
   }
 
   /**

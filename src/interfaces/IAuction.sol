@@ -8,11 +8,11 @@ import { UD2x18 } from "prb-math/UD2x18.sol";
 /**
  * @notice Stores the results of an auction.
  * @param recipient The recipient of the auction awards
- * @param rewardPortion The portion of the available rewards to be sent to the recipient
+ * @param rewardFraction The fraction of the available rewards to be sent to the recipient
  */
 struct AuctionResults {
   address recipient;
-  UD2x18 rewardPortion;
+  UD2x18 rewardFraction;
 }
 
 /* ============ Interface ============ */
@@ -25,13 +25,13 @@ interface IAuction {
    * @param recipient The recipient of the auction awards
    * @param sequenceId The sequence ID for the auction
    * @param elapsedTime The amount of time that the auction ran for in seconds
-   * @param rewardPortion The portion of the available rewards to be sent to the recipient
+   * @param rewardFraction The fraction of the available rewards to be sent to the recipient
    */
   event AuctionCompleted(
     address indexed recipient,
     uint32 indexed sequenceId,
     uint64 elapsedTime,
-    UD2x18 rewardPortion
+    UD2x18 rewardFraction
   );
 
   /* ============ Functions ============ */
@@ -49,11 +49,12 @@ interface IAuction {
   function elapsedTime() external view returns (uint64);
 
   /**
-   * @notice Calculates the reward portion for the current auction if it were to be completed at this time.
+   * @notice Calculates the reward fraction for the current auction if it were to be completed at this time.
    * @dev The implementation of this function may revert if the auction has expired or been completed.
-   * @return The current reward portion as a UD2x18 value
+   * @dev This will return a fractional number between [0,1]
+   * @return The current reward fraction as a UD2x18 value
    */
-  function currentRewardPortion() external view returns (UD2x18);
+  function currentFractionalReward() external view returns (UD2x18);
 
   /**
    * @notice Calculates if the current auction is complete.

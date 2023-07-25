@@ -30,7 +30,7 @@ contract DrawAuctionTest is Helpers {
     address indexed recipient,
     uint32 indexed sequenceId,
     uint64 elapsedTime,
-    UD2x18 rewardPortion
+    UD2x18 rewardFraction
   );
 
   /* ============ Variables ============ */
@@ -74,7 +74,7 @@ contract DrawAuctionTest is Helpers {
 
   function testCompleteDraw() public {
     // Warp
-    vm.warp(_rngCompletedAt + _auctionDuration / 2); // reward portion will be 0.5
+    vm.warp(_rngCompletedAt + _auctionDuration / 2); // reward fraction will be 0.5
 
     // Mock Calls
     _mockRngAuction_isRngComplete(rngAuction, true);
@@ -89,13 +89,13 @@ contract DrawAuctionTest is Helpers {
     // Check results
     (AuctionResults memory _auctionResults, uint32 _sequenceId) = drawAuction.getAuctionResults();
     assertEq(_sequenceId, _currentSequenceId);
-    assertEq(UD2x18.unwrap(_auctionResults.rewardPortion), uint64(5e17)); // 0.5
+    assertEq(UD2x18.unwrap(_auctionResults.rewardFraction), uint64(5e17)); // 0.5
     assertEq(_auctionResults.recipient, _recipient);
   }
 
   function testCompleteDraw_EmitsEvent() public {
     // Warp
-    vm.warp(_rngCompletedAt + _auctionDuration / 2); // reward portion will be 0.5
+    vm.warp(_rngCompletedAt + _auctionDuration / 2); // reward fraction will be 0.5
 
     // Mock Calls
     _mockRngAuction_isRngComplete(rngAuction, true);
@@ -167,7 +167,7 @@ contract DrawAuctionTest is Helpers {
     drawAuction.completeDraw(_recipient);
     (AuctionResults memory _auctionResults0, uint32 _sequenceId0) = drawAuction.getAuctionResults();
     assertEq(_sequenceId0, _currentSequenceId);
-    assertEq(UD2x18.unwrap(_auctionResults0.rewardPortion), uint64(5e17)); // 0.5
+    assertEq(UD2x18.unwrap(_auctionResults0.rewardFraction), uint64(5e17)); // 0.5
     assertEq(_auctionResults0.recipient, _recipient);
 
     // Warp
@@ -193,7 +193,7 @@ contract DrawAuctionTest is Helpers {
     drawAuction.completeDraw(address(this));
     (AuctionResults memory _auctionResults1, uint32 _sequenceId1) = drawAuction.getAuctionResults();
     assertEq(_sequenceId1, _currentSequenceId + 1);
-    assertEq(UD2x18.unwrap(_auctionResults1.rewardPortion), uint64(25e16)); // 0.25
+    assertEq(UD2x18.unwrap(_auctionResults1.rewardFraction), uint64(25e16)); // 0.25
     assertEq(_auctionResults1.recipient, address(this));
   }
 
@@ -308,42 +308,42 @@ contract DrawAuctionTest is Helpers {
     assertEq(drawAuction.auctionDuration(), _auctionDuration);
   }
 
-  /* ============ currentRewardPortion() ============ */
+  /* ============ currentFractionalReward() ============ */
 
-  function testCurrentRewardPortion_AtStart() public {
+  function testCurrentRewardFraction_AtStart() public {
     // Warp to beginning of auction
     vm.warp(_rngCompletedAt);
     _mockRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
 
     // Test
-    assertEq(UD2x18.unwrap(drawAuction.currentRewardPortion()), 0); // 0.0
+    assertEq(UD2x18.unwrap(drawAuction.currentFractionalReward()), 0); // 0.0
   }
 
-  function testCurrentRewardPortion_Halfway() public {
+  function testCurrentRewardFraction_Halfway() public {
     // Warp to halfway point of auction
     vm.warp(_rngCompletedAt + _auctionDuration / 2);
     _mockRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
 
     // Test
-    assertEq(UD2x18.unwrap(drawAuction.currentRewardPortion()), 5e17); // 0.5
+    assertEq(UD2x18.unwrap(drawAuction.currentFractionalReward()), 5e17); // 0.5
   }
 
-  function testCurrentRewardPortion_AtEnd() public {
+  function testCurrentRewardFraction_AtEnd() public {
     // Warp to end of auction
     vm.warp(_rngCompletedAt + _auctionDuration);
     _mockRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
 
     // Test
-    assertEq(UD2x18.unwrap(drawAuction.currentRewardPortion()), 1e18); // 1.0
+    assertEq(UD2x18.unwrap(drawAuction.currentFractionalReward()), 1e18); // 1.0
   }
 
-  function testCurrentRewardPortion_PastAuction() public {
+  function testCurrentRewardFraction_PastAuction() public {
     // Warp past auction
     vm.warp(_rngCompletedAt + _auctionDuration + _auctionDuration / 10);
     _mockRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
 
     // Test
-    assertEq(UD2x18.unwrap(drawAuction.currentRewardPortion()), 11e17); // 1.1
+    assertEq(UD2x18.unwrap(drawAuction.currentFractionalReward()), 11e17); // 1.1
   }
 
   /* ============ getAuctionResults() ============ */
@@ -361,6 +361,6 @@ contract DrawAuctionTest is Helpers {
 
     assertEq(_sequenceId, _currentSequenceId);
     assertEq(_auctionResults.recipient, _recipient);
-    assertEq(UD2x18.unwrap(_auctionResults.rewardPortion), 5e17);
+    assertEq(UD2x18.unwrap(_auctionResults.rewardFraction), 5e17);
   }
 }

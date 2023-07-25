@@ -36,7 +36,7 @@ contract RngAuctionTest is Helpers {
     address indexed recipient,
     uint32 indexed sequenceId,
     uint64 elapsedTime,
-    UD2x18 rewardPortion
+    UD2x18 rewardFraction
   );
 
   event RngServiceSet(RNGInterface indexed rngService);
@@ -94,7 +94,7 @@ contract RngAuctionTest is Helpers {
     assertEq(_sequenceId, 1);
 
     assertEq(_auctionResults.recipient, _recipient);
-    assertEq(UD2x18.unwrap(_auctionResults.rewardPortion), 5e17);
+    assertEq(UD2x18.unwrap(_auctionResults.rewardFraction), 5e17);
 
     assertEq(_rngRequest.id, _rngRequestId);
     assertEq(_rngRequest.lockBlock, _lockBlock);
@@ -209,38 +209,38 @@ contract RngAuctionTest is Helpers {
     assertEq(rngAuction.auctionDuration(), _auctionDuration);
   }
 
-  /* ============ currentRewardPortion() ============ */
+  /* ============ currentFractionalReward() ============ */
 
-  function testCurrentRewardPortion_AtStart() public {
+  function testCurrentRewardFraction_AtStart() public {
     // Warp to beginning of auction
     vm.warp(_sequencePeriodSeconds);
 
     // Test
-    assertEq(UD2x18.unwrap(rngAuction.currentRewardPortion()), 0); // 0.0
+    assertEq(UD2x18.unwrap(rngAuction.currentFractionalReward()), 0); // 0.0
   }
 
-  function testCurrentRewardPortion_Halfway() public {
+  function testCurrentRewardFraction_Halfway() public {
     // Warp to halfway point of auction
     vm.warp(_sequencePeriodSeconds + _auctionDuration / 2);
 
     // Test
-    assertEq(UD2x18.unwrap(rngAuction.currentRewardPortion()), 5e17); // 0.5
+    assertEq(UD2x18.unwrap(rngAuction.currentFractionalReward()), 5e17); // 0.5
   }
 
-  function testCurrentRewardPortion_AtEnd() public {
+  function testCurrentRewardFraction_AtEnd() public {
     // Warp to end of auction
     vm.warp(_sequencePeriodSeconds + _auctionDuration);
 
     // Test
-    assertEq(UD2x18.unwrap(rngAuction.currentRewardPortion()), 1e18); // 1.0
+    assertEq(UD2x18.unwrap(rngAuction.currentFractionalReward()), 1e18); // 1.0
   }
 
-  function testCurrentRewardPortion_PastAuction() public {
+  function testCurrentRewardFraction_PastAuction() public {
     // Warp past auction
     vm.warp(_sequencePeriodSeconds + _auctionDuration + _auctionDuration / 10);
 
     // Test
-    assertEq(UD2x18.unwrap(rngAuction.currentRewardPortion()), 11e17); // 1.1
+    assertEq(UD2x18.unwrap(rngAuction.currentFractionalReward()), 11e17); // 1.1
   }
 
   /* ============ getAuctionResults() ============ */
@@ -262,7 +262,7 @@ contract RngAuctionTest is Helpers {
 
     assertEq(_sequenceId, 1);
     assertEq(_auctionResults.recipient, _recipient);
-    assertEq(UD2x18.unwrap(_auctionResults.rewardPortion), 5e17);
+    assertEq(UD2x18.unwrap(_auctionResults.rewardFraction), 5e17);
   }
 
   /* ============ currentSequenceId() ============ */

@@ -86,10 +86,10 @@ abstract contract DrawAuction is IAuction {
     uint64 _auctionElapsedSeconds = uint64(block.timestamp) - _rngCompletedAt;
     if (_auctionElapsedSeconds > _auctionDurationSeconds) revert DrawAuctionExpired();
 
-    // Calculate the reward portion and set the draw auction results
-    UD2x18 _reward = _rewardPortion(_auctionElapsedSeconds);
+    // Calculate the reward fraction and set the draw auction results
+    UD2x18 _reward = _fractionalReward(_auctionElapsedSeconds);
     _auctionResults.recipient = _rewardRecipient;
-    _auctionResults.rewardPortion = _reward;
+    _auctionResults.rewardFraction = _reward;
     _lastSequenceId = _rngRequest.sequenceId;
 
     // Hook after draw auction is complete
@@ -139,8 +139,8 @@ abstract contract DrawAuction is IAuction {
   /**
    * @inheritdoc IAuction
    */
-  function currentRewardPortion() external view returns (UD2x18) {
-    return _rewardPortion(elapsedTime());
+  function currentFractionalReward() external view returns (UD2x18) {
+    return _fractionalReward(elapsedTime());
   }
 
   /**
@@ -166,11 +166,11 @@ abstract contract DrawAuction is IAuction {
   }
 
   /**
-   * @notice Calculates the reward portion for an auction if it were to be completed after the elapsed time.
-   * @return The reward portion as a UD2x18 value
+   * @notice Calculates the reward fraction for an auction if it were to be completed after the elapsed time.
+   * @return The reward fraction as a UD2x18 value
    */
-  function _rewardPortion(uint64 _elapsedSeconds) internal view returns (UD2x18) {
-    return RewardLib.rewardPortion(_elapsedSeconds, _auctionDurationSeconds);
+  function _fractionalReward(uint64 _elapsedSeconds) internal view returns (UD2x18) {
+    return RewardLib.fractionalReward(_elapsedSeconds, _auctionDurationSeconds);
   }
 
   /* ============ Hooks ============ */

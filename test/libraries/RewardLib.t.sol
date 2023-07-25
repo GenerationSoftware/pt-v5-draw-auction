@@ -16,16 +16,16 @@ contract RewardLibTest is Test {
     rewardLib = new RewardLibWrapper();
   }
 
-  function testRewardPortion_zeroElapsed() external {
-    assertEq(UD2x18.unwrap(rewardLib.rewardPortion(0, 1 days)), 0); // 0
+  function testRewardFraction_zeroElapsed() external {
+    assertEq(UD2x18.unwrap(rewardLib.fractionalReward(0, 1 days)), 0); // 0
   }
 
-  function testRewardPortion_fullElapsed() external {
-    assertEq(UD2x18.unwrap(rewardLib.rewardPortion(1 days, 1 days)), 1e18); // 1
+  function testRewardFraction_fullElapsed() external {
+    assertEq(UD2x18.unwrap(rewardLib.fractionalReward(1 days, 1 days)), 1e18); // 1
   }
 
-  function testRewardPortion_halfElapsed() external {
-    assertEq(UD2x18.unwrap(rewardLib.rewardPortion(1 days / 2, 1 days)), 5e17); // 0.5
+  function testRewardFraction_halfElapsed() external {
+    assertEq(UD2x18.unwrap(rewardLib.fractionalReward(1 days / 2, 1 days)), 5e17); // 0.5
   }
 
   function testReward_noRecipient() external {
@@ -35,7 +35,7 @@ contract RewardLibTest is Test {
     );
     uint256 _reserve = 1e18;
     assertGt(_reserve, 0);
-    assertGt(UD2x18.unwrap(_auctionResults.rewardPortion), 0);
+    assertGt(UD2x18.unwrap(_auctionResults.rewardFraction), 0);
     assertEq(rewardLib.reward(_auctionResults, _reserve), 0);
   }
 
@@ -46,11 +46,11 @@ contract RewardLibTest is Test {
     );
     uint256 _reserve = 0; // no reserve
     assertNotEq(_auctionResults.recipient, address(0));
-    assertGt(UD2x18.unwrap(_auctionResults.rewardPortion), 0);
+    assertGt(UD2x18.unwrap(_auctionResults.rewardFraction), 0);
     assertEq(rewardLib.reward(_auctionResults, _reserve), 0);
   }
 
-  function testReward_zeroPortion() external {
+  function testReward_zeroFraction() external {
     AuctionResults memory _auctionResults = AuctionResults(
       address(this),
       UD2x18.wrap(0) // 0
@@ -61,7 +61,7 @@ contract RewardLibTest is Test {
     assertEq(rewardLib.reward(_auctionResults, _reserve), 0);
   }
 
-  function testReward_fullPortion() external {
+  function testReward_fullFraction() external {
     AuctionResults memory _auctionResults = AuctionResults(
       address(this),
       UD2x18.wrap(1e18) // full portion (1.0)
@@ -70,7 +70,7 @@ contract RewardLibTest is Test {
     assertEq(rewardLib.reward(_auctionResults, _reserve), _reserve);
   }
 
-  function testReward_halfPortion() external {
+  function testReward_halfFraction() external {
     AuctionResults memory _auctionResults = AuctionResults(
       address(this),
       UD2x18.wrap(5e17) // half portion (0.5)

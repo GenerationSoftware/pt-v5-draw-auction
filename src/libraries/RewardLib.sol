@@ -12,9 +12,9 @@ library RewardLib {
   /**
    * @notice Calculates a linearly increasing fraction from the elapsed time divided by the auction duration.
    * @dev This function does not do any checks to see if the elapsed time is greater than the auction duration.
-   * @return The reward portion as a UD2x18 fraction
+   * @return The reward fraction as a UD2x18 fraction
    */
-  function rewardPortion(
+  function fractionalReward(
     uint64 _elapsedTime,
     uint64 _auctionDuration
   ) internal pure returns (UD2x18) {
@@ -23,7 +23,7 @@ library RewardLib {
 
   /**
    * @notice Calculates rewards to distribute given the available reserve and completed auction results.
-   * @dev Each auction takes a portion of the remaining reserve. This means that if the reserve is equal
+   * @dev Each auction takes a fraction of the remaining reserve. This means that if the reserve is equal
    * to 100 and the first auction takes 50% and the second takes 50%, then the first reward will be equal
    * to 50 while the second will be 25.
    * @param _auctionResults Auction results to get rewards for
@@ -58,7 +58,7 @@ library RewardLib {
     if (_reserve == 0) return 0;
     return
       fromUD60x18(
-        UD60x18.wrap(UD2x18.unwrap(_auctionResult.rewardPortion)).mul(toUD60x18(_reserve))
+        UD60x18.wrap(UD2x18.unwrap(_auctionResult.rewardFraction)).mul(toUD60x18(_reserve))
       );
   }
 }
