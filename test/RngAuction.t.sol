@@ -11,6 +11,16 @@ contract RngAuctionTest is Helpers {
   /// @notice Thrown when the auction period is zero.
   error AuctionDurationZero();
 
+  /// @notice Thrown if the auction target time is zero.
+  error AuctionTargetTimeZero();
+
+  /**
+   * @notice Thrown if the auction target time exceeds the auction duration.
+   * @param auctionTargetTime The auction target time to complete in seconds
+   * @param auctionDuration The auction duration in seconds
+   */
+  error AuctionTargetTimeExceedsDuration(uint64 auctionTargetTime, uint64 auctionDuration);
+
   /// @notice Thrown when the sequence period is zero.
   error SequencePeriodZero();
 
@@ -41,14 +51,15 @@ contract RngAuctionTest is Helpers {
 
   event RngServiceSet(RNGInterface indexed rngService);
 
-  event SetAuctionDuration(uint64 auctionDurationSeconds);
+  event SetAuctionDuration(uint64 auctionDurationSeconds, uint64 auctionTargetTime);
 
   /* ============ Variables ============ */
 
   RngAuction public rngAuction;
   RNGInterface public rng;
 
-  uint64 _auctionDuration = 3 hours;
+  uint64 _auctionDuration = 4 hours;
+  uint64 _auctionTargetTime = 2 hours;
   uint64 _sequencePeriodSeconds = 1 days;
   uint64 _sequenceOffsetSeconds = 0;
   address _recipient = address(2);
@@ -64,15 +75,16 @@ contract RngAuctionTest is Helpers {
       address(this),
       _sequencePeriodSeconds,
       _sequenceOffsetSeconds,
-      _auctionDuration
+      _auctionDuration,
+      _auctionTargetTime
     );
   }
 
   /* ============ startRngRequest() ============ */
 
   function testStartRngRequest() public {
-    // Warp to halfway through auction
-    vm.warp(_sequencePeriodSeconds + _auctionDuration / 2);
+    // Warp to end of auction
+    vm.warp(_sequencePeriodSeconds + _auctionDuration);
 
     // Variables
     uint32 _rngRequestId = 1;
@@ -85,7 +97,7 @@ contract RngAuctionTest is Helpers {
     uint64 _requestedAt = uint64(block.timestamp);
 
     vm.expectEmit();
-    emit AuctionCompleted(_recipient, 1, _auctionDuration / 2, UD2x18.wrap(uint64(5e17)));
+    emit AuctionCompleted(_recipient, 1, _auctionDuration, UD2x18.wrap(uint64(1e18)));
 
     rngAuction.startRngRequest(_recipient);
     (AuctionResults memory _auctionResults, uint32 _sequenceId) = rngAuction.getAuctionResults();
@@ -94,7 +106,7 @@ contract RngAuctionTest is Helpers {
     assertEq(_sequenceId, 1);
 
     assertEq(_auctionResults.recipient, _recipient);
-    assertEq(UD2x18.unwrap(_auctionResults.rewardFraction), 5e17);
+    assertEq(UD2x18.unwrap(_auctionResults.rewardFraction), 1e18);
 
     assertEq(_rngRequest.id, _rngRequestId);
     assertEq(_rngRequest.lockBlock, _lockBlock);
@@ -221,10 +233,14 @@ contract RngAuctionTest is Helpers {
 
   function testCurrentRewardFraction_Halfway() public {
     // Warp to halfway point of auction
-    vm.warp(_sequencePeriodSeconds + _auctionDuration / 2);
+    vm.warp(_sequencePeriodSeconds + _auctionTargetTime);
 
     // Test
-    assertEq(UD2x18.unwrap(rngAuction.currentFractionalReward()), 5e17); // 0.5
+    (AuctionResults memory _lastResults, ) = rngAuction.getAuctionResults();
+    assertEq(
+      UD2x18.unwrap(rngAuction.currentFractionalReward()),
+      UD2x18.unwrap(_lastResults.rewardFraction)
+    ); // equal to last reward fraction
   }
 
   function testCurrentRewardFraction_AtEnd() public {
@@ -240,14 +256,14 @@ contract RngAuctionTest is Helpers {
     vm.warp(_sequencePeriodSeconds + _auctionDuration + _auctionDuration / 10);
 
     // Test
-    assertEq(UD2x18.unwrap(rngAuction.currentFractionalReward()), 11e17); // 1.1
+    assertGe(UD2x18.unwrap(rngAuction.currentFractionalReward()), 1e18); // >= 1.0
   }
 
   /* ============ getAuctionResults() ============ */
 
   function testGetAuctionResults() public {
-    // Warp to halfway through auction
-    vm.warp(_sequencePeriodSeconds + _auctionDuration / 2);
+    // Warp to end of auction
+    vm.warp(_sequencePeriodSeconds + _auctionDuration);
 
     // Variables
     uint32 _rngRequestId = 1;
@@ -262,7 +278,7 @@ contract RngAuctionTest is Helpers {
 
     assertEq(_sequenceId, 1);
     assertEq(_auctionResults.recipient, _recipient);
-    assertEq(UD2x18.unwrap(_auctionResults.rewardFraction), 5e17);
+    assertEq(UD2x18.unwrap(_auctionResults.rewardFraction), 1e18);
   }
 
   /* ============ currentSequenceId() ============ */
@@ -286,7 +302,8 @@ contract RngAuctionTest is Helpers {
       address(this),
       _sequencePeriodSeconds,
       _offset,
-      _auctionDuration
+      _auctionDuration,
+      _auctionTargetTime
     );
 
     vm.warp(_offset);
@@ -307,7 +324,8 @@ contract RngAuctionTest is Helpers {
       address(this),
       _sequencePeriodSeconds,
       _offset,
-      _auctionDuration
+      _auctionDuration,
+      _auctionTargetTime
     );
 
     vm.warp(_offset - 1);
@@ -498,19 +516,24 @@ contract RngAuctionTest is Helpers {
     assertNotEq(_newAuctionDuration, _auctionDuration);
 
     vm.expectEmit();
-    emit SetAuctionDuration(_newAuctionDuration);
-    rngAuction.setAuctionDuration(_newAuctionDuration);
+    emit SetAuctionDuration(_newAuctionDuration, _newAuctionDuration / 4);
+    rngAuction.setAuctionDuration(_newAuctionDuration, _newAuctionDuration / 4);
 
     assertEq(rngAuction.auctionDuration(), _newAuctionDuration);
   }
 
-  function testSetAuctionDuration_Zero() public {
+  function testSetAuctionDuration_DurationZero() public {
     uint64 _newAuctionDuration = 0;
     vm.expectRevert(abi.encodeWithSelector(AuctionDurationZero.selector));
-    rngAuction.setAuctionDuration(_newAuctionDuration);
+    rngAuction.setAuctionDuration(_newAuctionDuration, 1);
   }
 
-  function testSetAuctionDuration_TooLong() public {
+  function testSetAuctionDuration_TargetTimeZero() public {
+    vm.expectRevert(abi.encodeWithSelector(AuctionTargetTimeZero.selector));
+    rngAuction.setAuctionDuration(1 days, 0);
+  }
+
+  function testSetAuctionDuration_DurationTooLong() public {
     uint64 _newAuctionDuration = _sequencePeriodSeconds;
     vm.expectRevert(
       abi.encodeWithSelector(
@@ -519,12 +542,25 @@ contract RngAuctionTest is Helpers {
         _sequencePeriodSeconds
       )
     );
-    rngAuction.setAuctionDuration(_newAuctionDuration);
+    rngAuction.setAuctionDuration(_newAuctionDuration, 1);
+  }
+
+  function testSetAuctionDuration_TargetTimeTooLong() public {
+    uint64 _newAuctionDuration = _sequencePeriodSeconds / 2;
+    uint64 _newTargetTime = _newAuctionDuration + 1;
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        AuctionTargetTimeExceedsDuration.selector,
+        _newTargetTime,
+        _newAuctionDuration
+      )
+    );
+    rngAuction.setAuctionDuration(_newAuctionDuration, _newTargetTime);
   }
 
   function testFailSetAuctionDuration_NotOwner() public {
     vm.startPrank(address(123));
-    rngAuction.setAuctionDuration(2 hours);
+    rngAuction.setAuctionDuration(2 hours, 1);
     vm.stopPrank();
   }
 }

@@ -54,11 +54,14 @@ contract RngAuction is IAuction, Ownable {
   AuctionResults internal _auctionResults;
 
   /// @notice Duration of the auction in seconds
-  /// @dev This will always be less than the sequence since the auction needs to complete each period.
+  /// @dev This must always be less than the sequence period since the auction needs to complete each period.
   uint64 internal _auctionDurationSeconds;
 
+  /// @notice The target time to complete the auction as a fraction of the auction duration
+  UD2x18 internal _auctionTargetTimeFraction;
+
   /// @notice Duration of the sequence that the auction should align with
-  /// @dev This will always be greater than the auction duration.
+  /// @dev This must always be greater than the auction duration.
   uint64 internal _sequencePeriodSeconds;
 
   /**
@@ -73,6 +76,16 @@ contract RngAuction is IAuction, Ownable {
 
   /// @notice Thrown when the auction period is zero.
   error AuctionDurationZero();
+
+  /// @notice Thrown if the auction target time is zero.
+  error AuctionTargetTimeZero();
+
+  /**
+   * @notice Thrown if the auction target time exceeds the auction duration.
+   * @param auctionTargetTime The auction target time to complete in seconds
+   * @param auctionDuration The auction duration in seconds
+   */
+  error AuctionTargetTimeExceedsDuration(uint64 auctionTargetTime, uint64 auctionDuration);
 
   /// @notice Thrown when the sequence period is zero.
   error SequencePeriodZero();
@@ -98,8 +111,9 @@ contract RngAuction is IAuction, Ownable {
   /**
    * @notice Emitted when the auction duration is updated.
    * @param auctionDurationSeconds The new auction duration in seconds
+   * @param auctionTargetTime The new auction target time to complete in seconds
    */
-  event SetAuctionDuration(uint64 auctionDurationSeconds);
+  event SetAuctionDuration(uint64 auctionDurationSeconds, uint64 auctionTargetTime);
 
   /**
    * @notice Emitted when the RNG service address is set.
@@ -116,18 +130,20 @@ contract RngAuction is IAuction, Ownable {
    * @param sequencePeriodSeconds_ Sequence period in seconds
    * @param sequenceOffsetSeconds_ Sequence offset in seconds
    * @param auctionDurationSeconds_ Auction duration in seconds
+   * @param auctionTargetTime_ Target time to complete the auction in seconds
    */
   constructor(
     RNGInterface rng_,
     address owner_,
     uint64 sequencePeriodSeconds_,
     uint64 sequenceOffsetSeconds_,
-    uint64 auctionDurationSeconds_
+    uint64 auctionDurationSeconds_,
+    uint64 auctionTargetTime_
   ) Ownable(owner_) {
     if (sequencePeriodSeconds_ == 0) revert SequencePeriodZero();
     _sequencePeriodSeconds = sequencePeriodSeconds_;
     _sequenceOffsetSeconds = sequenceOffsetSeconds_;
-    _setAuctionDuration(auctionDurationSeconds_);
+    _setAuctionDuration(auctionDurationSeconds_, auctionTargetTime_);
     _setRngService(rng_);
   }
 
@@ -220,8 +236,8 @@ contract RngAuction is IAuction, Ownable {
    * @inheritdoc IAuction
    */
   function currentRewardAmount(uint256 _reserve) external view returns (uint256) {
-    AuctionResults memory _auctionResults = AuctionResults(msg.sender, _currentFractionalReward());
-    return RewardLib.reward(_auctionResults, _reserve);
+    AuctionResults memory _results = AuctionResults(msg.sender, _currentFractionalReward());
+    return RewardLib.reward(_results, _reserve);
   }
 
   /**
@@ -330,11 +346,16 @@ contract RngAuction is IAuction, Ownable {
   }
 
   /**
-   * @notice Sets the auction duration
+   * @notice Sets the auction duration and target completion time
    * @param auctionDurationSeconds_ The new auction duration in seconds
+   * @param auctionTargetTime_ The new auction target completion time in seconds
+   * @dev The target completion time must be greater than zero and less than the auction duration.
    */
-  function setAuctionDuration(uint64 auctionDurationSeconds_) external onlyOwner {
-    _setAuctionDuration(auctionDurationSeconds_);
+  function setAuctionDuration(
+    uint64 auctionDurationSeconds_,
+    uint64 auctionTargetTime_
+  ) external onlyOwner {
+    _setAuctionDuration(auctionDurationSeconds_, auctionTargetTime_);
   }
 
   /* ============ Internal Functions ============ */
@@ -369,10 +390,17 @@ contract RngAuction is IAuction, Ownable {
 
   /**
    * @notice Calculates the reward fraction for the current auction if it were to be completed at this time.
+   * @dev Uses the last sold fraction as the target price for this auction.
    * @return The current reward fraction as a UD2x18 value
    */
   function _currentFractionalReward() internal view returns (UD2x18) {
-    return RewardLib.fractionalReward(_elapsedTime(), _auctionDurationSeconds);
+    return
+      RewardLib.fractionalReward(
+        _elapsedTime(),
+        _auctionDurationSeconds,
+        _auctionTargetTimeFraction,
+        _auctionResults.rewardFraction
+      );
   }
 
   /**
@@ -412,12 +440,21 @@ contract RngAuction is IAuction, Ownable {
   /**
    * @notice Sets the auction duration
    * @param auctionDurationSeconds_ The new auction duration in seconds
+   * @param _auctionTargetTime The new auction target time to complete in seconds
    */
-  function _setAuctionDuration(uint64 auctionDurationSeconds_) internal {
+  function _setAuctionDuration(uint64 auctionDurationSeconds_, uint64 _auctionTargetTime) internal {
     if (auctionDurationSeconds_ == 0) revert AuctionDurationZero();
-    if (auctionDurationSeconds_ >= _sequencePeriodSeconds)
+    if (_auctionTargetTime == 0) revert AuctionTargetTimeZero();
+    if (auctionDurationSeconds_ >= _sequencePeriodSeconds) {
       revert AuctionDurationGteSequencePeriod(auctionDurationSeconds_, _sequencePeriodSeconds);
+    }
+    if (_auctionTargetTime > auctionDurationSeconds_) {
+      revert AuctionTargetTimeExceedsDuration(_auctionTargetTime, auctionDurationSeconds_);
+    }
     _auctionDurationSeconds = auctionDurationSeconds_;
-    emit SetAuctionDuration(_auctionDurationSeconds);
+    _auctionTargetTimeFraction = UD2x18.wrap(
+      uint64(toUD60x18(_auctionTargetTime).div(toUD60x18(_auctionDurationSeconds)).unwrap())
+    );
+    emit SetAuctionDuration(_auctionDurationSeconds, _auctionTargetTime);
   }
 }

@@ -16,16 +16,33 @@ contract RewardLibTest is Test {
     rewardLib = new RewardLibWrapper();
   }
 
+  function testFailRewardFraction_StartWithZeroTargetTime() external {
+    rewardLib.fractionalReward(0, 1 days, UD2x18.wrap(0), UD2x18.wrap(5e17));
+  }
+
   function testRewardFraction_zeroElapsed() external {
-    assertEq(UD2x18.unwrap(rewardLib.fractionalReward(0, 1 days)), 0); // 0
+    assertEq(
+      UD2x18.unwrap(rewardLib.fractionalReward(0, 1 days, UD2x18.wrap(5e17), UD2x18.wrap(5e17))),
+      0
+    ); // 0
   }
 
   function testRewardFraction_fullElapsed() external {
-    assertEq(UD2x18.unwrap(rewardLib.fractionalReward(1 days, 1 days)), 1e18); // 1
+    assertEq(
+      UD2x18.unwrap(
+        rewardLib.fractionalReward(1 days, 1 days, UD2x18.wrap(5e17), UD2x18.wrap(5e17))
+      ),
+      1e18
+    ); // 1
   }
 
   function testRewardFraction_halfElapsed() external {
-    assertEq(UD2x18.unwrap(rewardLib.fractionalReward(1 days / 2, 1 days)), 5e17); // 0.5
+    assertEq(
+      UD2x18.unwrap(
+        rewardLib.fractionalReward(1 days / 2, 1 days, UD2x18.wrap(5e17), UD2x18.wrap(5e17))
+      ),
+      5e17
+    ); // 0.5
   }
 
   function testReward_noRecipient() external {

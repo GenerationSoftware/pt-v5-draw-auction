@@ -11,9 +11,16 @@ import { RewardLib } from "local-draw-auction/libraries/RewardLib.sol";
 contract RewardLibWrapper {
   function fractionalReward(
     uint64 _elapsedTime,
-    uint64 _auctionDuration
+    uint64 _auctionDuration,
+    UD2x18 _targetTimeFraction,
+    UD2x18 _targetRewardFraction
   ) public pure returns (UD2x18) {
-    UD2x18 result = RewardLib.fractionalReward(_elapsedTime, _auctionDuration);
+    UD2x18 result = RewardLib.fractionalReward(
+      _elapsedTime,
+      _auctionDuration,
+      _targetTimeFraction,
+      _targetRewardFraction
+    );
     return result;
   }
 

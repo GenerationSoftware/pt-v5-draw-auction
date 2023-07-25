@@ -3,6 +3,7 @@ pragma solidity 0.8.17;
 
 import { RNGInterface } from "rng/RNGInterface.sol";
 import { UD2x18 } from "prb-math/UD2x18.sol";
+import { UD60x18, toUD60x18 } from "prb-math/UD60x18.sol";
 
 import { RewardLib } from "local-draw-auction/libraries/RewardLib.sol";
 import { RngAuction } from "local-draw-auction/RngAuction.sol";
@@ -32,6 +33,9 @@ abstract contract DrawAuction is IAuction {
   /// @notice The auction duration in seconds
   uint64 internal _auctionDurationSeconds;
 
+  /// @notice The target time to complete the auction as a fraction of the auction duration
+  UD2x18 internal _auctionTargetTimeFraction;
+
   /// @notice The last completed auction results
   AuctionResults internal _auctionResults;
 
@@ -39,6 +43,16 @@ abstract contract DrawAuction is IAuction {
 
   /// @notice Thrown if the auction period is zero.
   error AuctionDurationZero();
+
+  /// @notice Thrown if the auction target time is zero.
+  error AuctionTargetTimeZero();
+
+  /**
+   * @notice Thrown if the auction target time exceeds the auction duration.
+   * @param auctionTargetTime The auction target time to complete in seconds
+   * @param auctionDuration The auction duration in seconds
+   */
+  error AuctionTargetTimeExceedsDuration(uint64 auctionTargetTime, uint64 auctionDuration);
 
   /// @notice Thrown if the RngAuction address is the zero address.
   error RngAuctionZeroAddress();
@@ -58,12 +72,20 @@ abstract contract DrawAuction is IAuction {
    * @notice Deploy the DrawAuction smart contract.
    * @param rngAuction_ The RngAuction to get the random number from
    * @param auctionDurationSeconds_ Auction duration in seconds
+   * @param auctionTargetTime_ Target time to complete the auction in seconds
    */
-  constructor(RngAuction rngAuction_, uint64 auctionDurationSeconds_) {
+  constructor(RngAuction rngAuction_, uint64 auctionDurationSeconds_, uint64 auctionTargetTime_) {
     if (address(rngAuction_) == address(0)) revert RngAuctionZeroAddress();
     if (auctionDurationSeconds_ == 0) revert AuctionDurationZero();
+    if (auctionTargetTime_ == 0) revert AuctionTargetTimeZero();
+    if (auctionTargetTime_ > auctionDurationSeconds_) {
+      revert AuctionTargetTimeExceedsDuration(auctionTargetTime_, auctionDurationSeconds_);
+    }
     rngAuction = rngAuction_;
     _auctionDurationSeconds = auctionDurationSeconds_;
+    _auctionTargetTimeFraction = UD2x18.wrap(
+      uint64(toUD60x18(auctionTargetTime_).div(toUD60x18(_auctionDurationSeconds)).unwrap())
+    );
   }
 
   /* ============ External Functions ============ */
@@ -147,10 +169,10 @@ abstract contract DrawAuction is IAuction {
    * @inheritdoc IAuction
    */
   function currentRewardAmount(uint256 _reserve) external view returns (uint256) {
-    AuctionResults[] memory _auctionResults = new AuctionResults[](2);
-    (_auctionResults[0], ) = rngAuction.getAuctionResults();
-    _auctionResults[1] = AuctionResults(msg.sender, _fractionalReward(elapsedTime()));
-    return RewardLib.rewards(_auctionResults, _reserve)[1];
+    AuctionResults[] memory _results = new AuctionResults[](2);
+    (_results[0], ) = rngAuction.getAuctionResults();
+    _results[1] = AuctionResults(msg.sender, _fractionalReward(elapsedTime()));
+    return RewardLib.rewards(_results, _reserve)[1];
   }
 
   /**
@@ -177,10 +199,17 @@ abstract contract DrawAuction is IAuction {
 
   /**
    * @notice Calculates the reward fraction for an auction if it were to be completed after the elapsed time.
+   * @dev Uses the last sold fraction as the target price for this auction.
    * @return The reward fraction as a UD2x18 value
    */
   function _fractionalReward(uint64 _elapsedSeconds) internal view returns (UD2x18) {
-    return RewardLib.fractionalReward(_elapsedSeconds, _auctionDurationSeconds);
+    return
+      RewardLib.fractionalReward(
+        _elapsedSeconds,
+        _auctionDurationSeconds,
+        _auctionTargetTimeFraction,
+        _auctionResults.rewardFraction
+      );
   }
 
   /* ============ Hooks ============ */

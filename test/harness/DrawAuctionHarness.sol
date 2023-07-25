@@ -14,8 +14,9 @@ contract DrawAuctionHarness is DrawAuction {
 
   constructor(
     RngAuction rngAuction_,
-    uint64 auctionDurationSeconds_
-  ) DrawAuction(rngAuction_, auctionDurationSeconds_) {}
+    uint64 auctionDurationSeconds_,
+    uint64 auctionTargetTime_
+  ) DrawAuction(rngAuction_, auctionDurationSeconds_, auctionTargetTime_) {}
 
   /**
    * @dev counts the number of times the hook is called
