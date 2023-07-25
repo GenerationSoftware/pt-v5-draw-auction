@@ -219,6 +219,14 @@ contract RngAuction is IAuction, Ownable {
   /**
    * @inheritdoc IAuction
    */
+  function currentRewardAmount(uint256 _reserve) external view returns (uint256) {
+    AuctionResults memory _auctionResults = AuctionResults(msg.sender, _currentFractionalReward());
+    return RewardLib.reward(_auctionResults, _reserve);
+  }
+
+  /**
+   * @inheritdoc IAuction
+   */
   function getAuctionResults()
     external
     view

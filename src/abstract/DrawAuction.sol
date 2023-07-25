@@ -146,6 +146,16 @@ abstract contract DrawAuction is IAuction {
   /**
    * @inheritdoc IAuction
    */
+  function currentRewardAmount(uint256 _reserve) external view returns (uint256) {
+    AuctionResults[] memory _auctionResults = new AuctionResults[](2);
+    (_auctionResults[0], ) = rngAuction.getAuctionResults();
+    _auctionResults[1] = AuctionResults(msg.sender, _fractionalReward(elapsedTime()));
+    return RewardLib.rewards(_auctionResults, _reserve)[1];
+  }
+
+  /**
+   * @inheritdoc IAuction
+   */
   function getAuctionResults()
     external
     view

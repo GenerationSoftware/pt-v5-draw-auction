@@ -57,6 +57,20 @@ interface IAuction {
   function currentFractionalReward() external view returns (UD2x18);
 
   /**
+   * @notice Calculates the reward amount if the current auction were to be completed at this time with
+   * the given available reserve.
+   * @dev The implementation of this function may revert if the auction has expired or been completed.
+   * @dev This function will return the actual token amount expected if the given reserve remains the same
+   * at the time when the draw is closed.
+   * @dev This function takes into account any previous auctions that will be rewarded from the same
+   * reserve and returns the reward amount after those deductions are made (i.e. do not subtract any
+   * amount from the reserve before passing it to this function).
+   * @param reserve The reserve of the prize pool that will be rewarding the auctions
+   * @return The expected reward token amount
+   */
+  function currentRewardAmount(uint256 reserve) external view returns (uint256);
+
+  /**
    * @notice Calculates if the current auction is complete.
    * @return True if the auction is complete, false otherwise
    */
