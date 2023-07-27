@@ -2,6 +2,7 @@
 pragma solidity 0.8.17;
 
 import { Helpers, RNGInterface, UD2x18, AuctionResults } from "test/helpers/Helpers.t.sol";
+import { ERC20Mintable } from "test/mocks/ERC20Mintable.sol";
 
 import { RngAuction } from "local-draw-auction/RngAuction.sol";
 
@@ -53,10 +54,15 @@ contract RngAuctionTest is Helpers {
 
   event SetAuctionDuration(uint64 auctionDurationSeconds, uint64 auctionTargetTime);
 
+  event Transfer(address indexed from, address indexed to, uint256 value);
+
+  event Approval(address indexed owner, address indexed spender, uint256 value);
+
   /* ============ Variables ============ */
 
   RngAuction public rngAuction;
   RNGInterface public rng;
+  ERC20Mintable public rngFeeToken;
 
   uint64 _auctionDuration = 4 hours;
   uint64 _auctionTargetTime = 2 hours;
@@ -66,6 +72,8 @@ contract RngAuctionTest is Helpers {
 
   function setUp() public {
     vm.warp(0);
+
+    rngFeeToken = new ERC20Mintable("RNG Fee Token", "RNGFT");
 
     rng = RNGInterface(makeAddr("rng"));
     vm.etch(address(rng), "rng");
@@ -91,7 +99,7 @@ contract RngAuctionTest is Helpers {
     uint32 _lockBlock = uint32(block.number);
 
     // Mock calls
-    _mockRngAuction_startRngRequest(rng, address(0), 0, _rngRequestId, _lockBlock);
+    _mockRngInterface_startRngRequest(rng, address(0), 0, _rngRequestId, _lockBlock);
 
     // Tests
     uint64 _requestedAt = uint64(block.timestamp);
@@ -114,6 +122,134 @@ contract RngAuctionTest is Helpers {
     assertEq(_rngRequest.requestedAt, _requestedAt);
   }
 
+  function testStartRngRequest_AuctionExpired() public {
+    // Warp to past end of auction
+    vm.warp(_sequencePeriodSeconds + _auctionDuration + 1);
+
+    // Variables
+    uint32 _rngRequestId = 1;
+    uint32 _lockBlock = uint32(block.number);
+
+    // Mock calls
+    _mockRngInterface_startRngRequest(rng, address(0), 0, _rngRequestId, _lockBlock);
+
+    // Tests
+    vm.expectRevert(abi.encodeWithSelector(AuctionExpired.selector));
+    rngAuction.startRngRequest(_recipient);
+  }
+
+  function testStartRngRequest_RngAlreadyStarted() public {
+    // Warp to end of auction
+    vm.warp(_sequencePeriodSeconds + _auctionDuration);
+
+    // Variables
+    uint32 _rngRequestId = 1;
+    uint32 _lockBlock = uint32(block.number);
+
+    // Mock calls
+    _mockRngInterface_startRngRequest(rng, address(0), 0, _rngRequestId, _lockBlock);
+
+    // Start RNG request
+    vm.expectEmit();
+    emit AuctionCompleted(_recipient, 1, _auctionDuration, UD2x18.wrap(uint64(1e18)));
+    rngAuction.startRngRequest(_recipient);
+
+    // Mock calls
+    _mockRngInterface_startRngRequest(rng, address(0), 0, _rngRequestId, _lockBlock);
+
+    // Try to complete again
+    vm.expectRevert(abi.encodeWithSelector(RngAlreadyStarted.selector));
+    rngAuction.startRngRequest(_recipient);
+  }
+
+  function testStartRngRequest_PayWithAllowance_NoAllowance() public {
+    // Warp to end of auction
+    vm.warp(_sequencePeriodSeconds + _auctionDuration);
+
+    // Variables
+    uint32 _rngRequestId = 1;
+    uint32 _lockBlock = uint32(block.number);
+    uint256 _fee = 2e18;
+
+    // Mint fee to user
+    rngFeeToken.mint(address(this), _fee);
+
+    // Mock calls
+    _mockRngInterface_startRngRequest(rng, address(rngFeeToken), _fee, _rngRequestId, _lockBlock);
+
+    // Remove allowance
+    rngFeeToken.approve(address(rngAuction), 0);
+
+    // Tests
+    vm.expectRevert("ERC20: insufficient allowance");
+    rngAuction.startRngRequest(_recipient);
+  }
+
+  function testStartRngRequest_PayWithAllowance() public {
+    // Warp to end of auction
+    vm.warp(_sequencePeriodSeconds + _auctionDuration);
+
+    // Variables
+    uint32 _rngRequestId = 1;
+    uint32 _lockBlock = uint32(block.number);
+    uint256 _fee = 2e18;
+
+    // Mock calls
+    _mockRngInterface_startRngRequest(rng, address(rngFeeToken), _fee, _rngRequestId, _lockBlock);
+
+    // Mint fee to user
+    rngFeeToken.mint(address(this), _fee);
+
+    // Set allowance
+    rngFeeToken.approve(address(rngAuction), _fee);
+
+    // Tests
+    vm.expectEmit();
+    emit Transfer(address(this), address(rngAuction), _fee);
+    vm.expectEmit();
+    emit Approval(address(rngAuction), address(rng), _fee);
+    rngAuction.startRngRequest(_recipient);
+
+    // Ensure rng can transfer from auction to service
+    vm.startPrank(address(rng));
+    vm.expectEmit();
+    emit Transfer(address(rngAuction), address(rng), _fee);
+    rngFeeToken.transferFrom(address(rngAuction), address(rng), _fee);
+    vm.stopPrank();
+  }
+
+  function testStartRngRequest_PayBefore() public {
+    // Warp to end of auction
+    vm.warp(_sequencePeriodSeconds + _auctionDuration);
+
+    // Variables
+    uint32 _rngRequestId = 1;
+    uint32 _lockBlock = uint32(block.number);
+    uint256 _fee = 2e18;
+
+    // Mock calls
+    _mockRngInterface_startRngRequest(rng, address(rngFeeToken), _fee, _rngRequestId, _lockBlock);
+
+    // Mint fee to user
+    rngFeeToken.mint(address(this), _fee);
+
+    // Remove allowance, but send funds directly instead
+    rngFeeToken.approve(address(rngAuction), 0);
+    rngFeeToken.transfer(address(rngAuction), _fee);
+
+    // Tests
+    vm.expectEmit();
+    emit Approval(address(rngAuction), address(rng), _fee);
+    rngAuction.startRngRequest(_recipient);
+
+    // Ensure rng can transfer from auction to service
+    vm.startPrank(address(rng));
+    vm.expectEmit();
+    emit Transfer(address(rngAuction), address(rng), _fee);
+    rngFeeToken.transferFrom(address(rngAuction), address(rng), _fee);
+    vm.stopPrank();
+  }
+
   /* ============ isAuctionComplete() ============ */
 
   function testIsAuctionComplete_NotComplete() public {
@@ -129,7 +265,7 @@ contract RngAuctionTest is Helpers {
     vm.warp(_sequencePeriodSeconds + _auctionDuration / 2);
 
     // Complete auction
-    _mockRngAuction_startRngRequest(rng, address(0), 0, 2, 1);
+    _mockRngInterface_startRngRequest(rng, address(0), 0, 2, 1);
     rngAuction.startRngRequest(_recipient);
 
     // Test
@@ -141,7 +277,7 @@ contract RngAuctionTest is Helpers {
     vm.warp(_sequencePeriodSeconds + _auctionDuration / 2);
 
     // Complete auction
-    _mockRngAuction_startRngRequest(rng, address(0), 0, 2, 1);
+    _mockRngInterface_startRngRequest(rng, address(0), 0, 2, 1);
     rngAuction.startRngRequest(_recipient);
 
     // Warp to next sequence
@@ -166,7 +302,7 @@ contract RngAuctionTest is Helpers {
     vm.warp(_sequencePeriodSeconds + _auctionDuration / 2);
 
     // Complete auction
-    _mockRngAuction_startRngRequest(rng, address(0), 0, 2, 1);
+    _mockRngInterface_startRngRequest(rng, address(0), 0, 2, 1);
     rngAuction.startRngRequest(_recipient);
 
     // Test
@@ -259,6 +395,32 @@ contract RngAuctionTest is Helpers {
     assertGe(UD2x18.unwrap(rngAuction.currentFractionalReward()), 1e18); // >= 1.0
   }
 
+  /* ============ currentRewardAmount() ============ */
+
+  function testCurrentRewardAmount_AtStart() public {
+    // Warp to beginning of auction
+    vm.warp(_sequencePeriodSeconds);
+
+    // Test
+    assertEq(rngAuction.currentRewardAmount(2e18), 0); // zero
+  }
+
+  function testCurrentRewardAmount_AtEnd() public {
+    // Warp to end of auction
+    vm.warp(_sequencePeriodSeconds + _auctionDuration);
+
+    // Test
+    assertEq(rngAuction.currentRewardAmount(2e18), 2e18); // full
+  }
+
+  function testCurrentRewardAmount_PastAuction() public {
+    // Warp past auction
+    vm.warp(_sequencePeriodSeconds + _auctionDuration + _auctionDuration / 10);
+
+    // Test
+    assertGe(rngAuction.currentRewardAmount(2e18), 2e18); // >= reserve
+  }
+
   /* ============ getAuctionResults() ============ */
 
   function testGetAuctionResults() public {
@@ -270,7 +432,7 @@ contract RngAuctionTest is Helpers {
     uint32 _lockBlock = uint32(block.number);
 
     // Start RNG Request
-    _mockRngAuction_startRngRequest(rng, address(0), 0, _rngRequestId, _lockBlock);
+    _mockRngInterface_startRngRequest(rng, address(0), 0, _rngRequestId, _lockBlock);
     rngAuction.startRngRequest(_recipient);
 
     // Tests
@@ -373,7 +535,7 @@ contract RngAuctionTest is Helpers {
     uint64 _completedAt = uint64(block.timestamp + 1);
 
     // Start RNG Request
-    _mockRngAuction_startRngRequest(rng, address(0), 0, _rngRequestId, _lockBlock);
+    _mockRngInterface_startRngRequest(rng, address(0), 0, _rngRequestId, _lockBlock);
     rngAuction.startRngRequest(_recipient);
 
     // Test
@@ -394,7 +556,7 @@ contract RngAuctionTest is Helpers {
 
     // Start RNG Request
     uint64 _requestedAt = uint64(block.timestamp);
-    _mockRngAuction_startRngRequest(rng, address(0), 0, _rngRequestId, _lockBlock);
+    _mockRngInterface_startRngRequest(rng, address(0), 0, _rngRequestId, _lockBlock);
     rngAuction.startRngRequest(_recipient);
 
     // Mock calls
@@ -429,7 +591,7 @@ contract RngAuctionTest is Helpers {
 
     // Start RNG Request
     uint64 _requestedAt = uint64(block.timestamp);
-    _mockRngAuction_startRngRequest(rng, address(0), 0, _rngRequestId, _lockBlock);
+    _mockRngInterface_startRngRequest(rng, address(0), 0, _rngRequestId, _lockBlock);
     rngAuction.startRngRequest(_recipient);
 
     // Test
@@ -489,11 +651,30 @@ contract RngAuctionTest is Helpers {
     assertEq(address(rngAuction.getRngService()), address(rng));
     assertEq(address(rngAuction.getPendingRngService()), address(_newRng));
 
-    _mockRngAuction_startRngRequest(_newRng, address(0), 0, 1, 1);
+    _mockRngInterface_startRngRequest(_newRng, address(0), 0, 1, 1);
     rngAuction.startRngRequest(_recipient);
 
     assertEq(address(rngAuction.getRngService()), address(_newRng));
     assertEq(address(rngAuction.getPendingRngService()), address(_newRng));
+  }
+
+  function testSetRngService_Constructor() public {
+    RNGInterface _newRng = RNGInterface(address(123));
+
+    vm.expectEmit();
+    emit RngServiceSet(_newRng);
+    RngAuction _newRngAuction = new RngAuction(
+      _newRng,
+      address(this),
+      1 days,
+      0,
+      0.5 days,
+      0.25 days
+    );
+
+    // It should set right away since the current rng is zero address
+    assertEq(address(_newRngAuction.getRngService()), address(_newRng));
+    assertEq(address(_newRngAuction.getPendingRngService()), address(_newRng));
   }
 
   function testSetRngService_ZeroAddress() public {

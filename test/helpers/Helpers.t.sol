@@ -8,6 +8,7 @@ import { RNGInterface } from "rng/RNGInterface.sol";
 import { UD2x18 } from "prb-math/UD2x18.sol";
 
 import { IAuction, AuctionResults } from "local-draw-auction/interfaces/IAuction.sol";
+import { IDrawManager } from "local-draw-auction/interfaces/IDrawManager.sol";
 import { RngAuction } from "local-draw-auction/RngAuction.sol";
 
 contract Helpers is Test {
@@ -53,17 +54,6 @@ contract Helpers is Test {
     );
   }
 
-  function _mockRngAuction_startRngRequest(
-    RNGInterface _rng,
-    address _feeToken,
-    uint256 _requestFee,
-    uint32 _requestId,
-    uint32 _lockBlock
-  ) internal {
-    _mockRngInterface_getRequestFee(_rng, _feeToken, _requestFee);
-    _mockRngInterface_requestRandomNumber(_rng, _requestId, _lockBlock);
-  }
-
   function _mockRngAuction_rngCompletedAt(RngAuction _rngAuction, uint64 _rngCompletedAt) internal {
     vm.mockCall(
       address(_rngAuction),
@@ -87,6 +77,17 @@ contract Helpers is Test {
   }
 
   /* ============ RNGInterface ============ */
+
+  function _mockRngInterface_startRngRequest(
+    RNGInterface _rng,
+    address _feeToken,
+    uint256 _requestFee,
+    uint32 _requestId,
+    uint32 _lockBlock
+  ) internal {
+    _mockRngInterface_getRequestFee(_rng, _feeToken, _requestFee);
+    _mockRngInterface_requestRandomNumber(_rng, _requestId, _lockBlock);
+  }
 
   function _mockRngInterface_completedAt(
     RNGInterface _rng,

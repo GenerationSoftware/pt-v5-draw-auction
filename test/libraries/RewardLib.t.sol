@@ -16,7 +16,7 @@ contract RewardLibTest is Test {
     rewardLib = new RewardLibWrapper();
   }
 
-  function testFailRewardFraction_StartWithZeroTargetTime() external {
+  function testFailRewardFraction_StartWithZeroTargetTime() external view {
     rewardLib.fractionalReward(0, 1 days, UD2x18.wrap(0), UD2x18.wrap(5e17));
   }
 

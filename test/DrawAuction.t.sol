@@ -355,6 +355,30 @@ contract DrawAuctionTest is Helpers {
     assertGe(UD2x18.unwrap(drawAuction.currentFractionalReward()), 1e18); // >= 1.0
   }
 
+  /* ============ currentRewardAmount() ============ */
+
+  function testCurrentRewardAmount_AtStart() public {
+    // Warp to beginning of auction
+    vm.warp(_rngCompletedAt);
+    _mockRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
+    AuctionResults memory _auctionResults = AuctionResults(address(this), UD2x18.wrap(0.5e18)); // 0.5 reward for rng auction
+    _mockIAuction_getAuctionResults(rngAuction, _auctionResults, 1);
+
+    // Test
+    assertEq(drawAuction.currentRewardAmount(2e18), 0); // none
+  }
+
+  function testCurrentRewardAmount_AtEnd() public {
+    // Warp to end of auction
+    vm.warp(_rngCompletedAt + _auctionDuration);
+    _mockRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
+    AuctionResults memory _auctionResults = AuctionResults(address(this), UD2x18.wrap(0.5e18)); // 0.5 reward for rng auction
+    _mockIAuction_getAuctionResults(rngAuction, _auctionResults, 1);
+
+    // Test
+    assertEq(drawAuction.currentRewardAmount(2e18), 1e18); // full - rngAuction reward
+  }
+
   /* ============ getAuctionResults() ============ */
 
   function testGetAuctionResults() public {

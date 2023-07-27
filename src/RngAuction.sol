@@ -171,6 +171,11 @@ contract RngAuction is IAuction, Ownable {
 
     (address _feeToken, uint256 _requestFee) = _rng.getRequestFee();
     if (_feeToken != address(0) && _requestFee > 0) {
+      if (IERC20(_feeToken).balanceOf(address(this)) < _requestFee) {
+        // Transfer tokens from caller to this contract before continuing
+        IERC20(_feeToken).transferFrom(msg.sender, address(this), _requestFee);
+      }
+      // Increase allowance for the RNG service to take the request fee
       IERC20(_feeToken).safeIncreaseAllowance(address(_rng), _requestFee);
     }
 
