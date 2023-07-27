@@ -5,6 +5,7 @@ optimism/=lib/optimism/packages/contracts-bedrock/contracts/
 owner-manager/=lib/owner-manager-contracts/contracts/
 rng/=lib/pt-v5-rng-contracts/contracts/
 prb-math/=lib/prb-math/src/
+erc5164=lib/ERC5164/src/
 
 pt-v5-prize-pool/=lib/pt-v5-prize-pool/src/
 pt-v5-twab-controller=lib/pt-v5-prize-pool/lib/pt-v5-twab-controller/src

@@ -6,7 +6,7 @@ import { AuctionResults } from "local-draw-auction/interfaces/IAuction.sol";
 import { IStartRngAuctionRelayListener } from "local-draw-auction/interfaces/IStartRngAuctionRelayListener.sol";
 import { AddressRemapper } from "local-draw-auction/abstract/AddressRemapper.sol";
 
-contract StartRngAuctionRelayer is AddressRemapper {
+contract ArbitrumStartRngAuctionRelayer is AddressRemapper {
     /// @notice Thrown if the RNG request is not complete for the current sequence.
     error RngNotCompleted();
 

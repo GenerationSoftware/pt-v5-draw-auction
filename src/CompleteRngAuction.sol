@@ -9,7 +9,6 @@ import { RewardLib } from "local-draw-auction/libraries/RewardLib.sol";
 import { StartRngAuction } from "local-draw-auction/StartRngAuction.sol";
 import { IAuction, AuctionResults } from "local-draw-auction/interfaces/IAuction.sol";
 
-import { DrawAuction } from "local-draw-auction/abstract/DrawAuction.sol";
 import { StartRngAuction } from "local-draw-auction/StartRngAuction.sol";
 import { IDrawManager } from "local-draw-auction/interfaces/IDrawManager.sol";
 import { AuctionResults } from "local-draw-auction/interfaces/IAuction.sol";
