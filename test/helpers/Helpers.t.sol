@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import "forge-std/Test.sol";
 
-import { PrizePool, TieredLiquidityDistributor } from "v5-prize-pool/PrizePool.sol";
+import { PrizePool, TieredLiquidityDistributor } from "pt-v5-prize-pool/PrizePool.sol";
 import { RNGInterface } from "rng/RNGInterface.sol";
 import { UD2x18 } from "prb-math/UD2x18.sol";
 

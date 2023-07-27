@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import { AccessControl } from "openzeppelin/access/AccessControl.sol";
-import { PrizePool } from "v5-prize-pool/PrizePool.sol";
+import { PrizePool } from "pt-v5-prize-pool/PrizePool.sol";
 
 import { AuctionResults } from "local-draw-auction/interfaces/IAuction.sol";
 import { RewardLib } from "local-draw-auction/libraries/RewardLib.sol";
