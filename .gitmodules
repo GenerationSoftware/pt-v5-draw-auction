@@ -22,3 +22,6 @@
 [submodule "lib/pt-v5-prize-pool"]
 	path = lib/pt-v5-prize-pool
 	url = https://github.com/generationsoftware/pt-v5-prize-pool
+[submodule "lib/erc5164"]
+	path = lib/erc5164
+	url = https://github.com/generationsoftware/erc5164
