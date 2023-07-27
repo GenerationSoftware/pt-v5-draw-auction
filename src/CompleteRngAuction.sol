@@ -3,27 +3,30 @@ pragma solidity ^0.8.19;
 
 import { RNGInterface } from "rng/RNGInterface.sol";
 import { UD2x18 } from "prb-math/UD2x18.sol";
-import { UD60x18, toUD60x18 } from "prb-math/UD60x18.sol";
+import { UD60x18, convert } from "prb-math/UD60x18.sol";
 
 import { RewardLib } from "local-draw-auction/libraries/RewardLib.sol";
 import { StartRngAuction } from "local-draw-auction/StartRngAuction.sol";
 import { IAuction, AuctionResults } from "local-draw-auction/interfaces/IAuction.sol";
 
+import { DrawAuction } from "local-draw-auction/abstract/DrawAuction.sol";
+import { StartRngAuction } from "local-draw-auction/StartRngAuction.sol";
+import { IDrawManager } from "local-draw-auction/interfaces/IDrawManager.sol";
+import { AuctionResults } from "local-draw-auction/interfaces/IAuction.sol";
+import { IStartRngAuctionRelayListener } from "local-draw-auction/interfaces/IStartRngAuctionRelayListener.sol";
+
 /**
- * @title   PoolTogether V5 DrawAuction
+ * @title   PoolTogether V5 DrawAuctionDirect
  * @author  Generation Software Team
- * @notice  The DrawAuction uses an auction mechanism to incentivize the completion of the Draw.
- *          There is a draw auction for each prize pool. The draw auction starts when the new
- *          random number is available for the current draw.
- * @dev     This contract runs synchronously with the StartRngAuction contract, waiting till the RNG
- *          auction is complete and the random number is available before starting the draw
- *          auction.
+ * @notice  This contract sends the results of the draw auction directly to the draw manager.
  */
-abstract contract DrawAuction is IAuction {
+contract CompleteRngAuction is IStartRngAuctionRelayListener {
   /* ============ Constants ============ */
 
-  /// @notice The RNG Auction to get the random number from
-  StartRngAuction public immutable rngAuction;
+  /// @notice The DrawManager to send the auction results to
+  IDrawManager public immutable drawManager;
+
+  address public immutable startRngAuctionRelayer;
 
   /* ============ Variables ============ */
 
@@ -55,27 +58,37 @@ abstract contract DrawAuction is IAuction {
   error AuctionTargetTimeExceedsDuration(uint64 auctionTargetTime, uint64 auctionDuration);
 
   /// @notice Thrown if the StartRngAuction address is the zero address.
-  error StartRngAuctionZeroAddress();
+  error RngRelayerZeroAddress();
 
-  /// @notice Thrown if the current draw auction has already been completed.
-  error DrawAlreadyCompleted();
+  /// @notice Thrown if the current sequence has already been completed.
+  error SequenceAlreadyCompleted();
 
   /// @notice Thrown if the current draw auction has expired.
-  error DrawAuctionExpired();
+  error AuctionExpired();
 
-  /// @notice Thrown if the RNG request is not complete for the current sequence.
-  error RngNotCompleted();
+  /* ============ Custom Errors ============ */
+
+  /// @notice Thrown if the DrawManager address is the zero address.
+  error DrawManagerZeroAddress();
 
   /* ============ Constructor ============ */
 
   /**
    * @notice Deploy the DrawAuction smart contract.
+   * @param drawManager_ The DrawManager to send the auction results to
    * @param rngAuction_ The StartRngAuction to get the random number from
    * @param auctionDurationSeconds_ Auction duration in seconds
-   * @param auctionTargetTime_ Target time to complete the auction in seconds
+   * @param auctionTargetTime_ Auction target time to complete in seconds
    */
-  constructor(StartRngAuction rngAuction_, uint64 auctionDurationSeconds_, uint64 auctionTargetTime_) {
-    if (address(rngAuction_) == address(0)) revert StartRngAuctionZeroAddress();
+  constructor(
+    IDrawManager drawManager_,
+    address _startRngAuctionRelayer,
+    uint64 auctionDurationSeconds_,
+    uint64 auctionTargetTime_
+  ) {
+    if (address(drawManager_) == address(0)) revert DrawManagerZeroAddress();
+    drawManager = drawManager_;
+    if (address(_startRngAuctionRelayer) == address(0)) revert RngRelayerZeroAddress();
     if (auctionDurationSeconds_ == 0) revert AuctionDurationZero();
     if (auctionTargetTime_ == 0) revert AuctionTargetTimeZero();
     if (auctionTargetTime_ > auctionDurationSeconds_) {
@@ -84,42 +97,39 @@ abstract contract DrawAuction is IAuction {
     rngAuction = rngAuction_;
     _auctionDurationSeconds = auctionDurationSeconds_;
     _auctionTargetTimeFraction = UD2x18.wrap(
-      uint64(toUD60x18(auctionTargetTime_).div(toUD60x18(_auctionDurationSeconds)).unwrap())
+      uint64(convert(auctionTargetTime_).div(convert(_auctionDurationSeconds)).unwrap())
     );
   }
 
   /* ============ External Functions ============ */
 
-  /**
-   * @notice Completes the current draw with the random number from the StartRngAuction.
-   * @dev Requires that the RNG is complete and that the current auction is open.
-   * @param _rewardRecipient The address to send the reward to
-   */
-  function completeDraw(address _rewardRecipient) external {
-    if (!rngAuction.isRngComplete()) revert RngNotCompleted();
-    if (_isAuctionComplete()) revert DrawAlreadyCompleted();
-
-    (
-      StartRngAuction.RngRequest memory _rngRequest,
-      uint256 _randomNumber,
-      uint64 _rngCompletedAt
-    ) = rngAuction.getRngResults();
+  function rngComplete(
+    uint256 _randomNumber,
+    uint56 _rngCompletedAt,
+    address _rewardRecipient,
+    uint32 _sequenceId,
+    AuctionResults calldata _startRngAuctionResult
+  ) external {
+    if (_isAuctionComplete(sequenceId)) revert SequenceAlreadyCompleted();
 
     uint64 _auctionElapsedSeconds = uint64(block.timestamp) - _rngCompletedAt;
-    if (_auctionElapsedSeconds > _auctionDurationSeconds) revert DrawAuctionExpired();
+    if (_auctionElapsedSeconds > _auctionDurationSeconds) revert AuctionExpired();
 
     // Calculate the reward fraction and set the draw auction results
     UD2x18 _reward = _fractionalReward(_auctionElapsedSeconds);
-    _auctionResults.recipient = _rewardRecipient;
     _auctionResults.rewardFraction = _reward;
-    _lastSequenceId = _rngRequest.sequenceId;
+    _auctionResults.recipient = _rewardRecipient;
+    _lastSequenceId = _sequenceId;
 
-    // Hook after draw auction is complete
-    _afterDrawAuction(_randomNumber);
+    AuctionResults[] memory _results = new AuctionResults[](2);
+    _results[0] = _startRngAuctionResult;
+    _results[1] = _auctionResults;
+    
+    drawManager.closeDraw(_randomNumber, _results);
 
     emit AuctionCompleted(
       _rewardRecipient,
-      _rngRequest.sequenceId,
+      _sequenceId,
       _auctionElapsedSeconds,
       _reward
     );
@@ -130,25 +140,8 @@ abstract contract DrawAuction is IAuction {
   /**
    * @inheritdoc IAuction
    */
-  function isAuctionComplete() external view returns (bool) {
-    return _isAuctionComplete();
-  }
-
-  /**
-   * @inheritdoc IAuction
-   */
-  function isAuctionOpen() external view returns (bool) {
-    return
-      rngAuction.isRngComplete() &&
-      !_isAuctionComplete() &&
-      elapsedTime() <= _auctionDurationSeconds;
-  }
-
-  /**
-   * @inheritdoc IAuction
-   */
-  function elapsedTime() public view returns (uint64) {
-    return uint64(block.timestamp) - rngAuction.rngCompletedAt();
+  function isAuctionComplete(uint32 sequenceId) external view returns (bool) {
+    return _isAuctionComplete(sequenceId);
   }
 
   /**
@@ -161,8 +154,8 @@ abstract contract DrawAuction is IAuction {
   /**
    * @inheritdoc IAuction
    */
-  function currentFractionalReward() external view returns (UD2x18) {
-    return _fractionalReward(elapsedTime());
+  function fractionalReward(uint elapsedTime) external view returns (UD2x18) {
+    return _fractionalReward(elapsedTime);
   }
 
   /**
@@ -193,8 +186,8 @@ abstract contract DrawAuction is IAuction {
    * @dev The auction is complete when the last recorded auction sequence ID matches the current sequence ID
    * @return True if the auction is complete, false otherwise
    */
-  function _isAuctionComplete() internal view returns (bool) {
-    return _lastSequenceId == rngAuction.currentSequenceId();
+  function _isAuctionComplete(uint32 _sequenceId) internal view returns (bool) {
+    return _lastSequenceId >= _sequenceId;
   }
 
   /**
@@ -211,14 +204,4 @@ abstract contract DrawAuction is IAuction {
         _auctionResults.rewardFraction
       );
   }
-
-  /* ============ Hooks ============ */
-
-  /**
-   * @notice Hook called after the draw auction is completed.
-   * @param _randomNumber The random number from the auction
-   * @dev Override this in a parent contract to send the random number the DrawManager or
-   * to start more auctions if needed.
-   */
-  function _afterDrawAuction(uint256 _randomNumber) internal virtual {}
 }

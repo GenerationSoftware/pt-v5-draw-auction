@@ -13,13 +13,13 @@ contract DrawAuctionTest is Helpers {
   error AuctionDurationZero();
 
   /// @notice Thrown if the StartRngAuction address is the zero address.
-  error StartRngAuctionZeroAddress();
+  error RngRelayerZeroAddress();
 
   /// @notice Thrown if the current draw auction has already been completed.
-  error DrawAlreadyCompleted();
+  error SequenceAlreadyCompleted();
 
   /// @notice Thrown if the current draw auction has expired.
-  error DrawAuctionExpired();
+  error AuctionExpired();
 
   /// @notice Thrown if the RNG request is not complete for the current sequence.
   error RngNotCompleted();
@@ -128,7 +128,7 @@ contract DrawAuctionTest is Helpers {
     _mockStartRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
     _mockStartRngAuction_getRngResults(rngAuction, _rngRequest, _randomNumber, _rngCompletedAt);
 
-    vm.expectRevert(abi.encodeWithSelector(DrawAlreadyCompleted.selector));
+    vm.expectRevert(abi.encodeWithSelector(SequenceAlreadyCompleted.selector));
     drawAuction.completeDraw(_recipient);
   }
 
@@ -151,7 +151,7 @@ contract DrawAuctionTest is Helpers {
     _mockStartRngAuction_getRngResults(rngAuction, _rngRequest, _randomNumber, _rngCompletedAt);
 
     // Test
-    vm.expectRevert(abi.encodeWithSelector(DrawAuctionExpired.selector));
+    vm.expectRevert(abi.encodeWithSelector(AuctionExpired.selector));
     drawAuction.completeDraw(_recipient);
   }
 

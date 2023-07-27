@@ -6,7 +6,7 @@ import { SafeERC20 } from "openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import { Ownable } from "owner-manager/Ownable.sol";
 import { RNGInterface } from "rng/RNGInterface.sol";
 import { UD2x18 } from "prb-math/UD2x18.sol";
-import { UD60x18, toUD60x18, fromUD60x18 } from "prb-math/UD60x18.sol";
+import { UD60x18, convert } from "prb-math/UD60x18.sol";
 
 import { RewardLib } from "local-draw-auction/libraries/RewardLib.sol";
 import { IAuction, AuctionResults } from "local-draw-auction/interfaces/IAuction.sol";
@@ -458,7 +458,7 @@ contract StartRngAuction is IAuction, Ownable {
     }
     _auctionDurationSeconds = auctionDurationSeconds_;
     _auctionTargetTimeFraction = UD2x18.wrap(
-      uint64(toUD60x18(_auctionTargetTime).div(toUD60x18(_auctionDurationSeconds)).unwrap())
+      uint64(convert(_auctionTargetTime).div(convert(_auctionDurationSeconds)).unwrap())
     );
     emit SetAuctionDuration(_auctionDurationSeconds, _auctionTargetTime);
   }
