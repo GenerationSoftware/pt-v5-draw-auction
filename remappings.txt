@@ -3,9 +3,11 @@ forge-std/=lib/forge-std/src/
 openzeppelin=lib/openzeppelin-contracts/contracts/
 optimism/=lib/optimism/packages/contracts-bedrock/contracts/
 owner-manager/=lib/owner-manager-contracts/contracts/
-rng/=lib/pooltogether-rng-contracts/contracts/
+rng/=lib/pt-v5-rng-contracts/contracts/
+prb-math/=lib/prb-math/src/
 
 v5-prize-pool/=lib/pt-v5-prize-pool/src/
+v5-twab-controller=lib/pt-v5-prize-pool/lib/pt-v5-twab-controller/src
 
-src/=src/
 test/=test/
+local-draw-auction/=src/

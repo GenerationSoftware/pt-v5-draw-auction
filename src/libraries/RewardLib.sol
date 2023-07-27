@@ -1,125 +1,97 @@
-// SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-// import "forge-std/console2.sol";
+import { AuctionResults } from "local-draw-auction/interfaces/IAuction.sol";
 
-import { PrizePool } from "v5-prize-pool/PrizePool.sol";
-import { Phase } from "src/abstract/PhaseManager.sol";
+import { UD2x18 } from "prb-math/UD2x18.sol";
+import { UD60x18, toUD60x18, fromUD60x18 } from "prb-math/UD60x18.sol";
 
 library RewardLib {
   /* ============ Internal Functions ============ */
 
   /**
-   * @notice Reward for completing the Auction.
-   * @dev The reward amount is computed via linear interpolation starting from 0
-   *      and increasing as the auction goes on to the full reserve amount.
-   * @dev Only computes reward for the recorded phases passed to the function.
-   *      To compute the current reward for a specific phase, use the `reward` function.
-   * @param _phases Phases to get reward for
-   * @param _prizePool Address of the Prize Pool to get auction reward for
-   * @param _auctionDuration Duration of the auction in seconds
-   * @return Rewards ordered by phase ID
+   * @notice Calculates a linearly increasing fraction from the elapsed time divided by the auction duration.
+   * @dev This function does not do any checks to see if the elapsed time is greater than the auction duration.
+   * @return The reward fraction as a UD2x18 fraction
+   */
+  // function fractionalReward(
+  //   uint64 _elapsedTime,
+  //   uint64 _auctionDuration
+  // ) internal pure returns (UD2x18) {
+  //   return UD2x18.wrap(uint64(toUD60x18(_elapsedTime).div(toUD60x18(_auctionDuration)).unwrap()));
+  // }
+
+  /**
+   * @notice Calculates the fractional reward using a Parabolic Fractional Dutch Auction (PFDA)
+   * given the elapsed time, auction time, and target sale parameters.
+   * @param _elapsedTime The elapsed time since the start of the auction in seconds
+   * @param _auctionDuration The auction duration in seconds
+   * @param _targetTimeFraction The target sale time as a fraction of the total auction duration (0.0,1.0]
+   * @param _targetRewardFraction The target fractional sale price
+   * @return The reward fraction as a UD2x18 fraction
+   */
+  function fractionalReward(
+    uint64 _elapsedTime,
+    uint64 _auctionDuration,
+    UD2x18 _targetTimeFraction,
+    UD2x18 _targetRewardFraction
+  ) internal pure returns (UD2x18) {
+    UD60x18 x = toUD60x18(_elapsedTime).div(toUD60x18(_auctionDuration));
+    UD60x18 t = UD60x18.wrap(_targetTimeFraction.unwrap());
+    UD60x18 r = UD60x18.wrap(_targetRewardFraction.unwrap());
+    UD60x18 rewardFraction;
+    if (x.gt(t)) {
+      UD60x18 tDelta = x.sub(t);
+      UD60x18 oneMinusT = toUD60x18(1).sub(t);
+      rewardFraction = r.add(
+        toUD60x18(1).sub(r).mul(tDelta).mul(tDelta).div(oneMinusT).div(oneMinusT)
+      );
+    } else {
+      UD60x18 tDelta = t.sub(x);
+      rewardFraction = r.sub(r.mul(tDelta).mul(tDelta).div(t).div(t));
+    }
+    return UD2x18.wrap(uint64(rewardFraction.unwrap()));
+  }
+
+  /**
+   * @notice Calculates rewards to distribute given the available reserve and completed
+   * auction results.
+   * @dev Each auction takes a fraction of the remaining reserve. This means that if the
+   * reserve is equal to 100 and the first auction takes 50% and the second takes 50%, then
+   * the first reward will be equal to 50 while the second will be 25.
+   * @param _auctionResults Auction results to get rewards for
+   * @param _reserve Reserve available for the rewards
+   * @return Rewards in the same order as the auction results they correspond to
    */
   function rewards(
-    Phase[] memory _phases,
-    PrizePool _prizePool,
-    uint32 _auctionDuration
-  ) internal view returns (uint256[] memory) {
-    uint64 _auctionStart = _prizePool.openDrawEndsAt();
-    uint64 _auctionEnd = _auctionStart + _auctionDuration;
-    uint256 _reserve = _prizePool.reserve() + _prizePool.reserveForOpenDraw();
-
-    // console2.log("RewardLib rewards reserve", _reserve);
-
-    uint256 _phasesLength = _phases.length;
-
-    // console2.log("RewardLib rewards _phasesLength", _phasesLength);
-    uint256[] memory _rewards = new uint256[](_phasesLength);
-
-    for (uint256 i; i < _phasesLength; i++) {
-      _rewards[i] = _reward(_phases[i], _reserve, _auctionStart, _auctionEnd, _auctionDuration);
+    AuctionResults[] memory _auctionResults,
+    uint256 _reserve
+  ) internal pure returns (uint256[] memory) {
+    uint256 _auctionResultsLength = _auctionResults.length;
+    uint256[] memory _rewards = new uint256[](_auctionResultsLength);
+    for (uint256 i; i < _auctionResultsLength; i++) {
+      _rewards[i] = reward(_auctionResults[i], _reserve);
+      _reserve = _reserve - _rewards[i];
     }
-
     return _rewards;
   }
 
   /**
-   * @notice Reward for completing the Auction phase.
-   * @dev The reward amount is computed via linear interpolation starting from 0
-   *      and increasing as the auction goes on to the full reserve amount.
-   * @dev This implementation assumes that phases are run sequentially, i.e. timestamps should not overlap.
-   *      This is to avoid overdistributing the reserve.
-   * @param _phase Phase to get reward for
-   * @param _prizePool Address of the Prize Pool to get auction reward for
-   * @param _auctionDuration Duration of the auction in seconds
+   * @notice Calculates the reward for the given auction result and available reserve.
+   * @dev If the auction reward recipient is the zero address, no reward will be given.
+   * @param _auctionResult Auction result to get reward for
+   * @param _reserve Reserve available for the reward
    * @return Reward amount
    */
   function reward(
-    Phase memory _phase,
-    PrizePool _prizePool,
-    uint32 _auctionDuration
-  ) internal view returns (uint256) {
-    uint64 _auctionStart = _prizePool.openDrawEndsAt();
-    uint64 _auctionEnd = _auctionStart + _auctionDuration;
-
-    uint256 _reserve = _prizePool.reserve() + _prizePool.reserveForOpenDraw();
-
-    return _reward(_phase, _reserve, _auctionStart, _auctionEnd, _auctionDuration);
-  }
-
-  /* ============ Private Functions ============ */
-
-  /**
-   * @notice Reward for completing the Auction phase.
-   * @dev The reward amount is computed via linear interpolation starting from 0
-   *      and increasing as the auction goes on to the full reserve amount.
-   * @dev This implementation assumes that phases are run sequentially, i.e. timestamps should not overlap.
-   *      This is to avoid overdistributing the reserve.
-   * @param _phase Phase to get reward for
-   * @param _reserve Reserve amount
-   * @param _auctionStart Auction start time
-   * @param _auctionEnd Auction end time
-   * @param _auctionDuration Duration of the auction in seconds
-   * @return Reward amount
-   */
-  function _reward(
-    Phase memory _phase,
-    uint256 _reserve,
-    uint64 _auctionStart,
-    uint64 _auctionEnd,
-    uint32 _auctionDuration
-  ) private view returns (uint256) {
-    // If the auction has not started yet, we return 0
-    if (block.timestamp <= _auctionStart) {
-      return 0;
-    }
-
-    // Since the Auction contract is not aware of the PrizePool contract,
-    // the first phase start time is set to 0, so we need to set it here instead
-    if (_phase.id == 0 && _phase.startTime == 0) {
-      _phase.startTime = _auctionStart;
-    }
-
-    // If the phase was started before the start of the auction
-    // or after the end of the auction, no reward should be distributed
-    if (_phase.startTime < _auctionStart || _phase.startTime > _auctionEnd) {
-      return 0;
-    }
-
-    // If the phase end time has not been set, we use the current time
-    if (_phase.endTime == 0) {
-      _phase.endTime = uint64(block.timestamp);
-    }
-
-    // If the phase was started before the end of the auction,
-    // but completed after, the end time should be the auction end time
-    // to avoid overdistributing the reserve
-    if (_phase.endTime > _auctionEnd) {
-      _phase.endTime = _auctionEnd;
-    }
-
-    // console2.log("RewardLib reserve", _reserve);
-
-    return ((_phase.endTime - _phase.startTime) * _reserve) / _auctionDuration;
+    AuctionResults memory _auctionResult,
+    uint256 _reserve
+  ) internal pure returns (uint256) {
+    if (_auctionResult.recipient == address(0)) return 0;
+    if (_reserve == 0) return 0;
+    return
+      fromUD60x18(
+        UD60x18.wrap(UD2x18.unwrap(_auctionResult.rewardFraction)).mul(toUD60x18(_reserve))
+      );
   }
 }

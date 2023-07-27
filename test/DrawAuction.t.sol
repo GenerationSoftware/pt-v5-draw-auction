@@ -1,191 +1,399 @@
-// SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import { ERC20Mock } from "openzeppelin/mocks/ERC20Mock.sol";
+import { DrawAuctionHarness } from "test/harness/DrawAuctionHarness.sol";
+import { Helpers, RNGInterface, UD2x18, AuctionResults } from "test/helpers/Helpers.t.sol";
 
-import { UD2x18, SD1x18, ConstructorParams, PrizePool, TieredLiquidityDistributor, TwabController } from "v5-prize-pool/PrizePool.sol";
-
-import { DrawAuction } from "src/DrawAuction.sol";
-import { OnlyPhaseManager } from "src/interfaces/IDrawAuction.sol";
-import { Phase } from "src/abstract/PhaseManager.sol";
-import { Helpers, RNGInterface } from "test/helpers/Helpers.t.sol";
+import { RngAuction } from "local-draw-auction/RngAuction.sol";
 
 contract DrawAuctionTest is Helpers {
+  /* ============ Errors ============ */
+
+  /// @notice Thrown if the auction period is zero.
+  error AuctionDurationZero();
+
+  /// @notice Thrown if the RngAuction address is the zero address.
+  error RngAuctionZeroAddress();
+
+  /// @notice Thrown if the current draw auction has already been completed.
+  error DrawAlreadyCompleted();
+
+  /// @notice Thrown if the current draw auction has expired.
+  error DrawAuctionExpired();
+
+  /// @notice Thrown if the RNG request is not complete for the current sequence.
+  error RngNotCompleted();
+
   /* ============ Events ============ */
-  event AuctionRewardsDistributed(Phase[] phases, uint256 randomNumber, uint256[] rewardAmounts);
+
+  event AuctionCompleted(
+    address indexed recipient,
+    uint32 indexed sequenceId,
+    uint64 elapsedTime,
+    UD2x18 rewardFraction
+  );
 
   /* ============ Variables ============ */
 
-  Phase[] public phases;
-
-  DrawAuction public drawAuction;
-  ERC20Mock public prizeToken;
-  PrizePool public prizePool;
+  DrawAuctionHarness public drawAuction;
+  RngAuction public rngAuction;
   RNGInterface public rng;
 
-  uint32 public auctionDuration = 3 hours;
-  uint32 public rngTimeOut = 1 hours;
-  uint32 public drawPeriodSeconds = 1 days;
-  // uint256 public randomNumber = 123456789;
-  address public recipient = address(this);
+  uint64 _auctionDuration = 4 hours;
+  uint64 _auctionTargetTime = 2 hours;
+  uint64 _rngCompletedAt = uint64(block.timestamp + 1);
+  uint256 _randomNumber = 123;
+  address _recipient = address(2);
+  uint32 _currentSequenceId = 101;
+  RngAuction.RngRequest _rngRequest =
+    RngAuction.RngRequest(
+      1, // rngRequestId
+      uint32(block.number + 1), // lockBlock
+      _currentSequenceId, // sequenceId
+      0 //rngRequestedAt
+    );
 
   function setUp() public {
     vm.warp(0);
 
-    prizeToken = new ERC20Mock();
-    prizePool = PrizePool(makeAddr("prizePool"));
-    vm.etch(address(prizePool), "prizePool");
+    rngAuction = RngAuction(makeAddr("rngAuction"));
+    vm.etch(address(rngAuction), "rngAuction");
 
-    while (phases.length > 0) {
-      phases.pop();
-    }
+    rng = RNGInterface(makeAddr("rng"));
+    vm.etch(address(rng), "rng");
 
-    rng = RNGInterface(address(1));
-
-    drawAuction = new DrawAuction(prizePool, address(this), auctionDuration);
+    drawAuction = new DrawAuctionHarness(rngAuction, _auctionDuration, _auctionTargetTime);
   }
 
-  /* ============ Getter Functions ============ */
+  /* ============ rngAuction() ============ */
 
-  function testPrizePool() public {
-    assertEq(address(drawAuction.prizePool()), address(prizePool));
+  function testRngAuction() public {
+    assertEq(address(drawAuction.rngAuction()), address(rngAuction));
   }
 
-  function testPhaseManager() public {
-    assertEq(address(drawAuction.phaseManager()), address(this));
+  /* ============ completeDraw() ============ */
+
+  function testCompleteDraw() public {
+    // Warp
+    vm.warp(_rngCompletedAt + _auctionDuration); // reward fraction will be 1
+
+    // Mock Calls
+    _mockRngAuction_isRngComplete(rngAuction, true);
+    _mockRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
+    _mockRngAuction_getRngResults(rngAuction, _rngRequest, _randomNumber, _rngCompletedAt);
+
+    // Test
+    drawAuction.completeDraw(_recipient);
+    assertEq(drawAuction.lastRandomNumber(), _randomNumber);
+    assertEq(drawAuction.afterDrawAuctionCounter(), 1);
+
+    // Check results
+    (AuctionResults memory _auctionResults, uint32 _sequenceId) = drawAuction.getAuctionResults();
+    assertEq(_sequenceId, _currentSequenceId);
+    assertEq(UD2x18.unwrap(_auctionResults.rewardFraction), uint64(1e18)); // 1
+    assertEq(_auctionResults.recipient, _recipient);
   }
 
-  /* ============ State Functions ============ */
+  function testCompleteDraw_EmitsEvent() public {
+    // Warp
+    vm.warp(_rngCompletedAt + _auctionDuration); // reward fraction will be 1
 
-  function testReward() public {
-    uint64 _warpTimestamp = drawPeriodSeconds + (auctionDuration / 2);
-    vm.warp(_warpTimestamp);
+    // Mock Calls
+    _mockRngAuction_isRngComplete(rngAuction, true);
+    _mockRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
+    _mockRngAuction_getRngResults(rngAuction, _rngRequest, _randomNumber, _rngCompletedAt);
 
-    Phase memory _phase = Phase({
-      id: 0,
-      startTime: 0,
-      endTime: _warpTimestamp,
-      recipient: address(this)
-    });
-
-    mockOpenDrawEndsAt(drawPeriodSeconds);
-    mockReserve(20e18);
-
-    assertEq(drawAuction.reward(_phase), 10e18);
-  }
-
-  /* ============ completeAuction ============ */
-
-  function testCompleteAuction_notPhaseManager() public {
-    vm.expectRevert(abi.encodeWithSelector(OnlyPhaseManager.selector));
-    vm.prank(makeAddr("fake"));
-    drawAuction.completeAuction(phases, 0x1234);
-  }
-
-  function testCompleteAuction_captureFullReserve() public {
-    vm.warp(10 days);
-
-    uint256 _reserveAmount = 200e18;
-
-    // current time is at the end of the duration
-    uint openDrawEndsAt = block.timestamp - auctionDuration;
-
-    mockOpenDrawEndsAt(openDrawEndsAt);
-    mockReserve(_reserveAmount);
-    mockCloseDraw(0x1234);
-    mockWithdrawReserve(recipient, _reserveAmount);
-
-    phases.push(
-      Phase({
-        id: 0,
-        startTime: uint64(openDrawEndsAt),
-        endTime: uint64(openDrawEndsAt + auctionDuration),
-        recipient: recipient
-      })
-    );
-
-    uint256[] memory rewards = new uint256[](1);
-    rewards[0] = _reserveAmount;
-
+    // Test
     vm.expectEmit();
-    emit AuctionRewardsDistributed(phases, 0x1234, rewards);
-    drawAuction.completeAuction(phases, 0x1234);
+    emit AuctionCompleted(
+      _recipient,
+      _currentSequenceId,
+      _auctionDuration,
+      UD2x18.wrap(uint64(1e18))
+    );
+    drawAuction.completeDraw(_recipient);
   }
 
-  function testCompleteAuction_MultipleRecipients() public {
-    vm.warp(10 days);
+  function testCompleteDraw_RequiresAuctionNotCompleted() public {
+    vm.warp(_rngCompletedAt + _auctionDuration / 2);
 
-    uint256 _reserveAmount = 200e18;
+    // Complete draw once
+    _mockRngAuction_isRngComplete(rngAuction, true);
+    _mockRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
+    _mockRngAuction_getRngResults(rngAuction, _rngRequest, _randomNumber, _rngCompletedAt);
+    drawAuction.completeDraw(_recipient);
 
-    // current time is at the end of the duration
-    uint openDrawEndsAt = block.timestamp - auctionDuration;
+    // Try to complete again
+    _mockRngAuction_isRngComplete(rngAuction, true);
+    _mockRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
+    _mockRngAuction_getRngResults(rngAuction, _rngRequest, _randomNumber, _rngCompletedAt);
 
-    mockOpenDrawEndsAt(openDrawEndsAt);
-    mockReserve(_reserveAmount);
-    mockCloseDraw(0x1234);
-    mockWithdrawReserve(recipient, _reserveAmount);
-
-    phases.push(
-      Phase({
-        id: 0,
-        startTime: uint64(openDrawEndsAt),
-        endTime: uint64(openDrawEndsAt + auctionDuration / 2),
-        recipient: recipient
-      })
-    );
-
-    phases.push(
-      Phase({
-        id: 1,
-        startTime: uint64(openDrawEndsAt),
-        endTime: uint64(openDrawEndsAt + auctionDuration / 2),
-        recipient: recipient
-      })
-    );
-
-    uint256[] memory rewards = new uint256[](2);
-    rewards[0] = _reserveAmount / 2;
-    rewards[1] = _reserveAmount / 2;
-
-    vm.expectEmit();
-    emit AuctionRewardsDistributed(phases, 0x1234, rewards);
-    drawAuction.completeAuction(phases, 0x1234);
+    vm.expectRevert(abi.encodeWithSelector(DrawAlreadyCompleted.selector));
+    drawAuction.completeDraw(_recipient);
   }
 
-  function mockOpenDrawEndsAt(uint time) public {
-    vm.mockCall(
-      address(prizePool),
-      abi.encodeWithSelector(prizePool.openDrawEndsAt.selector),
-      abi.encode(time)
-    );
+  function testCompleteDraw_RequiresRngCompleted() public {
+    // Mock Calls
+    _mockRngAuction_isRngComplete(rngAuction, false);
+
+    // Test
+    vm.expectRevert(abi.encodeWithSelector(RngNotCompleted.selector));
+    drawAuction.completeDraw(address(this));
   }
 
-  function mockReserve(uint reserve) public {
-    vm.mockCall(
-      address(prizePool),
-      abi.encodeWithSelector(prizePool.reserve.selector),
-      abi.encode(reserve)
-    );
-    vm.mockCall(
-      address(prizePool),
-      abi.encodeWithSelector(prizePool.reserveForOpenDraw.selector),
-      abi.encode(0)
-    );
+  function testCompleteDraw_RequiresAuctionNotExpired() public {
+    // Warp to after auction duration
+    vm.warp(_rngCompletedAt + _auctionDuration + 1);
+
+    // Mock calls
+    _mockRngAuction_isRngComplete(rngAuction, true);
+    _mockRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
+    _mockRngAuction_getRngResults(rngAuction, _rngRequest, _randomNumber, _rngCompletedAt);
+
+    // Test
+    vm.expectRevert(abi.encodeWithSelector(DrawAuctionExpired.selector));
+    drawAuction.completeDraw(_recipient);
   }
 
-  function mockCloseDraw(uint _randomNumber) public {
-    vm.mockCall(
-      address(prizePool),
-      abi.encodeWithSelector(prizePool.closeDraw.selector, _randomNumber),
-      abi.encode(1)
+  function testCompleteDraw_TwoSequences() public {
+    // Warp to halfway between target time and end so that the price will be above zero
+    vm.warp(_rngCompletedAt + _auctionTargetTime + (_auctionDuration - _auctionTargetTime) / 2);
+
+    // Mock calls
+    _mockRngAuction_isRngComplete(rngAuction, true);
+    _mockRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
+    _mockRngAuction_getRngResults(rngAuction, _rngRequest, _randomNumber, _rngCompletedAt);
+
+    // Test
+    drawAuction.completeDraw(_recipient);
+    (AuctionResults memory _auctionResults0, uint32 _sequenceId0) = drawAuction.getAuctionResults();
+    assertEq(_sequenceId0, _currentSequenceId);
+    assertGt(UD2x18.unwrap(_auctionResults0.rewardFraction), uint64(0)); // greater than zero
+    assertLt(UD2x18.unwrap(_auctionResults0.rewardFraction), uint64(1e18)); // less than one
+    assertEq(_auctionResults0.recipient, _recipient);
+
+    // Warp to target time of next auction
+    vm.warp(_rngCompletedAt + (_auctionDuration * 2) + _auctionTargetTime);
+
+    // Mock calls for next sequence
+    RngAuction.RngRequest memory _nextRngRequest = RngAuction.RngRequest(
+      _rngRequest.id + 1,
+      uint32(block.number),
+      _currentSequenceId + 1,
+      _rngRequest.requestedAt + _auctionDuration * 2
     );
+    _mockRngAuction_isRngComplete(rngAuction, true);
+    _mockRngAuction_currentSequenceId(rngAuction, _currentSequenceId + 1);
+    _mockRngAuction_getRngResults(
+      rngAuction,
+      _nextRngRequest,
+      _randomNumber + 1,
+      _rngCompletedAt + _auctionDuration * 2
+    );
+
+    // Test
+    drawAuction.completeDraw(address(this));
+    (AuctionResults memory _auctionResults1, uint32 _sequenceId1) = drawAuction.getAuctionResults();
+    assertEq(_sequenceId1, _currentSequenceId + 1);
+    assertEq(
+      UD2x18.unwrap(_auctionResults1.rewardFraction),
+      UD2x18.unwrap(_auctionResults0.rewardFraction) // same as last sold fraction since we completed at the target time
+    );
+    assertEq(_auctionResults1.recipient, address(this));
   }
 
-  function mockWithdrawReserve(address _recipient, uint amount) public {
-    vm.mockCall(
-      address(prizePool),
-      abi.encodeWithSelector(prizePool.withdrawReserve.selector, _recipient, amount),
-      abi.encode()
-    );
+  /* ============ isAuctionComplete() ============ */
+
+  function testIsAuctionComplete_NotComplete() public {
+    // Complete draw
+    vm.warp(_rngCompletedAt + _auctionDuration / 2);
+    _mockRngAuction_isRngComplete(rngAuction, true);
+    _mockRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
+    _mockRngAuction_getRngResults(rngAuction, _rngRequest, _randomNumber, _rngCompletedAt);
+    drawAuction.completeDraw(_recipient);
+
+    // Test
+    _mockRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
+    assertEq(drawAuction.isAuctionComplete(), true);
+
+    // Test false on next sequence
+    _mockRngAuction_currentSequenceId(rngAuction, _currentSequenceId + 1);
+    assertEq(drawAuction.isAuctionComplete(), false);
+  }
+
+  /* ============ isAuctionOpen() ============ */
+
+  function testIsAuctionOpen_IsOpen() public {
+    // Warp halfway through
+    vm.warp(_rngCompletedAt + _auctionDuration / 2);
+    _mockRngAuction_isRngComplete(rngAuction, true);
+    _mockRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
+    _mockRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
+
+    // Test
+    assertEq(drawAuction.isAuctionOpen(), true);
+  }
+
+  function testIsAuctionOpen_AlreadyCompleted() public {
+    // Complete draw halfway through
+    vm.warp(_rngCompletedAt + _auctionDuration / 2);
+    _mockRngAuction_isRngComplete(rngAuction, true);
+    _mockRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
+    _mockRngAuction_getRngResults(rngAuction, _rngRequest, _randomNumber, _rngCompletedAt);
+    drawAuction.completeDraw(_recipient);
+
+    // Mock calls
+    _mockRngAuction_isRngComplete(rngAuction, true);
+    _mockRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
+    _mockRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
+
+    // Test
+    assertEq(drawAuction.isAuctionOpen(), false);
+  }
+
+  function testIsAuctionOpen_Expired() public {
+    // Warp halfway through
+    vm.warp(_rngCompletedAt + _auctionDuration + 1);
+    _mockRngAuction_isRngComplete(rngAuction, true);
+    _mockRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
+    _mockRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
+
+    // Test
+    assertEq(drawAuction.isAuctionOpen(), false);
+  }
+
+  function testIsAuctionOpen_RngNotCompleted() public {
+    _mockRngAuction_isRngComplete(rngAuction, false);
+
+    // Test
+    assertEq(drawAuction.isAuctionOpen(), false);
+  }
+
+  /* ============ elapsedTime() ============ */
+
+  function testElapsedTime_AtStart() public {
+    // Warp to beginning of auction
+    vm.warp(_rngCompletedAt);
+    _mockRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
+
+    // Test
+    assertEq(drawAuction.elapsedTime(), 0);
+  }
+
+  function testElapsedTime_Halfway() public {
+    // Warp to halfway point of auction
+    vm.warp(_rngCompletedAt + _auctionDuration / 2);
+    _mockRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
+
+    // Test
+    assertEq(drawAuction.elapsedTime(), _auctionDuration / 2);
+  }
+
+  function testElapsedTime_AtEnd() public {
+    // Warp to end of auction
+    vm.warp(_rngCompletedAt + _auctionDuration);
+    _mockRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
+
+    // Test
+    assertEq(drawAuction.elapsedTime(), _auctionDuration);
+  }
+
+  function testElapsedTime_PastAuction() public {
+    // Warp past auction
+    vm.warp(_rngCompletedAt + _auctionDuration + 1);
+    _mockRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
+
+    // Test
+    assertEq(drawAuction.elapsedTime(), _auctionDuration + 1);
+  }
+
+  /* ============ auctionDuration() ============ */
+
+  function testAuctionDuration() public {
+    assertEq(drawAuction.auctionDuration(), _auctionDuration);
+  }
+
+  /* ============ currentFractionalReward() ============ */
+
+  function testCurrentRewardFraction_AtStart() public {
+    // Warp to beginning of auction
+    vm.warp(_rngCompletedAt);
+    _mockRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
+
+    // Test
+    assertEq(UD2x18.unwrap(drawAuction.currentFractionalReward()), 0); // 0.0
+  }
+
+  function testCurrentRewardFraction_AtTargetTime() public {
+    // Warp to halfway point of auction
+    vm.warp(_rngCompletedAt + _auctionTargetTime);
+    _mockRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
+
+    // Test
+    (AuctionResults memory _lastResults, ) = drawAuction.getAuctionResults();
+    assertEq(
+      UD2x18.unwrap(drawAuction.currentFractionalReward()),
+      UD2x18.unwrap(_lastResults.rewardFraction)
+    ); // equal to last reward fraction
+  }
+
+  function testCurrentRewardFraction_AtEnd() public {
+    // Warp to end of auction
+    vm.warp(_rngCompletedAt + _auctionDuration);
+    _mockRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
+
+    // Test
+    assertEq(UD2x18.unwrap(drawAuction.currentFractionalReward()), 1e18); // 1.0
+  }
+
+  function testCurrentRewardFraction_PastAuction() public {
+    // Warp past auction
+    vm.warp(_rngCompletedAt + _auctionDuration + _auctionDuration / 10);
+    _mockRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
+
+    // Test
+    assertGe(UD2x18.unwrap(drawAuction.currentFractionalReward()), 1e18); // >= 1.0
+  }
+
+  /* ============ currentRewardAmount() ============ */
+
+  function testCurrentRewardAmount_AtStart() public {
+    // Warp to beginning of auction
+    vm.warp(_rngCompletedAt);
+    _mockRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
+    AuctionResults memory _auctionResults = AuctionResults(address(this), UD2x18.wrap(0.5e18)); // 0.5 reward for rng auction
+    _mockIAuction_getAuctionResults(rngAuction, _auctionResults, 1);
+
+    // Test
+    assertEq(drawAuction.currentRewardAmount(2e18), 0); // none
+  }
+
+  function testCurrentRewardAmount_AtEnd() public {
+    // Warp to end of auction
+    vm.warp(_rngCompletedAt + _auctionDuration);
+    _mockRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
+    AuctionResults memory _auctionResults = AuctionResults(address(this), UD2x18.wrap(0.5e18)); // 0.5 reward for rng auction
+    _mockIAuction_getAuctionResults(rngAuction, _auctionResults, 1);
+
+    // Test
+    assertEq(drawAuction.currentRewardAmount(2e18), 1e18); // full - rngAuction reward
+  }
+
+  /* ============ getAuctionResults() ============ */
+
+  function testGetAuctionResults() public {
+    // Complete draw at end
+    vm.warp(_rngCompletedAt + _auctionDuration);
+    _mockRngAuction_isRngComplete(rngAuction, true);
+    _mockRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
+    _mockRngAuction_getRngResults(rngAuction, _rngRequest, _randomNumber, _rngCompletedAt);
+    drawAuction.completeDraw(_recipient);
+
+    // Tests
+    (AuctionResults memory _auctionResults, uint32 _sequenceId) = drawAuction.getAuctionResults();
+
+    assertEq(_sequenceId, _currentSequenceId);
+    assertEq(_auctionResults.recipient, _recipient);
+    assertEq(UD2x18.unwrap(_auctionResults.rewardFraction), 1e18);
   }
 }
