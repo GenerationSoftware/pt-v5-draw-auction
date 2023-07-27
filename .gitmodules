@@ -19,6 +19,6 @@
 	path = lib/pt-v5-rng-contracts
 	url = https://github.com/GenerationSoftware/pt-v5-rng-contracts
 [submodule "lib/prb-math"]
-	branch = v3
+	branch = v4
 	path = lib/prb-math
 	url = https://github.com/PaulRBerg/prb-math

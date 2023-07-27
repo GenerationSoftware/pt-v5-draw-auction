@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity ^0.8.19;
 
 import { AuctionResults } from "local-draw-auction/interfaces/IAuction.sol";
 import { IDrawManager } from "local-draw-auction/interfaces/IDrawManager.sol";

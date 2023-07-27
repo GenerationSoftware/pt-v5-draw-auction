@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity ^0.8.19;
 
 import { ExecutorAware } from "local-draw-auction/abstract/ExecutorAware.sol";
 import { AuctionResults } from "local-draw-auction/interfaces/IAuction.sol";

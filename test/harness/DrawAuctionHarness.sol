@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity ^0.8.19;
 
 import { RNGInterface } from "rng/RNGInterface.sol";
 import { UD2x18 } from "prb-math/UD2x18.sol";
 
 import { DrawAuction } from "local-draw-auction/abstract/DrawAuction.sol";
 import { RewardLib } from "local-draw-auction/libraries/RewardLib.sol";
-import { RngAuction } from "local-draw-auction/RngAuction.sol";
+import { StartRngAuction } from "local-draw-auction/StartRngAuction.sol";
 
 contract DrawAuctionHarness is DrawAuction {
   uint256 public afterDrawAuctionCounter;
   uint256 public lastRandomNumber;
 
   constructor(
-    RngAuction rngAuction_,
+    StartRngAuction rngAuction_,
     uint64 auctionDurationSeconds_,
     uint64 auctionTargetTime_
   ) DrawAuction(rngAuction_, auctionDurationSeconds_, auctionTargetTime_) {}

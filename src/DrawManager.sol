@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity ^0.8.19;
 
 import { AccessControl } from "openzeppelin/access/AccessControl.sol";
 import { PrizePool } from "v5-prize-pool/PrizePool.sol";

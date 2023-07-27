@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity ^0.8.19;
 
 import { Helpers, RNGInterface, UD2x18, AuctionResults } from "test/helpers/Helpers.t.sol";
 import { MockDrawManager } from "test/mocks/MockDrawManager.sol";
 
 import { DrawAuctionDirect } from "local-draw-auction/DrawAuctionDirect.sol";
-import { RngAuction } from "local-draw-auction/RngAuction.sol";
+import { StartRngAuction } from "local-draw-auction/StartRngAuction.sol";
 import { IDrawManager } from "local-draw-auction/interfaces/IDrawManager.sol";
 
 contract DrawAuctionDirectTest is Helpers {
@@ -22,7 +22,7 @@ contract DrawAuctionDirectTest is Helpers {
 
   DrawAuctionDirect public drawAuction;
   IDrawManager public drawManager;
-  RngAuction public rngAuction;
+  StartRngAuction public rngAuction;
   RNGInterface public rng;
 
   uint64 _auctionDuration = 4 hours;
@@ -31,8 +31,8 @@ contract DrawAuctionDirectTest is Helpers {
   uint256 _randomNumber = 123;
   address _recipient = address(2);
   uint32 _currentSequenceId = 101;
-  RngAuction.RngRequest _rngRequest =
-    RngAuction.RngRequest(
+  StartRngAuction.RngRequest _rngRequest =
+    StartRngAuction.RngRequest(
       1, // rngRequestId
       uint32(block.number + 1), // lockBlock
       _currentSequenceId, // sequenceId
@@ -44,7 +44,7 @@ contract DrawAuctionDirectTest is Helpers {
 
     drawManager = new MockDrawManager();
 
-    rngAuction = RngAuction(makeAddr("rngAuction"));
+    rngAuction = StartRngAuction(makeAddr("rngAuction"));
     vm.etch(address(rngAuction), "rngAuction");
 
     rng = RNGInterface(makeAddr("rng"));
@@ -83,9 +83,9 @@ contract DrawAuctionDirectTest is Helpers {
     _results[1] = _expectedAuctionResults;
 
     // Mock Calls
-    _mockRngAuction_isRngComplete(rngAuction, true);
-    _mockRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
-    _mockRngAuction_getRngResults(rngAuction, _rngRequest, _randomNumber, _rngCompletedAt);
+    _mockStartRngAuction_isRngComplete(rngAuction, true);
+    _mockStartRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
+    _mockStartRngAuction_getRngResults(rngAuction, _rngRequest, _randomNumber, _rngCompletedAt);
     _mockIAuction_getAuctionResults(rngAuction, _rngAuctionResults, _currentSequenceId);
 
     // Test

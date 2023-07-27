@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity ^0.8.19;
 
 import { RNGInterface } from "rng/RNGInterface.sol";
 import { UD2x18 } from "prb-math/UD2x18.sol";
 import { UD60x18, toUD60x18 } from "prb-math/UD60x18.sol";
 
 import { RewardLib } from "local-draw-auction/libraries/RewardLib.sol";
-import { RngAuction } from "local-draw-auction/RngAuction.sol";
+import { StartRngAuction } from "local-draw-auction/StartRngAuction.sol";
 import { IAuction, AuctionResults } from "local-draw-auction/interfaces/IAuction.sol";
 
 /**
@@ -15,7 +15,7 @@ import { IAuction, AuctionResults } from "local-draw-auction/interfaces/IAuction
  * @notice  The DrawAuction uses an auction mechanism to incentivize the completion of the Draw.
  *          There is a draw auction for each prize pool. The draw auction starts when the new
  *          random number is available for the current draw.
- * @dev     This contract runs synchronously with the RngAuction contract, waiting till the RNG
+ * @dev     This contract runs synchronously with the StartRngAuction contract, waiting till the RNG
  *          auction is complete and the random number is available before starting the draw
  *          auction.
  */
@@ -23,7 +23,7 @@ abstract contract DrawAuction is IAuction {
   /* ============ Constants ============ */
 
   /// @notice The RNG Auction to get the random number from
-  RngAuction public immutable rngAuction;
+  StartRngAuction public immutable rngAuction;
 
   /* ============ Variables ============ */
 
@@ -54,8 +54,8 @@ abstract contract DrawAuction is IAuction {
    */
   error AuctionTargetTimeExceedsDuration(uint64 auctionTargetTime, uint64 auctionDuration);
 
-  /// @notice Thrown if the RngAuction address is the zero address.
-  error RngAuctionZeroAddress();
+  /// @notice Thrown if the StartRngAuction address is the zero address.
+  error StartRngAuctionZeroAddress();
 
   /// @notice Thrown if the current draw auction has already been completed.
   error DrawAlreadyCompleted();
@@ -70,12 +70,12 @@ abstract contract DrawAuction is IAuction {
 
   /**
    * @notice Deploy the DrawAuction smart contract.
-   * @param rngAuction_ The RngAuction to get the random number from
+   * @param rngAuction_ The StartRngAuction to get the random number from
    * @param auctionDurationSeconds_ Auction duration in seconds
    * @param auctionTargetTime_ Target time to complete the auction in seconds
    */
-  constructor(RngAuction rngAuction_, uint64 auctionDurationSeconds_, uint64 auctionTargetTime_) {
-    if (address(rngAuction_) == address(0)) revert RngAuctionZeroAddress();
+  constructor(StartRngAuction rngAuction_, uint64 auctionDurationSeconds_, uint64 auctionTargetTime_) {
+    if (address(rngAuction_) == address(0)) revert StartRngAuctionZeroAddress();
     if (auctionDurationSeconds_ == 0) revert AuctionDurationZero();
     if (auctionTargetTime_ == 0) revert AuctionTargetTimeZero();
     if (auctionTargetTime_ > auctionDurationSeconds_) {
@@ -91,7 +91,7 @@ abstract contract DrawAuction is IAuction {
   /* ============ External Functions ============ */
 
   /**
-   * @notice Completes the current draw with the random number from the RngAuction.
+   * @notice Completes the current draw with the random number from the StartRngAuction.
    * @dev Requires that the RNG is complete and that the current auction is open.
    * @param _rewardRecipient The address to send the reward to
    */
@@ -100,7 +100,7 @@ abstract contract DrawAuction is IAuction {
     if (_isAuctionComplete()) revert DrawAlreadyCompleted();
 
     (
-      RngAuction.RngRequest memory _rngRequest,
+      StartRngAuction.RngRequest memory _rngRequest,
       uint256 _randomNumber,
       uint64 _rngCompletedAt
     ) = rngAuction.getRngResults();

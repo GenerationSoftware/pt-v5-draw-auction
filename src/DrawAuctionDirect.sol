@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity ^0.8.19;
 
 import { RNGInterface } from "rng/RNGInterface.sol";
 
 import { DrawAuction } from "local-draw-auction/abstract/DrawAuction.sol";
-import { RngAuction } from "local-draw-auction/RngAuction.sol";
+import { StartRngAuction } from "local-draw-auction/StartRngAuction.sol";
 import { IDrawManager } from "local-draw-auction/interfaces/IDrawManager.sol";
 import { AuctionResults } from "local-draw-auction/interfaces/IAuction.sol";
 
@@ -29,13 +29,13 @@ contract DrawAuctionDirect is DrawAuction {
   /**
    * @notice Deploy the DrawAuction smart contract.
    * @param drawManager_ The DrawManager to send the auction results to
-   * @param rngAuction_ The RngAuction to get the random number from
+   * @param rngAuction_ The StartRngAuction to get the random number from
    * @param auctionDurationSeconds_ Auction duration in seconds
    * @param auctionTargetTime_ Auction target time to complete in seconds
    */
   constructor(
     IDrawManager drawManager_,
-    RngAuction rngAuction_,
+    StartRngAuction rngAuction_,
     uint64 auctionDurationSeconds_,
     uint64 auctionTargetTime_
   ) DrawAuction(rngAuction_, auctionDurationSeconds_, auctionTargetTime_) {

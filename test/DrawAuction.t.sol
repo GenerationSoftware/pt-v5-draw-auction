@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity ^0.8.19;
 
 import { DrawAuctionHarness } from "test/harness/DrawAuctionHarness.sol";
 import { Helpers, RNGInterface, UD2x18, AuctionResults } from "test/helpers/Helpers.t.sol";
 
-import { RngAuction } from "local-draw-auction/RngAuction.sol";
+import { StartRngAuction } from "local-draw-auction/StartRngAuction.sol";
 
 contract DrawAuctionTest is Helpers {
   /* ============ Errors ============ */
@@ -12,8 +12,8 @@ contract DrawAuctionTest is Helpers {
   /// @notice Thrown if the auction period is zero.
   error AuctionDurationZero();
 
-  /// @notice Thrown if the RngAuction address is the zero address.
-  error RngAuctionZeroAddress();
+  /// @notice Thrown if the StartRngAuction address is the zero address.
+  error StartRngAuctionZeroAddress();
 
   /// @notice Thrown if the current draw auction has already been completed.
   error DrawAlreadyCompleted();
@@ -36,7 +36,7 @@ contract DrawAuctionTest is Helpers {
   /* ============ Variables ============ */
 
   DrawAuctionHarness public drawAuction;
-  RngAuction public rngAuction;
+  StartRngAuction public rngAuction;
   RNGInterface public rng;
 
   uint64 _auctionDuration = 4 hours;
@@ -45,8 +45,8 @@ contract DrawAuctionTest is Helpers {
   uint256 _randomNumber = 123;
   address _recipient = address(2);
   uint32 _currentSequenceId = 101;
-  RngAuction.RngRequest _rngRequest =
-    RngAuction.RngRequest(
+  StartRngAuction.RngRequest _rngRequest =
+    StartRngAuction.RngRequest(
       1, // rngRequestId
       uint32(block.number + 1), // lockBlock
       _currentSequenceId, // sequenceId
@@ -56,7 +56,7 @@ contract DrawAuctionTest is Helpers {
   function setUp() public {
     vm.warp(0);
 
-    rngAuction = RngAuction(makeAddr("rngAuction"));
+    rngAuction = StartRngAuction(makeAddr("rngAuction"));
     vm.etch(address(rngAuction), "rngAuction");
 
     rng = RNGInterface(makeAddr("rng"));
@@ -67,7 +67,7 @@ contract DrawAuctionTest is Helpers {
 
   /* ============ rngAuction() ============ */
 
-  function testRngAuction() public {
+  function testStartRngAuction() public {
     assertEq(address(drawAuction.rngAuction()), address(rngAuction));
   }
 
@@ -78,9 +78,9 @@ contract DrawAuctionTest is Helpers {
     vm.warp(_rngCompletedAt + _auctionDuration); // reward fraction will be 1
 
     // Mock Calls
-    _mockRngAuction_isRngComplete(rngAuction, true);
-    _mockRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
-    _mockRngAuction_getRngResults(rngAuction, _rngRequest, _randomNumber, _rngCompletedAt);
+    _mockStartRngAuction_isRngComplete(rngAuction, true);
+    _mockStartRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
+    _mockStartRngAuction_getRngResults(rngAuction, _rngRequest, _randomNumber, _rngCompletedAt);
 
     // Test
     drawAuction.completeDraw(_recipient);
@@ -99,9 +99,9 @@ contract DrawAuctionTest is Helpers {
     vm.warp(_rngCompletedAt + _auctionDuration); // reward fraction will be 1
 
     // Mock Calls
-    _mockRngAuction_isRngComplete(rngAuction, true);
-    _mockRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
-    _mockRngAuction_getRngResults(rngAuction, _rngRequest, _randomNumber, _rngCompletedAt);
+    _mockStartRngAuction_isRngComplete(rngAuction, true);
+    _mockStartRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
+    _mockStartRngAuction_getRngResults(rngAuction, _rngRequest, _randomNumber, _rngCompletedAt);
 
     // Test
     vm.expectEmit();
@@ -118,15 +118,15 @@ contract DrawAuctionTest is Helpers {
     vm.warp(_rngCompletedAt + _auctionDuration / 2);
 
     // Complete draw once
-    _mockRngAuction_isRngComplete(rngAuction, true);
-    _mockRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
-    _mockRngAuction_getRngResults(rngAuction, _rngRequest, _randomNumber, _rngCompletedAt);
+    _mockStartRngAuction_isRngComplete(rngAuction, true);
+    _mockStartRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
+    _mockStartRngAuction_getRngResults(rngAuction, _rngRequest, _randomNumber, _rngCompletedAt);
     drawAuction.completeDraw(_recipient);
 
     // Try to complete again
-    _mockRngAuction_isRngComplete(rngAuction, true);
-    _mockRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
-    _mockRngAuction_getRngResults(rngAuction, _rngRequest, _randomNumber, _rngCompletedAt);
+    _mockStartRngAuction_isRngComplete(rngAuction, true);
+    _mockStartRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
+    _mockStartRngAuction_getRngResults(rngAuction, _rngRequest, _randomNumber, _rngCompletedAt);
 
     vm.expectRevert(abi.encodeWithSelector(DrawAlreadyCompleted.selector));
     drawAuction.completeDraw(_recipient);
@@ -134,7 +134,7 @@ contract DrawAuctionTest is Helpers {
 
   function testCompleteDraw_RequiresRngCompleted() public {
     // Mock Calls
-    _mockRngAuction_isRngComplete(rngAuction, false);
+    _mockStartRngAuction_isRngComplete(rngAuction, false);
 
     // Test
     vm.expectRevert(abi.encodeWithSelector(RngNotCompleted.selector));
@@ -146,9 +146,9 @@ contract DrawAuctionTest is Helpers {
     vm.warp(_rngCompletedAt + _auctionDuration + 1);
 
     // Mock calls
-    _mockRngAuction_isRngComplete(rngAuction, true);
-    _mockRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
-    _mockRngAuction_getRngResults(rngAuction, _rngRequest, _randomNumber, _rngCompletedAt);
+    _mockStartRngAuction_isRngComplete(rngAuction, true);
+    _mockStartRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
+    _mockStartRngAuction_getRngResults(rngAuction, _rngRequest, _randomNumber, _rngCompletedAt);
 
     // Test
     vm.expectRevert(abi.encodeWithSelector(DrawAuctionExpired.selector));
@@ -160,9 +160,9 @@ contract DrawAuctionTest is Helpers {
     vm.warp(_rngCompletedAt + _auctionTargetTime + (_auctionDuration - _auctionTargetTime) / 2);
 
     // Mock calls
-    _mockRngAuction_isRngComplete(rngAuction, true);
-    _mockRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
-    _mockRngAuction_getRngResults(rngAuction, _rngRequest, _randomNumber, _rngCompletedAt);
+    _mockStartRngAuction_isRngComplete(rngAuction, true);
+    _mockStartRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
+    _mockStartRngAuction_getRngResults(rngAuction, _rngRequest, _randomNumber, _rngCompletedAt);
 
     // Test
     drawAuction.completeDraw(_recipient);
@@ -176,15 +176,15 @@ contract DrawAuctionTest is Helpers {
     vm.warp(_rngCompletedAt + (_auctionDuration * 2) + _auctionTargetTime);
 
     // Mock calls for next sequence
-    RngAuction.RngRequest memory _nextRngRequest = RngAuction.RngRequest(
+    StartRngAuction.RngRequest memory _nextRngRequest = StartRngAuction.RngRequest(
       _rngRequest.id + 1,
       uint32(block.number),
       _currentSequenceId + 1,
       _rngRequest.requestedAt + _auctionDuration * 2
     );
-    _mockRngAuction_isRngComplete(rngAuction, true);
-    _mockRngAuction_currentSequenceId(rngAuction, _currentSequenceId + 1);
-    _mockRngAuction_getRngResults(
+    _mockStartRngAuction_isRngComplete(rngAuction, true);
+    _mockStartRngAuction_currentSequenceId(rngAuction, _currentSequenceId + 1);
+    _mockStartRngAuction_getRngResults(
       rngAuction,
       _nextRngRequest,
       _randomNumber + 1,
@@ -207,17 +207,17 @@ contract DrawAuctionTest is Helpers {
   function testIsAuctionComplete_NotComplete() public {
     // Complete draw
     vm.warp(_rngCompletedAt + _auctionDuration / 2);
-    _mockRngAuction_isRngComplete(rngAuction, true);
-    _mockRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
-    _mockRngAuction_getRngResults(rngAuction, _rngRequest, _randomNumber, _rngCompletedAt);
+    _mockStartRngAuction_isRngComplete(rngAuction, true);
+    _mockStartRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
+    _mockStartRngAuction_getRngResults(rngAuction, _rngRequest, _randomNumber, _rngCompletedAt);
     drawAuction.completeDraw(_recipient);
 
     // Test
-    _mockRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
+    _mockStartRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
     assertEq(drawAuction.isAuctionComplete(), true);
 
     // Test false on next sequence
-    _mockRngAuction_currentSequenceId(rngAuction, _currentSequenceId + 1);
+    _mockStartRngAuction_currentSequenceId(rngAuction, _currentSequenceId + 1);
     assertEq(drawAuction.isAuctionComplete(), false);
   }
 
@@ -226,9 +226,9 @@ contract DrawAuctionTest is Helpers {
   function testIsAuctionOpen_IsOpen() public {
     // Warp halfway through
     vm.warp(_rngCompletedAt + _auctionDuration / 2);
-    _mockRngAuction_isRngComplete(rngAuction, true);
-    _mockRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
-    _mockRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
+    _mockStartRngAuction_isRngComplete(rngAuction, true);
+    _mockStartRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
+    _mockStartRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
 
     // Test
     assertEq(drawAuction.isAuctionOpen(), true);
@@ -237,15 +237,15 @@ contract DrawAuctionTest is Helpers {
   function testIsAuctionOpen_AlreadyCompleted() public {
     // Complete draw halfway through
     vm.warp(_rngCompletedAt + _auctionDuration / 2);
-    _mockRngAuction_isRngComplete(rngAuction, true);
-    _mockRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
-    _mockRngAuction_getRngResults(rngAuction, _rngRequest, _randomNumber, _rngCompletedAt);
+    _mockStartRngAuction_isRngComplete(rngAuction, true);
+    _mockStartRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
+    _mockStartRngAuction_getRngResults(rngAuction, _rngRequest, _randomNumber, _rngCompletedAt);
     drawAuction.completeDraw(_recipient);
 
     // Mock calls
-    _mockRngAuction_isRngComplete(rngAuction, true);
-    _mockRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
-    _mockRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
+    _mockStartRngAuction_isRngComplete(rngAuction, true);
+    _mockStartRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
+    _mockStartRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
 
     // Test
     assertEq(drawAuction.isAuctionOpen(), false);
@@ -254,16 +254,16 @@ contract DrawAuctionTest is Helpers {
   function testIsAuctionOpen_Expired() public {
     // Warp halfway through
     vm.warp(_rngCompletedAt + _auctionDuration + 1);
-    _mockRngAuction_isRngComplete(rngAuction, true);
-    _mockRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
-    _mockRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
+    _mockStartRngAuction_isRngComplete(rngAuction, true);
+    _mockStartRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
+    _mockStartRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
 
     // Test
     assertEq(drawAuction.isAuctionOpen(), false);
   }
 
   function testIsAuctionOpen_RngNotCompleted() public {
-    _mockRngAuction_isRngComplete(rngAuction, false);
+    _mockStartRngAuction_isRngComplete(rngAuction, false);
 
     // Test
     assertEq(drawAuction.isAuctionOpen(), false);
@@ -274,7 +274,7 @@ contract DrawAuctionTest is Helpers {
   function testElapsedTime_AtStart() public {
     // Warp to beginning of auction
     vm.warp(_rngCompletedAt);
-    _mockRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
+    _mockStartRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
 
     // Test
     assertEq(drawAuction.elapsedTime(), 0);
@@ -283,7 +283,7 @@ contract DrawAuctionTest is Helpers {
   function testElapsedTime_Halfway() public {
     // Warp to halfway point of auction
     vm.warp(_rngCompletedAt + _auctionDuration / 2);
-    _mockRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
+    _mockStartRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
 
     // Test
     assertEq(drawAuction.elapsedTime(), _auctionDuration / 2);
@@ -292,7 +292,7 @@ contract DrawAuctionTest is Helpers {
   function testElapsedTime_AtEnd() public {
     // Warp to end of auction
     vm.warp(_rngCompletedAt + _auctionDuration);
-    _mockRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
+    _mockStartRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
 
     // Test
     assertEq(drawAuction.elapsedTime(), _auctionDuration);
@@ -301,7 +301,7 @@ contract DrawAuctionTest is Helpers {
   function testElapsedTime_PastAuction() public {
     // Warp past auction
     vm.warp(_rngCompletedAt + _auctionDuration + 1);
-    _mockRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
+    _mockStartRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
 
     // Test
     assertEq(drawAuction.elapsedTime(), _auctionDuration + 1);
@@ -318,7 +318,7 @@ contract DrawAuctionTest is Helpers {
   function testCurrentRewardFraction_AtStart() public {
     // Warp to beginning of auction
     vm.warp(_rngCompletedAt);
-    _mockRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
+    _mockStartRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
 
     // Test
     assertEq(UD2x18.unwrap(drawAuction.currentFractionalReward()), 0); // 0.0
@@ -327,7 +327,7 @@ contract DrawAuctionTest is Helpers {
   function testCurrentRewardFraction_AtTargetTime() public {
     // Warp to halfway point of auction
     vm.warp(_rngCompletedAt + _auctionTargetTime);
-    _mockRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
+    _mockStartRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
 
     // Test
     (AuctionResults memory _lastResults, ) = drawAuction.getAuctionResults();
@@ -340,7 +340,7 @@ contract DrawAuctionTest is Helpers {
   function testCurrentRewardFraction_AtEnd() public {
     // Warp to end of auction
     vm.warp(_rngCompletedAt + _auctionDuration);
-    _mockRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
+    _mockStartRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
 
     // Test
     assertEq(UD2x18.unwrap(drawAuction.currentFractionalReward()), 1e18); // 1.0
@@ -349,7 +349,7 @@ contract DrawAuctionTest is Helpers {
   function testCurrentRewardFraction_PastAuction() public {
     // Warp past auction
     vm.warp(_rngCompletedAt + _auctionDuration + _auctionDuration / 10);
-    _mockRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
+    _mockStartRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
 
     // Test
     assertGe(UD2x18.unwrap(drawAuction.currentFractionalReward()), 1e18); // >= 1.0
@@ -360,7 +360,7 @@ contract DrawAuctionTest is Helpers {
   function testCurrentRewardAmount_AtStart() public {
     // Warp to beginning of auction
     vm.warp(_rngCompletedAt);
-    _mockRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
+    _mockStartRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
     AuctionResults memory _auctionResults = AuctionResults(address(this), UD2x18.wrap(0.5e18)); // 0.5 reward for rng auction
     _mockIAuction_getAuctionResults(rngAuction, _auctionResults, 1);
 
@@ -371,7 +371,7 @@ contract DrawAuctionTest is Helpers {
   function testCurrentRewardAmount_AtEnd() public {
     // Warp to end of auction
     vm.warp(_rngCompletedAt + _auctionDuration);
-    _mockRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
+    _mockStartRngAuction_rngCompletedAt(rngAuction, _rngCompletedAt);
     AuctionResults memory _auctionResults = AuctionResults(address(this), UD2x18.wrap(0.5e18)); // 0.5 reward for rng auction
     _mockIAuction_getAuctionResults(rngAuction, _auctionResults, 1);
 
@@ -384,9 +384,9 @@ contract DrawAuctionTest is Helpers {
   function testGetAuctionResults() public {
     // Complete draw at end
     vm.warp(_rngCompletedAt + _auctionDuration);
-    _mockRngAuction_isRngComplete(rngAuction, true);
-    _mockRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
-    _mockRngAuction_getRngResults(rngAuction, _rngRequest, _randomNumber, _rngCompletedAt);
+    _mockStartRngAuction_isRngComplete(rngAuction, true);
+    _mockStartRngAuction_currentSequenceId(rngAuction, _currentSequenceId);
+    _mockStartRngAuction_getRngResults(rngAuction, _rngRequest, _randomNumber, _rngCompletedAt);
     drawAuction.completeDraw(_recipient);
 
     // Tests

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity ^0.8.19;
 
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "openzeppelin/token/ERC20/utils/SafeERC20.sol";
@@ -12,13 +12,13 @@ import { RewardLib } from "local-draw-auction/libraries/RewardLib.sol";
 import { IAuction, AuctionResults } from "local-draw-auction/interfaces/IAuction.sol";
 
 /**
- * @title PoolTogether V5 RngAuction
+ * @title PoolTogether V5 StartRngAuction
  * @author Generation Software Team
- * @notice The RngAuction allows anyone to request a new random number using the RNG service set.
+ * @notice The StartRngAuction allows anyone to request a new random number using the RNG service set.
  *         The auction incetivises RNG requests to be started in-sync with prize pool draw
  *         periods across all chains.
  */
-contract RngAuction is IAuction, Ownable {
+contract StartRngAuction is IAuction, Ownable {
   using SafeERC20 for IERC20;
 
   /* ============ Structs ============ */
@@ -124,9 +124,9 @@ contract RngAuction is IAuction, Ownable {
   /* ============ Constructor ============ */
 
   /**
-   * @notice Deploy the RngAuction smart contract.
+   * @notice Deploy the StartRngAuction smart contract.
    * @param rng_ Address of the RNG service
-   * @param owner_ Address of the RngAuction owner
+   * @param owner_ Address of the StartRngAuction owner
    * @param sequencePeriodSeconds_ Sequence period in seconds
    * @param sequenceOffsetSeconds_ Sequence offset in seconds
    * @param auctionDurationSeconds_ Auction duration in seconds
