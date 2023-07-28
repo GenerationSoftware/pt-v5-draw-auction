@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
-
-import { AuctionResults } from "local-draw-auction/interfaces/IAuction.sol";
+pragma solidity ^0.8.19;
 
 import { UD2x18 } from "prb-math/UD2x18.sol";
-import { UD60x18, toUD60x18, fromUD60x18 } from "prb-math/UD60x18.sol";
+import { UD60x18, convert } from "prb-math/UD60x18.sol";
+
+import { AuctionResults } from "../interfaces/IAuction.sol";
 
 library RewardLib {
   /* ============ Internal Functions ============ */
@@ -18,7 +18,7 @@ library RewardLib {
   //   uint64 _elapsedTime,
   //   uint64 _auctionDuration
   // ) internal pure returns (UD2x18) {
-  //   return UD2x18.wrap(uint64(toUD60x18(_elapsedTime).div(toUD60x18(_auctionDuration)).unwrap()));
+  //   return UD2x18.wrap(uint64(convert(_elapsedTime).div(convert(_auctionDuration)).unwrap()));
   // }
 
   /**
@@ -36,15 +36,15 @@ library RewardLib {
     UD2x18 _targetTimeFraction,
     UD2x18 _targetRewardFraction
   ) internal pure returns (UD2x18) {
-    UD60x18 x = toUD60x18(_elapsedTime).div(toUD60x18(_auctionDuration));
+    UD60x18 x = convert(_elapsedTime).div(convert(_auctionDuration));
     UD60x18 t = UD60x18.wrap(_targetTimeFraction.unwrap());
     UD60x18 r = UD60x18.wrap(_targetRewardFraction.unwrap());
     UD60x18 rewardFraction;
     if (x.gt(t)) {
       UD60x18 tDelta = x.sub(t);
-      UD60x18 oneMinusT = toUD60x18(1).sub(t);
+      UD60x18 oneMinusT = convert(1).sub(t);
       rewardFraction = r.add(
-        toUD60x18(1).sub(r).mul(tDelta).mul(tDelta).div(oneMinusT).div(oneMinusT)
+        convert(1).sub(r).mul(tDelta).mul(tDelta).div(oneMinusT).div(oneMinusT)
       );
     } else {
       UD60x18 tDelta = t.sub(x);
@@ -90,8 +90,8 @@ library RewardLib {
     if (_auctionResult.recipient == address(0)) return 0;
     if (_reserve == 0) return 0;
     return
-      fromUD60x18(
-        UD60x18.wrap(UD2x18.unwrap(_auctionResult.rewardFraction)).mul(toUD60x18(_reserve))
+      convert(
+        UD60x18.wrap(UD2x18.unwrap(_auctionResult.rewardFraction)).mul(convert(_reserve))
       );
   }
 }

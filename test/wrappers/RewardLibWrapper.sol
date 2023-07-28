@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity ^0.8.19;
 
 import { UD2x18 } from "prb-math/UD2x18.sol";
 
-import { AuctionResults } from "local-draw-auction/interfaces/IAuction.sol";
-import { RewardLib } from "local-draw-auction/libraries/RewardLib.sol";
+import { AuctionResults } from "../../src/interfaces/IAuction.sol";
+import { RewardLib } from "../../src/libraries/RewardLib.sol";
 
 // Note: Need to store the results from the library in a variable to be picked up by forge coverage
 // See: https://github.com/foundry-rs/foundry/pull/3128#issuecomment-1241245086

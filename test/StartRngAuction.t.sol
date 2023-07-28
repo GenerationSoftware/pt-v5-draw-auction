@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity ^0.8.19;
 
 import { Helpers, RNGInterface, UD2x18, AuctionResults } from "test/helpers/Helpers.t.sol";
 import { ERC20Mintable } from "test/mocks/ERC20Mintable.sol";
 
-import { RngAuction } from "local-draw-auction/RngAuction.sol";
+import { StartRngAuction, RngRequest } from "../src/StartRngAuction.sol";
 
-contract RngAuctionTest is Helpers {
+contract StartRngAuctionTest is Helpers {
   /* ============ Custom Errors ============ */
 
   /// @notice Thrown when the auction period is zero.
@@ -60,7 +60,7 @@ contract RngAuctionTest is Helpers {
 
   /* ============ Variables ============ */
 
-  RngAuction public rngAuction;
+  StartRngAuction public rngAuction;
   RNGInterface public rng;
   ERC20Mintable public rngFeeToken;
 
@@ -78,7 +78,7 @@ contract RngAuctionTest is Helpers {
     rng = RNGInterface(makeAddr("rng"));
     vm.etch(address(rng), "rng");
 
-    rngAuction = new RngAuction(
+    rngAuction = new StartRngAuction(
       rng,
       address(this),
       _sequencePeriodSeconds,
@@ -108,8 +108,9 @@ contract RngAuctionTest is Helpers {
     emit AuctionCompleted(_recipient, 1, _auctionDuration, UD2x18.wrap(uint64(1e18)));
 
     rngAuction.startRngRequest(_recipient);
-    (AuctionResults memory _auctionResults, uint32 _sequenceId) = rngAuction.getAuctionResults();
-    RngAuction.RngRequest memory _rngRequest = rngAuction.getRngRequest();
+    AuctionResults memory _auctionResults = rngAuction.getAuctionResults();
+    uint32 _sequenceId = rngAuction.currentSequenceId();
+    RngRequest memory _rngRequest = rngAuction.getRngRequest();
 
     assertEq(_sequenceId, 1);
 
@@ -372,7 +373,7 @@ contract RngAuctionTest is Helpers {
     vm.warp(_sequencePeriodSeconds + _auctionTargetTime);
 
     // Test
-    (AuctionResults memory _lastResults, ) = rngAuction.getAuctionResults();
+    AuctionResults memory _lastResults = rngAuction.getAuctionResults();
     assertEq(
       UD2x18.unwrap(rngAuction.currentFractionalReward()),
       UD2x18.unwrap(_lastResults.rewardFraction)
@@ -436,7 +437,8 @@ contract RngAuctionTest is Helpers {
     rngAuction.startRngRequest(_recipient);
 
     // Tests
-    (AuctionResults memory _auctionResults, uint32 _sequenceId) = rngAuction.getAuctionResults();
+    AuctionResults memory _auctionResults = rngAuction.getAuctionResults();
+    uint32 _sequenceId = rngAuction.currentSequenceId();
 
     assertEq(_sequenceId, 1);
     assertEq(_auctionResults.recipient, _recipient);
@@ -459,7 +461,7 @@ contract RngAuctionTest is Helpers {
 
   function testCurrentSequence_WithOffset() public {
     uint64 _offset = 101;
-    RngAuction offsetRngAuction = new RngAuction(
+    StartRngAuction offsetStartRngAuction = new StartRngAuction(
       rng,
       address(this),
       _sequencePeriodSeconds,
@@ -469,19 +471,19 @@ contract RngAuctionTest is Helpers {
     );
 
     vm.warp(_offset);
-    assertEq(offsetRngAuction.currentSequenceId(), 0);
+    assertEq(offsetStartRngAuction.currentSequenceId(), 0);
     vm.warp(_offset + _sequencePeriodSeconds - 1);
-    assertEq(offsetRngAuction.currentSequenceId(), 0);
+    assertEq(offsetStartRngAuction.currentSequenceId(), 0);
 
     vm.warp(_offset + _sequencePeriodSeconds);
-    assertEq(offsetRngAuction.currentSequenceId(), 1);
+    assertEq(offsetStartRngAuction.currentSequenceId(), 1);
     vm.warp(_offset + _sequencePeriodSeconds * 2 - 1);
-    assertEq(offsetRngAuction.currentSequenceId(), 1);
+    assertEq(offsetStartRngAuction.currentSequenceId(), 1);
   }
 
   function testFailCurrentSequence_BeforeOffset() public {
     uint64 _offset = 101;
-    RngAuction offsetRngAuction = new RngAuction(
+    StartRngAuction offsetStartRngAuction = new StartRngAuction(
       rng,
       address(this),
       _sequencePeriodSeconds,
@@ -491,7 +493,7 @@ contract RngAuctionTest is Helpers {
     );
 
     vm.warp(_offset - 1);
-    offsetRngAuction.currentSequenceId();
+    offsetStartRngAuction.currentSequenceId();
   }
 
   /* ============ isRngComplete() ============ */
@@ -567,7 +569,7 @@ contract RngAuctionTest is Helpers {
 
     // Test
     (
-      RngAuction.RngRequest memory rngRequest_,
+      RngRequest memory rngRequest_,
       uint256 randomNumber_,
       uint64 rngCompletedAt_
     ) = rngAuction.getRngResults();
@@ -595,7 +597,7 @@ contract RngAuctionTest is Helpers {
     rngAuction.startRngRequest(_recipient);
 
     // Test
-    RngAuction.RngRequest memory _rngRequest = rngAuction.getRngRequest();
+    RngRequest memory _rngRequest = rngAuction.getRngRequest();
     assertEq(_rngRequest.id, _rngRequestId);
     assertEq(_rngRequest.lockBlock, _lockBlock);
     assertEq(_rngRequest.sequenceId, 1);
@@ -605,7 +607,7 @@ contract RngAuctionTest is Helpers {
     vm.warp(_sequencePeriodSeconds * 2 + _auctionDuration / 2);
     assertEq(rngAuction.currentSequenceId(), 2);
 
-    RngAuction.RngRequest memory _rngRequest2 = rngAuction.getRngRequest();
+    RngRequest memory _rngRequest2 = rngAuction.getRngRequest();
     assertEq(_rngRequest2.id, _rngRequestId);
     assertEq(_rngRequest2.lockBlock, _lockBlock);
     assertEq(_rngRequest2.sequenceId, 1);
@@ -663,7 +665,7 @@ contract RngAuctionTest is Helpers {
 
     vm.expectEmit();
     emit RngServiceSet(_newRng);
-    RngAuction _newRngAuction = new RngAuction(
+    StartRngAuction _newStartRngAuction = new StartRngAuction(
       _newRng,
       address(this),
       1 days,
@@ -673,8 +675,8 @@ contract RngAuctionTest is Helpers {
     );
 
     // It should set right away since the current rng is zero address
-    assertEq(address(_newRngAuction.getRngService()), address(_newRng));
-    assertEq(address(_newRngAuction.getPendingRngService()), address(_newRng));
+    assertEq(address(_newStartRngAuction.getRngService()), address(_newRng));
+    assertEq(address(_newStartRngAuction.getPendingRngService()), address(_newRng));
   }
 
   function testSetRngService_ZeroAddress() public {

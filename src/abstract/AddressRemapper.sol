@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity ^0.8.19;
 
 /**
  * @title AddressRemapper
  * @author Generation Software Team
  * @notice Allows addresses to provide a remapping to a new address.
  */
-abstract contract AddressRemapper {
+contract AddressRemapper {
   /* ============ Variables ============ */
 
   /// @notice User-defined address remapping

@@ -1,63 +1,62 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.17;
+pragma solidity ^0.8.19;
 
 import "forge-std/Test.sol";
 
-import { PrizePool, TieredLiquidityDistributor } from "v5-prize-pool/PrizePool.sol";
+import { PrizePool, TieredLiquidityDistributor } from "pt-v5-prize-pool/PrizePool.sol";
 import { RNGInterface } from "rng/RNGInterface.sol";
 import { UD2x18 } from "prb-math/UD2x18.sol";
 
-import { IAuction, AuctionResults } from "local-draw-auction/interfaces/IAuction.sol";
-import { IDrawManager } from "local-draw-auction/interfaces/IDrawManager.sol";
-import { RngAuction } from "local-draw-auction/RngAuction.sol";
+import { IAuction, AuctionResults } from "../../src/interfaces/IAuction.sol";
+import { StartRngAuction, RngRequest } from "../../src/StartRngAuction.sol";
 
 contract Helpers is Test {
-  /* ============ RngAuction ============ */
+  /* ============ StartRngAuction ============ */
 
-  function _mockRngAuction_getRngResults(
-    RngAuction _rngAuction,
-    RngAuction.RngRequest memory _rngRequest,
+  function _mockStartRngAuction_getRngResults(
+    StartRngAuction _rngAuction,
+    RngRequest memory _rngRequest,
     uint256 _randomNumber,
     uint64 _rngCompletedAt
   ) internal {
     vm.mockCall(
       address(_rngAuction),
-      abi.encodeWithSelector(RngAuction.getRngResults.selector),
+      abi.encodeWithSelector(StartRngAuction.getRngResults.selector),
       abi.encode(_rngRequest, _randomNumber, _rngCompletedAt)
     );
   }
 
-  function _mockRngAuction_isRngComplete(RngAuction _rngAuction, bool _isCompleted) internal {
+  function _mockStartRngAuction_isRngComplete(StartRngAuction _rngAuction, bool _isCompleted) internal {
     vm.mockCall(
       address(_rngAuction),
-      abi.encodeWithSelector(RngAuction.isRngComplete.selector),
+      abi.encodeWithSelector(StartRngAuction.isRngComplete.selector),
       abi.encode(_isCompleted)
     );
   }
 
-  function _mockRngAuction_getRngService(RngAuction _rngAuction, RNGInterface _rng) internal {
+  function _mockStartRngAuction_getRngService(StartRngAuction _rngAuction, RNGInterface _rng) internal {
     vm.mockCall(
       address(_rngAuction),
-      abi.encodeWithSelector(RngAuction.getRngService.selector),
+      abi.encodeWithSelector(StartRngAuction.getRngService.selector),
       abi.encode(_rng)
     );
   }
 
-  function _mockRngAuction_currentSequenceId(
-    RngAuction _rngAuction,
+  function _mockStartRngAuction_currentSequenceId(
+    StartRngAuction _rngAuction,
     uint32 _currentSequenceId
   ) internal {
     vm.mockCall(
       address(_rngAuction),
-      abi.encodeWithSelector(RngAuction.currentSequenceId.selector),
+      abi.encodeWithSelector(StartRngAuction.currentSequenceId.selector),
       abi.encode(_currentSequenceId)
     );
   }
 
-  function _mockRngAuction_rngCompletedAt(RngAuction _rngAuction, uint64 _rngCompletedAt) internal {
+  function _mockStartRngAuction_rngCompletedAt(StartRngAuction _rngAuction, uint64 _rngCompletedAt) internal {
     vm.mockCall(
       address(_rngAuction),
-      abi.encodeWithSelector(RngAuction.rngCompletedAt.selector),
+      abi.encodeWithSelector(StartRngAuction.rngCompletedAt.selector),
       abi.encode(_rngCompletedAt)
     );
   }
