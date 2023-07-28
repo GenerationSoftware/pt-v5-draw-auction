@@ -4,9 +4,8 @@ pragma solidity ^0.8.19;
 import { AccessControl } from "openzeppelin/access/AccessControl.sol";
 import { PrizePool } from "pt-v5-prize-pool/PrizePool.sol";
 
-import { AuctionResults } from "local-draw-auction/interfaces/IAuction.sol";
-import { RewardLib } from "local-draw-auction/libraries/RewardLib.sol";
-import { IDrawManager } from "local-draw-auction/interfaces/IDrawManager.sol";
+import { AuctionResults } from "./interfaces/IAuction.sol";
+import { RewardLib } from "./libraries/RewardLib.sol";
 
 /**
  * @title PoolTogether V5 DrawManager
@@ -14,7 +13,7 @@ import { IDrawManager } from "local-draw-auction/interfaces/IDrawManager.sol";
  * @notice The DrawManager completes the pending draw with the given random number
  * and awards the auction recipients with rewards from the prize pool reserve.
  */
-contract DrawManager is IDrawManager, AccessControl {
+contract DrawManager is AccessControl {
   /* ============ Constants ============ */
 
   /// @notice The draw closer role identifier
@@ -68,8 +67,8 @@ contract DrawManager is IDrawManager, AccessControl {
   function closeDraw(
     uint256 _randomNumber,
     AuctionResults[] memory _auctionResults
-  ) external onlyRole(DRAW_CLOSER_ROLE) {
-    prizePool.closeDraw(_randomNumber);
+  ) external onlyRole(DRAW_CLOSER_ROLE) returns (uint32) {
+    uint32 drawId = prizePool.closeDraw(_randomNumber);
 
     uint256[] memory _rewards = RewardLib.rewards(_auctionResults, prizePool.reserve());
 
@@ -78,5 +77,7 @@ contract DrawManager is IDrawManager, AccessControl {
       prizePool.withdrawReserve(_auctionResults[i].recipient, _reward);
       emit AuctionRewardDistributed(_auctionResults[i].recipient, i, _reward);
     }
+
+    return drawId;
   }
 }

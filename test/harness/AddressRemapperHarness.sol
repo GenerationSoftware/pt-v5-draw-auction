@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { AddressRemapper } from "local-draw-auction/abstract/AddressRemapper.sol";
+import { AddressRemapper } from "../../src/abstract/AddressRemapper.sol";
 
 contract AddressRemapperHarness is AddressRemapper {
   function remap(address _caller, address _destination) external {

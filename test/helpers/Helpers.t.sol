@@ -7,16 +7,15 @@ import { PrizePool, TieredLiquidityDistributor } from "pt-v5-prize-pool/PrizePoo
 import { RNGInterface } from "rng/RNGInterface.sol";
 import { UD2x18 } from "prb-math/UD2x18.sol";
 
-import { IAuction, AuctionResults } from "local-draw-auction/interfaces/IAuction.sol";
-import { IDrawManager } from "local-draw-auction/interfaces/IDrawManager.sol";
-import { StartRngAuction } from "local-draw-auction/StartRngAuction.sol";
+import { IAuction, AuctionResults } from "../../src/interfaces/IAuction.sol";
+import { StartRngAuction, RngRequest } from "../../src/StartRngAuction.sol";
 
 contract Helpers is Test {
   /* ============ StartRngAuction ============ */
 
   function _mockStartRngAuction_getRngResults(
     StartRngAuction _rngAuction,
-    StartRngAuction.RngRequest memory _rngRequest,
+    RngRequest memory _rngRequest,
     uint256 _randomNumber,
     uint64 _rngCompletedAt
   ) internal {

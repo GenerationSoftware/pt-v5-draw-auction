@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { AuctionResults } from "local-draw-auction/interfaces/IAuction.sol";
-
 import { UD2x18 } from "prb-math/UD2x18.sol";
 import { UD60x18, convert } from "prb-math/UD60x18.sol";
+
+import { AuctionResults } from "../interfaces/IAuction.sol";
 
 library RewardLib {
   /* ============ Internal Functions ============ */

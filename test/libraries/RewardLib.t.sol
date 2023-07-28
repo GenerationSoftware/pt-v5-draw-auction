@@ -5,7 +5,7 @@ import "forge-std/Test.sol";
 
 import { UD2x18 } from "prb-math/UD2x18.sol";
 
-import { AuctionResults } from "local-draw-auction/interfaces/IAuction.sol";
+import { AuctionResults } from "../../src/interfaces/IAuction.sol";
 
 import { RewardLibWrapper } from "test/wrappers/RewardLibWrapper.sol";
 

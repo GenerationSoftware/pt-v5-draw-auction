@@ -3,12 +3,12 @@ pragma solidity ^0.8.19;
 
 import { AuctionResults } from "./IAuction.sol";
 
-interface IStartRngAuctionRelayListener {
+interface IRngAuctionRelayListener {
     function rngComplete(
         uint256 randomNumber,
-        uint56 rngCompletedAt,
+        uint256 rngCompletedAt,
         address rewardRecipient,
         uint32 sequenceId,
         AuctionResults calldata auctionResult
-    ) external;
+    ) external returns (bytes memory);
 }

@@ -8,8 +8,24 @@ import { RNGInterface } from "rng/RNGInterface.sol";
 import { UD2x18 } from "prb-math/UD2x18.sol";
 import { UD60x18, convert } from "prb-math/UD60x18.sol";
 
-import { RewardLib } from "local-draw-auction/libraries/RewardLib.sol";
-import { IAuction, AuctionResults } from "local-draw-auction/interfaces/IAuction.sol";
+import { RewardLib } from "./libraries/RewardLib.sol";
+import { IAuction, AuctionResults } from "./interfaces/IAuction.sol";
+
+/**
+  * @notice RNG Request.
+  * @param id          RNG request ID
+  * @param lockBlock   The block number at which the RNG service will start generating time-delayed randomness
+  * @param sequenceId  Sequence ID that the RNG was requested during.
+  * @param requestedAt Time at which the RNG was requested
+  * @dev   The `sequenceId` value should not be assumed to be the same as a prize pool drawId even though the
+  *        timing is designed to align as best as possible.
+  */
+struct RngRequest {
+  uint32 id;
+  uint32 lockBlock;
+  uint32 sequenceId;
+  uint64 requestedAt;
+}
 
 /**
  * @title PoolTogether V5 StartRngAuction
@@ -22,22 +38,6 @@ contract StartRngAuction is IAuction, Ownable {
   using SafeERC20 for IERC20;
 
   /* ============ Structs ============ */
-
-  /**
-   * @notice RNG Request.
-   * @param id          RNG request ID
-   * @param lockBlock   The block number at which the RNG service will start generating time-delayed randomness
-   * @param sequenceId  Sequence ID that the RNG was requested during.
-   * @param requestedAt Time at which the RNG was requested
-   * @dev   The `sequenceId` value should not be assumed to be the same as a prize pool drawId even though the
-   *        timing is designed to align as best as possible.
-   */
-  struct RngRequest {
-    uint32 id;
-    uint32 lockBlock;
-    uint32 sequenceId;
-    uint64 requestedAt;
-  }
 
   /* ============ Variables ============ */
 
@@ -200,7 +200,6 @@ contract StartRngAuction is IAuction, Ownable {
   /* ============ State Functions ============ */
 
   /**
-   * @inheritdoc IAuction
    * @dev The auction is complete when the RNG has been requested for the current sequence.
    */
   function isAuctionComplete() external view returns (bool) {
@@ -208,7 +207,6 @@ contract StartRngAuction is IAuction, Ownable {
   }
 
   /**
-   * @inheritdoc IAuction
    * @dev The auction is open if RNG has not been requested yet this sequence and the
    * auction has not expired.
    */
@@ -216,44 +214,29 @@ contract StartRngAuction is IAuction, Ownable {
     return !_isRngRequested() && _elapsedTime() <= _auctionDurationSeconds;
   }
 
-  /**
-   * @inheritdoc IAuction
-   */
   function elapsedTime() external view returns (uint64) {
     return _elapsedTime();
   }
 
-  /**
-   * @inheritdoc IAuction
-   */
   function auctionDuration() external view returns (uint64) {
     return _auctionDurationSeconds;
   }
 
-  /**
-   * @inheritdoc IAuction
-   */
   function currentFractionalReward() external view returns (UD2x18) {
     return _currentFractionalReward();
   }
 
-  /**
-   * @inheritdoc IAuction
-   */
   function currentRewardAmount(uint256 _reserve) external view returns (uint256) {
     AuctionResults memory _results = AuctionResults(msg.sender, _currentFractionalReward());
     return RewardLib.reward(_results, _reserve);
   }
 
-  /**
-   * @inheritdoc IAuction
-   */
   function getAuctionResults()
     external
     view
-    returns (AuctionResults memory auctionResults, uint32 sequenceId)
+    returns (AuctionResults memory)
   {
-    return (_auctionResults, _rngRequest.sequenceId);
+    return _auctionResults;
   }
 
   /**
@@ -434,10 +417,6 @@ contract StartRngAuction is IAuction, Ownable {
     // Set as pending if RNG is being replaced.
     // The RNG will be swapped with the pending one before the next random number is requested.
     _pendingRng = _newRng;
-    if (address(_rng) == address(0)) {
-      // Set immediately if no RNG is set.
-      _rng = _newRng;
-    }
 
     emit RngServiceSet(_newRng);
   }

@@ -1,29 +1,54 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { RNGInterface } from "rng/RNGInterface.sol";
+import "forge-std/console2.sol";
+
 import { UD2x18 } from "prb-math/UD2x18.sol";
-import { UD60x18, convert } from "prb-math/UD60x18.sol";
+import { convert } from "prb-math/UD60x18.sol";
 
-import { RewardLib } from "local-draw-auction/libraries/RewardLib.sol";
-import { StartRngAuction } from "local-draw-auction/StartRngAuction.sol";
-import { IAuction, AuctionResults } from "local-draw-auction/interfaces/IAuction.sol";
+import { RewardLib } from "./libraries/RewardLib.sol";
+import { IRngAuctionRelayListener } from "./interfaces/IRngAuctionRelayListener.sol";
+import { IAuction, AuctionResults } from "./interfaces/IAuction.sol";
+import { StartRngAuction } from "./StartRngAuction.sol";
+import { DrawManager } from "./DrawManager.sol";
 
-import { StartRngAuction } from "local-draw-auction/StartRngAuction.sol";
-import { IDrawManager } from "local-draw-auction/interfaces/IDrawManager.sol";
-import { AuctionResults } from "local-draw-auction/interfaces/IAuction.sol";
-import { IStartRngAuctionRelayListener } from "local-draw-auction/interfaces/IStartRngAuctionRelayListener.sol";
+/* ============ Custom Errors ============ */
+
+/// @notice Thrown if the auction period is zero.
+error AuctionDurationZero();
+
+/// @notice Thrown if the auction target time is zero.
+error AuctionTargetTimeZero();
+
+/**
+  * @notice Thrown if the auction target time exceeds the auction duration.
+  * @param auctionTargetTime The auction target time to complete in seconds
+  * @param auctionDuration The auction duration in seconds
+  */
+error AuctionTargetTimeExceedsDuration(uint64 auctionDuration, uint64 auctionTargetTime);
+
+/// @notice Thrown if the StartRngAuction address is the zero address.
+error RngRelayerZeroAddress();
+
+/// @notice Thrown if the current sequence has already been completed.
+error SequenceAlreadyCompleted();
+
+/// @notice Thrown if the current draw auction has expired.
+error AuctionExpired();
+
+/// @notice Thrown if the DrawManager address is the zero address.
+error DrawManagerZeroAddress();
 
 /**
  * @title   PoolTogether V5 DrawAuctionDirect
  * @author  Generation Software Team
  * @notice  This contract sends the results of the draw auction directly to the draw manager.
  */
-contract CompleteRngAuction is IStartRngAuctionRelayListener {
+contract CompleteRngAuction is IRngAuctionRelayListener, IAuction {
   /* ============ Constants ============ */
 
   /// @notice The DrawManager to send the auction results to
-  IDrawManager public immutable drawManager;
+  DrawManager public immutable drawManager;
 
   address public immutable startRngAuctionRelayer;
 
@@ -41,46 +66,13 @@ contract CompleteRngAuction is IStartRngAuctionRelayListener {
   /// @notice The last completed auction results
   AuctionResults internal _auctionResults;
 
-  /* ============ Custom Errors ============ */
-
-  /// @notice Thrown if the auction period is zero.
-  error AuctionDurationZero();
-
-  /// @notice Thrown if the auction target time is zero.
-  error AuctionTargetTimeZero();
-
-  /**
-   * @notice Thrown if the auction target time exceeds the auction duration.
-   * @param auctionTargetTime The auction target time to complete in seconds
-   * @param auctionDuration The auction duration in seconds
-   */
-  error AuctionTargetTimeExceedsDuration(uint64 auctionTargetTime, uint64 auctionDuration);
-
-  /// @notice Thrown if the StartRngAuction address is the zero address.
-  error RngRelayerZeroAddress();
-
-  /// @notice Thrown if the current sequence has already been completed.
-  error SequenceAlreadyCompleted();
-
-  /// @notice Thrown if the current draw auction has expired.
-  error AuctionExpired();
-
-  /* ============ Custom Errors ============ */
-
-  /// @notice Thrown if the DrawManager address is the zero address.
-  error DrawManagerZeroAddress();
-
   /* ============ Constructor ============ */
 
   /**
    * @notice Deploy the DrawAuction smart contract.
-   * @param drawManager_ The DrawManager to send the auction results to
-   * @param rngAuction_ The StartRngAuction to get the random number from
-   * @param auctionDurationSeconds_ Auction duration in seconds
-   * @param auctionTargetTime_ Auction target time to complete in seconds
    */
   constructor(
-    IDrawManager drawManager_,
+    DrawManager drawManager_,
     address _startRngAuctionRelayer,
     uint64 auctionDurationSeconds_,
     uint64 auctionTargetTime_
@@ -91,9 +83,9 @@ contract CompleteRngAuction is IStartRngAuctionRelayListener {
     if (auctionDurationSeconds_ == 0) revert AuctionDurationZero();
     if (auctionTargetTime_ == 0) revert AuctionTargetTimeZero();
     if (auctionTargetTime_ > auctionDurationSeconds_) {
-      revert AuctionTargetTimeExceedsDuration(auctionTargetTime_, auctionDurationSeconds_);
+      revert AuctionTargetTimeExceedsDuration(auctionDurationSeconds_, auctionTargetTime_);
     }
-    rngAuction = rngAuction_;
+    startRngAuctionRelayer = _startRngAuctionRelayer;
     _auctionDurationSeconds = auctionDurationSeconds_;
     _auctionTargetTimeFraction = UD2x18.wrap(
       uint64(convert(auctionTargetTime_).div(convert(_auctionDurationSeconds)).unwrap())
@@ -104,15 +96,25 @@ contract CompleteRngAuction is IStartRngAuctionRelayListener {
 
   function rngComplete(
     uint256 _randomNumber,
-    uint56 _rngCompletedAt,
+    uint256 _rngCompletedAt,
     address _rewardRecipient,
     uint32 _sequenceId,
     AuctionResults calldata _startRngAuctionResult
-  ) external {
-    if (_isAuctionComplete(sequenceId)) revert SequenceAlreadyCompleted();
+  ) external returns (bytes memory) {
+    if (_isAuctionComplete(_sequenceId)) revert SequenceAlreadyCompleted();
 
-    uint64 _auctionElapsedSeconds = uint64(block.timestamp) - _rngCompletedAt;
-    if (_auctionElapsedSeconds > _auctionDurationSeconds) revert AuctionExpired();
+    // console2.log("block.timestamp", block.timestamp);
+    // console2.log("_rngCompletedAt", _rngCompletedAt);
+    // console2.log("_auctionDurationSeconds", _auctionDurationSeconds);
+    
+
+    uint64 _auctionElapsedSeconds = uint64(block.timestamp - _rngCompletedAt);
+    
+    // console2.log("_auctionElapsedSeconds", _auctionElapsedSeconds);
+
+    if (_auctionElapsedSeconds > (_auctionDurationSeconds-1)) revert AuctionExpired();
+
+    // console2.log("got here");
 
     // Calculate the reward fraction and set the draw auction results
     UD2x18 _reward = _fractionalReward(_auctionElapsedSeconds);
@@ -120,11 +122,20 @@ contract CompleteRngAuction is IStartRngAuctionRelayListener {
     _auctionResults.recipient = _rewardRecipient;
     _lastSequenceId = _sequenceId;
 
+    // console2.log("_reward", _reward.unwrap());
+
     AuctionResults[] memory _results = new AuctionResults[](2);
     _results[0] = _startRngAuctionResult;
     _results[1] = _auctionResults;
+
+    // console2.log("rngComplete _startRngAuctionResult.rewardFraction", _startRngAuctionResult.rewardFraction.unwrap());
+    // console2.log("rngComplete _startRngAuctionResult.recipient", _startRngAuctionResult.recipient);
+    // console2.log("rngComplete _reward", _reward.unwrap());
+    // console2.log("rngComplete _rewardRecipient", _rewardRecipient);
     
-    drawManager.closeDraw(_randomNumber, _results);
+    uint32 drawId = drawManager.closeDraw(_randomNumber, _results);
+
+    // console2.log("rngComplete closeDraw");
 
     emit AuctionCompleted(
       _rewardRecipient,
@@ -132,50 +143,34 @@ contract CompleteRngAuction is IStartRngAuctionRelayListener {
       _auctionElapsedSeconds,
       _reward
     );
+
+    return abi.encode(drawId);
   }
 
   /* ============ IAuction Functions ============ */
 
-  /**
-   * @inheritdoc IAuction
-   */
-  function isAuctionComplete(uint32 sequenceId) external view returns (bool) {
-    return _isAuctionComplete(sequenceId);
+  function isAuctionComplete(uint32 _sequenceId) external view returns (bool) {
+    return _isAuctionComplete(_sequenceId);
   }
 
-  /**
-   * @inheritdoc IAuction
-   */
   function auctionDuration() external view returns (uint64) {
     return _auctionDurationSeconds;
   }
 
-  /**
-   * @inheritdoc IAuction
-   */
-  function fractionalReward(uint elapsedTime) external view returns (UD2x18) {
-    return _fractionalReward(elapsedTime);
+  function fractionalReward(uint64 _elapsedTime) external view returns (UD2x18) {
+    return _fractionalReward(_elapsedTime);
   }
 
-  /**
-   * @inheritdoc IAuction
-   */
-  function currentRewardAmount(uint256 _reserve) external view returns (uint256) {
-    AuctionResults[] memory _results = new AuctionResults[](2);
-    (_results[0], ) = rngAuction.getAuctionResults();
-    _results[1] = AuctionResults(msg.sender, _fractionalReward(elapsedTime()));
-    return RewardLib.rewards(_results, _reserve)[1];
+  function sequenceId() external view returns (uint32) {
+    return _lastSequenceId;
   }
 
-  /**
-   * @inheritdoc IAuction
-   */
   function getAuctionResults()
     external
     view
-    returns (AuctionResults memory auctionResults, uint32 sequenceId)
+    returns (AuctionResults memory)
   {
-    return (_auctionResults, _lastSequenceId);
+    return _auctionResults;
   }
 
   /* ============ Internal Functions ============ */
