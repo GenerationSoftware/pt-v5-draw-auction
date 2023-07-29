@@ -18,9 +18,36 @@
 
 ## Overview
 
-To encourage the completion of the Draw, the Prize Pool's reserve, which accumulated during the duration of the Draw, is distributed through an auction. A linear auction mechanism is used to distribute it.
+The Draw Auction is a suite of contracts that auctions off the transactions required to push a new random number to the Prize Pool.
 
-To learn more about this mechanism, consult the following documentation: [https://dev.pooltogether.com/protocol/next/design/draw-auction](https://dev.pooltogether.com/protocol/next/design/draw-auction)
+PoolTogether V5 Prize Pools have periodic Draws. A "Draw" is when a random number is used to distribute the next batch of prizes to the users. This means that an external contract must source a random number and push the random number to the Prize Pool.
+
+To incentivize new draws, each Prize Pool holds a reserve of tokens. A privileged "draw manager" is allowed to push random numbers to the Prize Pool and withdraw from the reserve.
+
+The Draw Auction serves as the draw manager for all Prize Pools.
+
+## How it Works
+
+Random numbers come from an RNG service on Ethereum, and Prize Pools live on L2s. This means that we need to incentivize a sequence of transactions to generate a new random number on Ethereum, then bridge it to the Prize Pool on L2.
+
+Each sequence includes two auctions:
+
+1. Starting the RNG request. This is when the RNG request kicks-off, and may require funds (the Chainlink VRF 2.0 needs LINK tokens).
+2. Relaying the RNG results to L2 via a bridge.
+
+Starting the RNG request occurs on L1, and receiving the bridge RNG result occurs on L2. The auctions don't have pricing data, so they compute the reward *as a fraction of the available Prize Pool reserve*. This means that the auction on L1 does not need to know how much reserve is available in a Prize Pool on L2.
+
+There are three key contracts:
+
+- RngAuction: auctions off the initial RNG request
+- RngAuctionRelayer: relays the RNG results to the RngRelayAuction
+- RngRelayAuction: incentivizes the relay with an auction and triggers close draw on the Prize Pool
+
+For more information, see the detailed [PoolTogether V5 Draw Auction documentation](https://dev.pooltogether.com/protocol/next/design/draw-auction)
+
+## Flow
+
+![Draw Auction](./assets/DrawAuction.png)
 
 ## Development
 
