@@ -4,19 +4,18 @@ pragma solidity ^0.8.19;
 import { Helpers, RNGInterface, UD2x18, AuctionResults } from "./helpers/Helpers.t.sol";
 
 import {
-  CompleteRngAuction,
-  DrawManagerZeroAddress,
+  RngRelayAuction,
+  PrizePool,
   RngRelayerZeroAddress,
   AuctionDurationZero,
   AuctionTargetTimeZero,
   SequenceAlreadyCompleted,
   AuctionExpired,
+  PrizePoolZeroAddress,
   AuctionTargetTimeExceedsDuration
-} from "../src/CompleteRngAuction.sol";
+} from "../src/RngRelayAuction.sol";
 
-import { DrawManager } from "../src/DrawManager.sol";
-
-contract CompleteRngAuctionTest is Helpers {
+contract RngRelayAuctionTest is Helpers {
 
   /* ============ Events ============ */
 
@@ -29,18 +28,18 @@ contract CompleteRngAuctionTest is Helpers {
 
   /* ============ Variables ============ */
 
-  CompleteRngAuction public completeRngAuction;
+  RngRelayAuction public completeRngAuction;
 
-  DrawManager drawManager;
+  PrizePool prizePool;
   address startRngAuctionRelayer;
   uint64 auctionDurationSeconds = 1 hours;
   uint64 auctionTargetTime = 15 minutes;
 
   function setUp() public {
-    drawManager = DrawManager(makeAddr("rngAuction"));
-    vm.etch(address(drawManager), "drawManager");
+    prizePool = PrizePool(makeAddr("prizePool"));
+    vm.etch(address(prizePool), "prizePool");
 
-    completeRngAuction = new CompleteRngAuction(drawManager, address(this), auctionDurationSeconds, auctionTargetTime);
+    completeRngAuction = new RngRelayAuction(prizePool, address(this), auctionDurationSeconds, auctionTargetTime);
   }
 
   function testConstructor() public {
@@ -49,29 +48,29 @@ contract CompleteRngAuctionTest is Helpers {
     assertEq(completeRngAuction.fractionalReward(auctionDurationSeconds).unwrap(), 1 ether, "fractional reward");
   }
 
-  function testConstructor_DrawManagerZeroAddress() public {
-    vm.expectRevert(abi.encodeWithSelector(DrawManagerZeroAddress.selector));
-    new CompleteRngAuction(DrawManager(address(0)), address(this), auctionDurationSeconds, auctionTargetTime);
+  function testConstructor_PrizePoolZeroAddress() public {
+    vm.expectRevert(abi.encodeWithSelector(PrizePoolZeroAddress.selector));
+    new RngRelayAuction(PrizePool(address(0)), address(this), auctionDurationSeconds, auctionTargetTime);
   }
 
   function testConstructor_RngRelayerZeroAddress() public {
     vm.expectRevert(abi.encodeWithSelector(RngRelayerZeroAddress.selector));
-    new CompleteRngAuction(drawManager, address(0), auctionDurationSeconds, auctionTargetTime);
+    new RngRelayAuction(prizePool, address(0), auctionDurationSeconds, auctionTargetTime);
   }
 
   function testConstructor_AuctionDurationZero() public {
     vm.expectRevert(abi.encodeWithSelector(AuctionDurationZero.selector));
-    new CompleteRngAuction(drawManager, address(this), 0, auctionTargetTime);
+    new RngRelayAuction(prizePool, address(this), 0, auctionTargetTime);
   }
 
   function testConstructor_AuctionTargetTimeZero() public {
     vm.expectRevert(abi.encodeWithSelector(AuctionTargetTimeZero.selector));
-    new CompleteRngAuction(drawManager, address(this), auctionDurationSeconds, 0);
+    new RngRelayAuction(prizePool, address(this), auctionDurationSeconds, 0);
   }
 
   function testConstructor_AuctionTargetTimeExceedsDuration() public {
     vm.expectRevert(abi.encodeWithSelector(AuctionTargetTimeExceedsDuration.selector, 1 hours, 2 hours));
-    new CompleteRngAuction(drawManager, address(this), 1 hours, 2 hours);
+    new RngRelayAuction(prizePool, address(this), 1 hours, 2 hours);
   }
 
   function testFractionalReward() public {
@@ -85,9 +84,11 @@ contract CompleteRngAuctionTest is Helpers {
       rewardFraction: UD2x18.wrap(0.1 ether)
     });
 
-    mockCloseDraw(0x1234, address(this), UD2x18.wrap(0.1 ether), address(this), UD2x18.wrap(0));
-
     assertFalse(completeRngAuction.isAuctionComplete(1));
+
+    mockCloseDraw(0x1234);
+    mockPrizePoolReserve(100e18);
+    mockWithdrawReserve(address(this), 10e18);
 
     completeRngAuction.rngComplete(
       0x1234,
@@ -111,7 +112,9 @@ contract CompleteRngAuctionTest is Helpers {
       rewardFraction: UD2x18.wrap(0.1 ether)
     });
 
-    mockCloseDraw(0x1234, address(this), UD2x18.wrap(0.1 ether), address(this), UD2x18.wrap(0));
+    mockCloseDraw(0x1234);
+    mockPrizePoolReserve(100e18);
+    mockWithdrawReserve(address(this), 10e18);
 
     completeRngAuction.rngComplete(
       0x1234,
@@ -151,20 +154,26 @@ contract CompleteRngAuctionTest is Helpers {
 
   /* ============ mock ============ */
 
-  function mockCloseDraw(uint256 randomNumber, address recipient1, UD2x18 reward1, address recipient2, UD2x18 reward2) public {
-    AuctionResults[] memory _results = new AuctionResults[](2);
-    _results[0] = AuctionResults({
-      recipient: recipient1,
-      rewardFraction: reward1
-    });
-    _results[1] = AuctionResults({
-      recipient: recipient2,
-      rewardFraction: reward2
-    });
-
+  function mockPrizePoolReserve(uint256 amount) public {
     vm.mockCall(
-      address(drawManager),
-      abi.encodeWithSelector(DrawManager.closeDraw.selector, randomNumber, _results),
+      address(prizePool),
+      abi.encodeWithSelector(prizePool.reserve.selector),
+      abi.encode(amount)
+    );
+  }
+
+  function mockWithdrawReserve(address recipient, uint256 amount) public {
+    vm.mockCall(
+      address(prizePool),
+      abi.encodeWithSelector(PrizePool.withdrawReserve.selector, recipient, amount),
+      abi.encode()
+    );
+  }
+
+  function mockCloseDraw(uint256 randomNumber) public {
+    vm.mockCall(
+      address(prizePool),
+      abi.encodeWithSelector(PrizePool.closeDraw.selector, randomNumber),
       abi.encode(42)
     );
   }

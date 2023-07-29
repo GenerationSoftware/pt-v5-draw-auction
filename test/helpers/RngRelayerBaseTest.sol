@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import "forge-std/Test.sol";
 
 import { UD2x18 } from "prb-math/UD2x18.sol";
-import { StartRngAuction } from "../../src/StartRngAuction.sol";
+import { RngAuction } from "../../src/RngAuction.sol";
 import { IRngAuctionRelayListener } from "../../src/interfaces/IRngAuctionRelayListener.sol";
 import { AuctionResults } from "../../src/interfaces/IAuction.sol";
 
@@ -12,11 +12,11 @@ import { RngNotCompleted } from "../../src/abstract/RngAuctionRelayer.sol";
 
 contract RngRelayerBaseTest is Test {
 
-    StartRngAuction startRngAuction;
+    RngAuction startRngAuction;
     IRngAuctionRelayListener rngAuctionRelayListener;
 
     function setUp() public virtual {
-        startRngAuction = StartRngAuction(makeAddr("startRngAuction"));
+        startRngAuction = RngAuction(makeAddr("startRngAuction"));
         rngAuctionRelayListener = IRngAuctionRelayListener(makeAddr("rngAuctionRelayListener"));
     }
 

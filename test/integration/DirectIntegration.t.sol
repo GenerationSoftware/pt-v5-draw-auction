@@ -4,48 +4,101 @@ pragma solidity ^0.8.19;
 import "forge-std/Test.sol";
 
 import { UD2x18 } from "prb-math/UD2x18.sol";
-import { RNGInterface } from "rng/RNGInterface.sol";
+import { RNGBlockhash } from "rng/RNGBlockhash.sol";
 import { PrizePool } from "pt-v5-prize-pool/PrizePool.sol";
-import { StartRngAuction } from "../../src/StartRngAuction.sol";
-import { CompleteRngAuction } from "../../src/CompleteRngAuction.sol";
+import { RngAuction } from "../../src/RngAuction.sol";
+import { RngRelayAuction } from "../../src/RngRelayAuction.sol";
 import { RngAuctionRelayerDirect } from "../../src/RngAuctionRelayerDirect.sol";
 
 contract RewardLibTest is Test {
 
-    // RNGInterface rng;
-    // PrizePool prizePool;
+    RNGBlockhash rng;
+    PrizePool prizePool;
 
-    // uint64 sequencePeriod = 1 days;
-    // uint64 sequenceOffset = 100 days;
-    // uint64 auctionDurationSeconds = 12 hours;
-    // uint64 auctionTargetTime = 30 minutes;
+    uint64 sequencePeriod = 1 days;
+    uint64 sequenceOffset = 100 days;
+    uint64 auctionDurationSeconds = 12 hours;
+    uint64 auctionTargetTime = 30 minutes;
+    
+    address recipient1;
+    address recipient2;
 
-    // function setUp() public {
-    //     rng = RNGInterface(makeAddr("RNGInterface"));
+    function setUp() public {
+        recipient1 = makeAddr("recipient1");
+        recipient2 = makeAddr("recipient2");
 
-    //     startRngAuction = new StartRngAuction(
-    //         rng,
-    //         address(this),
-    //         sequencePeriod,
-    //         sequenceOffset,
-    //         auctionDurationSeconds,
-    //         auctionTargetTime
-    //     );
+        rng = new RNGBlockhash();
 
-    //     rngAuctionRelayerDirect = new RngAuctionRelayerDirect(
-    //         startRngAuction
-    //     );
+        rngAuction = new RngAuction(
+            rng,
+            address(this),
+            sequencePeriod,
+            sequenceOffset,
+            auctionDurationSeconds,
+            auctionTargetTime
+        );
 
-    //     // drawManager = new DrawManager(prizePool, address(this), address drawCloser_);
+        rngAuctionRelayerDirect = new RngAuctionRelayerDirect(
+            rngAuction
+        );
 
-    //     // completeRngAuction = new CompleteRngAuction(
-    //     //     DrawManager drawManager_,
-    //     //     address _startRngAuctionRelayer,
-    //     //     uint64 auctionDurationSeconds_,
-    //     //     uint64 auctionTargetTime_
-    //     // )
+        prizePool = PrizePool(makeAddr("PrizePool"));
 
-    //     prizePool = PrizePool(makeAddr("PrizePool"));
-    // }
+        completeRngAuction = new RngRelayAuction(
+            prizePool,
+            rngAuctionRelayerDirect,
+            auctionDurationSeconds,
+            auctionTargetTime
+        );
+    }
+
+
+    function testEndToEnd() public {
+        vm.warp(sequencePeriod); // warp to end of first sequence
+        rngAuction.startRngRequest(recipient1);
+        vm.warp(20 seconds); // warp one block;
+
+        mockCloseDraw(1);
+        mockReserve(100e18);
+        mockWithdrawReserve(recipient1, 10e18);
+        mockWithdrawReserve(recipient2, 10e18);
+
+        rngAuctionRelayerDirect.relayRngRequest(completeRngAuction, recipient2);
+    }
+
+    /** ========== MOCKS =================== */
+
+    function mockCloseDraw(uint256 randomNumber) public {
+        vm.mockCall(
+            address(prizePool),
+            abi.encodeWithSelector(
+                prizePool.closeDraw.selector,
+                randomNumber
+            ),
+            abi.encode()
+        );
+    }
+
+    function mockReserve(uint256 amount) public {
+        vm.mockCall(
+            address(prizePool),
+            abi.encodeWithSelector(
+                prizePool.reserve.selector
+            ),
+            abi.encode(amount)
+        );
+    }
+
+    function mockWithdrawReserve(address to, uint256 amount) public {
+        vm.mockCall(
+            address(prizePool),
+            abi.encodeWithSelector(
+                prizePool.withdrawReserve.selector,
+                to,
+                amount
+            ),
+            abi.encode()
+        );
+    }
 
 }

@@ -4,9 +4,9 @@ pragma solidity ^0.8.19;
 import { Helpers, RNGInterface, UD2x18, AuctionResults } from "test/helpers/Helpers.t.sol";
 import { ERC20Mintable } from "test/mocks/ERC20Mintable.sol";
 
-import { StartRngAuction, RngAuction } from "../src/StartRngAuction.sol";
+import { RngAuction, RngAuctionResults } from "../src/RngAuction.sol";
 
-contract StartRngAuctionTest is Helpers {
+contract RngAuctionTest is Helpers {
   /* ============ Custom Errors ============ */
 
   /// @notice Thrown when the auction period is zero.
@@ -60,7 +60,7 @@ contract StartRngAuctionTest is Helpers {
 
   /* ============ Variables ============ */
 
-  StartRngAuction public rngAuction;
+  RngAuction public rngAuction;
   RNGInterface public rng;
   ERC20Mintable public rngFeeToken;
 
@@ -78,7 +78,7 @@ contract StartRngAuctionTest is Helpers {
     rng = RNGInterface(makeAddr("rng"));
     vm.etch(address(rng), "rng");
 
-    rngAuction = new StartRngAuction(
+    rngAuction = new RngAuction(
       rng,
       address(this),
       _sequencePeriod,
@@ -462,7 +462,7 @@ contract StartRngAuctionTest is Helpers {
 
   function testCurrentSequence_WithOffset() public {
     uint64 _offset = 101;
-    StartRngAuction offsetStartRngAuction = new StartRngAuction(
+    RngAuction offsetRngAuction = new RngAuction(
       rng,
       address(this),
       _sequencePeriod,
@@ -472,19 +472,19 @@ contract StartRngAuctionTest is Helpers {
     );
 
     vm.warp(_offset);
-    assertEq(offsetStartRngAuction.openSequenceId(), 0);
+    assertEq(offsetRngAuction.openSequenceId(), 0);
     vm.warp(_offset + _sequencePeriod - 1);
-    assertEq(offsetStartRngAuction.openSequenceId(), 0);
+    assertEq(offsetRngAuction.openSequenceId(), 0);
 
     vm.warp(_offset + _sequencePeriod);
-    assertEq(offsetStartRngAuction.openSequenceId(), 1);
+    assertEq(offsetRngAuction.openSequenceId(), 1);
     vm.warp(_offset + _sequencePeriod * 2 - 1);
-    assertEq(offsetStartRngAuction.openSequenceId(), 1);
+    assertEq(offsetRngAuction.openSequenceId(), 1);
   }
 
   function testFailCurrentSequence_BeforeOffset() public {
     uint64 _offset = 101;
-    StartRngAuction offsetStartRngAuction = new StartRngAuction(
+    RngAuction offsetRngAuction = new RngAuction(
       rng,
       address(this),
       _sequencePeriod,
@@ -494,7 +494,7 @@ contract StartRngAuctionTest is Helpers {
     );
 
     vm.warp(_offset - 1);
-    offsetStartRngAuction.openSequenceId();
+    offsetRngAuction.openSequenceId();
   }
 
   /* ============ isRngComplete() ============ */
@@ -597,7 +597,7 @@ contract StartRngAuctionTest is Helpers {
     _mockRngInterface_startRngRequest(rng, address(0), 0, _rngRequestId, _lockBlock);
     rngAuction.startRngRequest(_recipient);
 
-    RngAuction memory lastAuction = rngAuction.getLastAuction();
+    RngAuctionResults memory lastAuction = rngAuction.getLastAuction();
     assertEq(address(lastAuction.rng), address(rng));
     assertEq(address(lastAuction.recipient), address(_recipient));
     assertEq(lastAuction.sequenceId, 1);

@@ -5,12 +5,12 @@ import "forge-std/console2.sol";
 
 import { UD2x18 } from "prb-math/UD2x18.sol";
 import { convert } from "prb-math/UD60x18.sol";
+import { PrizePool } from "pt-v5-prize-pool/PrizePool.sol";
 
 import { RewardLib } from "./libraries/RewardLib.sol";
 import { IRngAuctionRelayListener } from "./interfaces/IRngAuctionRelayListener.sol";
 import { IAuction, AuctionResults } from "./interfaces/IAuction.sol";
-import { StartRngAuction } from "./StartRngAuction.sol";
-import { DrawManager } from "./DrawManager.sol";
+import { RngAuction } from "./RngAuction.sol";
 
 /* ============ Custom Errors ============ */
 
@@ -27,7 +27,7 @@ error AuctionTargetTimeZero();
   */
 error AuctionTargetTimeExceedsDuration(uint64 auctionDuration, uint64 auctionTargetTime);
 
-/// @notice Thrown if the StartRngAuction address is the zero address.
+/// @notice Thrown if the RngAuction address is the zero address.
 error RngRelayerZeroAddress();
 
 /// @notice Thrown if the current sequence has already been completed.
@@ -36,19 +36,25 @@ error SequenceAlreadyCompleted();
 /// @notice Thrown if the current draw auction has expired.
 error AuctionExpired();
 
-/// @notice Thrown if the DrawManager address is the zero address.
-error DrawManagerZeroAddress();
+/// @notice Thrown if the PrizePool address is the zero address.
+error PrizePoolZeroAddress();
 
 /**
- * @title   PoolTogether V5 DrawAuctionDirect
+ * @title   PoolTogether V5 RngRelayAuctionDirect
  * @author  Generation Software Team
  * @notice  This contract sends the results of the draw auction directly to the draw manager.
  */
-contract CompleteRngAuction is IRngAuctionRelayListener, IAuction {
+contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
   /* ============ Constants ============ */
 
-  /// @notice The DrawManager to send the auction results to
-  DrawManager public immutable drawManager;
+  event AuctionRewardDistributed(
+    address indexed recipient,
+    uint32 index,
+    uint256 reward
+  );
+
+  /// @notice The PrizePool to send the auction results to
+  PrizePool public immutable prizePool;
 
   address public immutable startRngAuctionRelayer;
 
@@ -69,16 +75,16 @@ contract CompleteRngAuction is IRngAuctionRelayListener, IAuction {
   /* ============ Constructor ============ */
 
   /**
-   * @notice Deploy the DrawAuction smart contract.
+   * @notice Deploy the RngRelayAuction smart contract.
    */
   constructor(
-    DrawManager drawManager_,
+    PrizePool prizePool_,
     address _startRngAuctionRelayer,
     uint64 auctionDurationSeconds_,
     uint64 auctionTargetTime_
   ) {
-    if (address(drawManager_) == address(0)) revert DrawManagerZeroAddress();
-    drawManager = drawManager_;
+    if (address(prizePool_) == address(0)) revert PrizePoolZeroAddress();
+    prizePool = prizePool_;
     if (address(_startRngAuctionRelayer) == address(0)) revert RngRelayerZeroAddress();
     if (auctionDurationSeconds_ == 0) revert AuctionDurationZero();
     if (auctionTargetTime_ == 0) revert AuctionTargetTimeZero();
@@ -117,31 +123,40 @@ contract CompleteRngAuction is IRngAuctionRelayListener, IAuction {
     // console2.log("got here");
 
     // Calculate the reward fraction and set the draw auction results
-    UD2x18 _reward = _fractionalReward(_auctionElapsedSeconds);
-    _auctionResults.rewardFraction = _reward;
+    UD2x18 rewardFraction = _fractionalReward(_auctionElapsedSeconds);
+    _auctionResults.rewardFraction = rewardFraction;
     _auctionResults.recipient = _rewardRecipient;
     _lastSequenceId = _sequenceId;
 
     // console2.log("_reward", _reward.unwrap());
 
-    AuctionResults[] memory _results = new AuctionResults[](2);
-    _results[0] = _startRngAuctionResult;
-    _results[1] = _auctionResults;
+    AuctionResults[] memory results = new AuctionResults[](2);
+    results[0] = _startRngAuctionResult;
+    results[1] = _auctionResults;
 
     // console2.log("rngComplete _startRngAuctionResult.rewardFraction", _startRngAuctionResult.rewardFraction.unwrap());
     // console2.log("rngComplete _startRngAuctionResult.recipient", _startRngAuctionResult.recipient);
     // console2.log("rngComplete _reward", _reward.unwrap());
     // console2.log("rngComplete _rewardRecipient", _rewardRecipient);
     
-    uint32 drawId = drawManager.closeDraw(_randomNumber, _results);
+    uint32 drawId = prizePool.closeDraw(_randomNumber);
 
-    // console2.log("rngComplete closeDraw");
+    uint256[] memory _rewards = RewardLib.rewards(results, prizePool.reserve());
+
+    for (uint8 i = 0; i < _rewards.length; i++) {
+      uint104 _reward = uint104(_rewards[i]);
+      bool isGtZero = _reward > 0;
+      if (isGtZero) {
+        prizePool.withdrawReserve(results[i].recipient, _reward);
+        emit AuctionRewardDistributed(results[i].recipient, i, _reward);
+      }
+    }
 
     emit AuctionCompleted(
       _rewardRecipient,
       _sequenceId,
       _auctionElapsedSeconds,
-      _reward
+      rewardFraction
     );
 
     return abi.encode(drawId);

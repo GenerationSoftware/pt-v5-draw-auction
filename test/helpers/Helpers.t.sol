@@ -8,26 +8,26 @@ import { RNGInterface } from "rng/RNGInterface.sol";
 import { UD2x18 } from "prb-math/UD2x18.sol";
 
 import { IAuction, AuctionResults } from "../../src/interfaces/IAuction.sol";
-import { StartRngAuction } from "../../src/StartRngAuction.sol";
+import { RngAuction } from "../../src/RngAuction.sol";
 
 contract Helpers is Test {
-  /* ============ StartRngAuction ============ */
+  /* ============ RngAuction ============ */
 
-  function _mockStartRngAuction_isRngComplete(StartRngAuction _rngAuction, bool _isCompleted) internal {
+  function _mockRngAuction_isRngComplete(RngAuction _rngAuction, bool _isCompleted) internal {
     vm.mockCall(
       address(_rngAuction),
-      abi.encodeWithSelector(StartRngAuction.isRngComplete.selector),
+      abi.encodeWithSelector(RngAuction.isRngComplete.selector),
       abi.encode(_isCompleted)
     );
   }
 
-  function _mockStartRngAuction_openSequenceId(
-    StartRngAuction _rngAuction,
+  function _mockRngAuction_openSequenceId(
+    RngAuction _rngAuction,
     uint32 _openSequenceId
   ) internal {
     vm.mockCall(
       address(_rngAuction),
-      abi.encodeWithSelector(StartRngAuction.openSequenceId.selector),
+      abi.encodeWithSelector(RngAuction.openSequenceId.selector),
       abi.encode(_openSequenceId)
     );
   }

@@ -1,24 +1,24 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { StartRngAuction } from "../StartRngAuction.sol";
+import { RngAuction } from "../RngAuction.sol";
 import { AuctionResults } from "../interfaces/IAuction.sol";
 import { AddressRemapper } from "../abstract/AddressRemapper.sol";
 import { IRngAuctionRelayListener } from "../interfaces/IRngAuctionRelayListener.sol";
 
 error RngNotCompleted();
 
-error CallerNotStartRngAuction();
+error CallerNotRngAuction();
 
 abstract contract RngAuctionRelayer is AddressRemapper {
     /// @notice Thrown if the RNG request is not complete for the current sequence.
     
 
     /// @notice The RNG Auction to get the random number from
-    StartRngAuction public immutable startRngAuction;
+    RngAuction public immutable startRngAuction;
 
     constructor(
-        StartRngAuction _startRngAuction
+        RngAuction _startRngAuction
     ) {
         startRngAuction = _startRngAuction;
     }

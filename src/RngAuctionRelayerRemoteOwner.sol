@@ -7,7 +7,7 @@ import { MessageDispatcherArbitrum } from "erc5164/ethereum-arbitrum/EthereumToA
 
 import {
     RngAuctionRelayer,
-    StartRngAuction,
+    RngAuction,
     IRngAuctionRelayListener
 } from "./abstract/RngAuctionRelayer.sol";
 
@@ -20,7 +20,7 @@ contract RngAuctionRelayerRemoteOwner is RngAuctionRelayer {
     uint256 public immutable toChainId;
 
     constructor(
-        StartRngAuction _startRngAuction,
+        RngAuction _startRngAuction,
         MessageDispatcherArbitrum _messageDispatcher,
         RemoteOwner _account,
         uint256 _toChainId

@@ -5,7 +5,7 @@ import "forge-std/console2.sol";
 
 import {
     RngAuctionRelayer,
-    StartRngAuction,
+    RngAuction,
     IRngAuctionRelayListener
 } from "./abstract/RngAuctionRelayer.sol";
 
@@ -15,7 +15,7 @@ contract RngAuctionRelayerDirect is RngAuctionRelayer {
 
     event DirectRelaySuccess(address indexed rewardRecipient, bytes returnData);
 
-    constructor(StartRngAuction _startRngAuction) RngAuctionRelayer(_startRngAuction) {
+    constructor(RngAuction _startRngAuction) RngAuctionRelayer(_startRngAuction) {
     }
 
     function relay(

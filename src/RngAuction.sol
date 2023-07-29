@@ -18,7 +18,7 @@ import { IAuction, AuctionResults } from "./interfaces/IAuction.sol";
   * @dev   The `sequenceId` value should not be assumed to be the same as a prize pool drawId even though the
   *        timing is designed to align as best as possible.
   */
-struct RngAuction {
+struct RngAuctionResults {
   address recipient;
   UD2x18 rewardFraction;
   uint32 sequenceId;
@@ -27,13 +27,13 @@ struct RngAuction {
 }
 
 /**
- * @title PoolTogether V5 StartRngAuction
+ * @title PoolTogether V5 RngAuction
  * @author Generation Software Team
- * @notice The StartRngAuction allows anyone to request a new random number using the RNG service set.
+ * @notice The RngAuction allows anyone to request a new random number using the RNG service set.
  *         The auction incetivises RNG requests to be started in-sync with prize pool draw
  *         periods across all chains.
  */
-contract StartRngAuction is IAuction, Ownable {
+contract RngAuction is IAuction, Ownable {
   using SafeERC20 for IERC20;
 
   /* ============ Variables ============ */
@@ -62,7 +62,7 @@ contract StartRngAuction is IAuction, Ownable {
   /// @notice New RNG instance that will be applied before the next auction completion
   RNGInterface internal _nextRng;
 
-  RngAuction internal _lastAuction;
+  RngAuctionResults internal _lastAuction;
 
   /* ============ Custom Errors ============ */
 
@@ -109,9 +109,9 @@ contract StartRngAuction is IAuction, Ownable {
   /* ============ Constructor ============ */
 
   /**
-   * @notice Deploy the StartRngAuction smart contract.
+   * @notice Deploy the RngAuction smart contract.
    * @param rng_ Address of the RNG service
-   * @param owner_ Address of the StartRngAuction owner
+   * @param owner_ Address of the RngAuction owner
    * @param sequencePeriod_ Sequence period in seconds
    * @param sequenceOffset_ Sequence offset in seconds
    * @param auctionDurationSeconds_ Auction duration in seconds
@@ -169,7 +169,7 @@ contract StartRngAuction is IAuction, Ownable {
     uint32 sequenceId = _openSequenceId();
     UD2x18 rewardFraction = _currentFractionalReward();
 
-    _lastAuction = RngAuction({
+    _lastAuction = RngAuctionResults({
       recipient: _rewardRecipient,
       rewardFraction: rewardFraction,
       sequenceId: sequenceId,
@@ -215,7 +215,7 @@ contract StartRngAuction is IAuction, Ownable {
     return RewardLib.reward(_results, _reserve);
   }
 
-  function getLastAuction() external view returns (RngAuction memory) {
+  function getLastAuction() external view returns (RngAuctionResults memory) {
     return _lastAuction;
   }
 
