@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { UD2x18 } from "prb-math/UD2x18.sol";
 
-import { AuctionResults } from "../../src/interfaces/IAuction.sol";
+import { AuctionResult } from "../../src/interfaces/IAuction.sol";
 import { RewardLib } from "../../src/libraries/RewardLib.sol";
 
 // Note: Need to store the results from the library in a variable to be picked up by forge coverage
@@ -25,7 +25,7 @@ contract RewardLibWrapper {
   }
 
   function rewards(
-    AuctionResults[] memory _auctionResults,
+    AuctionResult[] memory _auctionResults,
     uint256 _reserve
   ) public pure returns (uint256[] memory) {
     uint256[] memory result = RewardLib.rewards(_auctionResults, _reserve);
@@ -33,7 +33,7 @@ contract RewardLibWrapper {
   }
 
   function reward(
-    AuctionResults memory _auctionResults,
+    AuctionResult memory _auctionResults,
     uint256 _reserve
   ) public pure returns (uint256) {
     uint256 result = RewardLib.reward(_auctionResults, _reserve);

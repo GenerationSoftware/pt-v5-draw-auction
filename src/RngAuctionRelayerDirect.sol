@@ -5,7 +5,7 @@ import "forge-std/console2.sol";
 
 import {
     RngAuctionRelayer,
-    StartRngAuction,
+    RngAuction,
     IRngAuctionRelayListener
 } from "./abstract/RngAuctionRelayer.sol";
 
@@ -15,19 +15,22 @@ contract RngAuctionRelayerDirect is RngAuctionRelayer {
 
     event DirectRelaySuccess(address indexed rewardRecipient, bytes returnData);
 
-    constructor(
-        StartRngAuction _startRngAuction,
-        IRngAuctionRelayListener _rngAuctionRelayListener
-    ) RngAuctionRelayer(_startRngAuction, _rngAuctionRelayListener) {
+    constructor(RngAuction _startRngAuction) RngAuctionRelayer(_startRngAuction) {
     }
 
-    function relay(address rewardRecipient) external returns (bytes memory) {
-        bytes memory data = encodeCalldata(rewardRecipient);
-        (bool success, bytes memory returnData) = address(rngAuctionRelayListener).call(data);
+    function relay(
+        IRngAuctionRelayListener _rngAuctionRelayListener,
+        address _relayRewardRecipient
+    ) external returns (bytes memory) {
+        bytes memory data = encodeCalldata(_relayRewardRecipient);
+        (bool success, bytes memory returnData) = address(_rngAuctionRelayListener).call(data);
         if (!success) {
             revert DirectRelayFailed(returnData);
         }
-        emit DirectRelaySuccess(rewardRecipient, returnData);
+        emit DirectRelaySuccess(_relayRewardRecipient, returnData);
+
+        console2.log("returning...");
+        console2.logBytes(returnData);
 
         return returnData;
     }

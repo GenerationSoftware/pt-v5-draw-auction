@@ -7,7 +7,7 @@ import { MessageDispatcherArbitrum } from "erc5164/ethereum-arbitrum/EthereumToA
 
 import {
     RngAuctionRelayer,
-    StartRngAuction,
+    RngAuction,
     IRngAuctionRelayListener
 } from "./abstract/RngAuctionRelayer.sol";
 
@@ -20,25 +20,25 @@ contract RngAuctionRelayerRemoteOwner is RngAuctionRelayer {
     uint256 public immutable toChainId;
 
     constructor(
-        StartRngAuction _startRngAuction,
-        IRngAuctionRelayListener _rngRelayListener,
+        RngAuction _startRngAuction,
         MessageDispatcherArbitrum _messageDispatcher,
         RemoteOwner _account,
         uint256 _toChainId
-    ) RngAuctionRelayer(_startRngAuction, _rngRelayListener) {
+    ) RngAuctionRelayer(_startRngAuction) {
         messageDispatcher = _messageDispatcher;
         account = _account;
         toChainId = _toChainId;
     }
 
     function relay(
+        IRngAuctionRelayListener _remoteRngAuctionRelayListener,
         address rewardRecipient
     ) external returns (bytes32) {
         bytes memory listenerCalldata = encodeCalldata(rewardRecipient);
         bytes32 messageId = messageDispatcher.dispatchMessage(
             toChainId,
             address(account),
-            RemoteOwnerCallEncoder.encodeCalldata(address(rngAuctionRelayListener), 0, listenerCalldata)
+            RemoteOwnerCallEncoder.encodeCalldata(address(_remoteRngAuctionRelayListener), 0, listenerCalldata)
         );
         emit RelayedToDispatcher(rewardRecipient, messageId);
 
