@@ -9,7 +9,7 @@ import { PrizePool } from "pt-v5-prize-pool/PrizePool.sol";
 
 import { RewardLib } from "./libraries/RewardLib.sol";
 import { IRngAuctionRelayListener } from "./interfaces/IRngAuctionRelayListener.sol";
-import { IAuction, AuctionResults } from "./interfaces/IAuction.sol";
+import { IAuction, AuctionResult } from "./interfaces/IAuction.sol";
 import { RngAuction } from "./RngAuction.sol";
 
 /* ============ Custom Errors ============ */
@@ -45,12 +45,20 @@ error PrizePoolZeroAddress();
  * @notice  This contract sends the results of the draw auction directly to the draw manager.
  */
 contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
-  /* ============ Constants ============ */
 
   event AuctionRewardDistributed(
+    uint32 indexed sequenceId,
     address indexed recipient,
     uint32 index,
     uint256 reward
+  );
+
+  event RngRelayAuctionCompleted(
+    uint32 indexed sequenceId,
+    uint32 indexed drawId,
+    address indexed rewardRecipient,
+    uint64 auctionElapsedSeconds,
+    UD2x18 rewardFraction
   );
 
   /// @notice The PrizePool to send the auction results to
@@ -70,7 +78,7 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
   UD2x18 internal _auctionTargetTimeFraction;
 
   /// @notice The last completed auction results
-  AuctionResults internal _auctionResults;
+  AuctionResult internal _auctionResults;
 
   /* ============ Constructor ============ */
 
@@ -105,97 +113,103 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
     uint256 _rngCompletedAt,
     address _rewardRecipient,
     uint32 _sequenceId,
-    AuctionResults calldata _startRngAuctionResult
-  ) external returns (bytes memory) {
-    if (_isAuctionComplete(_sequenceId)) revert SequenceAlreadyCompleted();
-
-    // console2.log("block.timestamp", block.timestamp);
-    // console2.log("_rngCompletedAt", _rngCompletedAt);
-    // console2.log("_auctionDurationSeconds", _auctionDurationSeconds);
-    
-
-    uint64 _auctionElapsedSeconds = uint64(block.timestamp - _rngCompletedAt);
-    
-    // console2.log("_auctionElapsedSeconds", _auctionElapsedSeconds);
-
+    AuctionResult calldata _startRngAuctionResult
+  ) external returns (bytes32) {
+    console2.log("rngComplete 1");
+    if (_canStartNextSequence(_sequenceId)) revert SequenceAlreadyCompleted();
+    uint64 _auctionElapsedSeconds = uint64(block.timestamp < _rngCompletedAt ? 0 : block.timestamp - _rngCompletedAt);
     if (_auctionElapsedSeconds > (_auctionDurationSeconds-1)) revert AuctionExpired();
-
-    // console2.log("got here");
-
+    console2.log("rngComplete 2");
     // Calculate the reward fraction and set the draw auction results
     UD2x18 rewardFraction = _fractionalReward(_auctionElapsedSeconds);
     _auctionResults.rewardFraction = rewardFraction;
     _auctionResults.recipient = _rewardRecipient;
     _lastSequenceId = _sequenceId;
 
-    // console2.log("_reward", _reward.unwrap());
+    console2.log("rngComplete 3");
 
-    AuctionResults[] memory results = new AuctionResults[](2);
-    results[0] = _startRngAuctionResult;
-    results[1] = _auctionResults;
+    AuctionResult[] memory auctionResults = new AuctionResult[](2);
+    auctionResults[0] = _startRngAuctionResult;
+    auctionResults[1] = AuctionResult({
+      rewardFraction: rewardFraction,
+      recipient: _rewardRecipient
+    });
 
-    // console2.log("rngComplete _startRngAuctionResult.rewardFraction", _startRngAuctionResult.rewardFraction.unwrap());
-    // console2.log("rngComplete _startRngAuctionResult.recipient", _startRngAuctionResult.recipient);
-    // console2.log("rngComplete _reward", _reward.unwrap());
-    // console2.log("rngComplete _rewardRecipient", _rewardRecipient);
-    
+    console2.log("rngComplete 4", _randomNumber);
+
     uint32 drawId = prizePool.closeDraw(_randomNumber);
 
-    uint256[] memory _rewards = RewardLib.rewards(results, prizePool.reserve());
+    console2.log("rngComplete 5");
 
-    for (uint8 i = 0; i < _rewards.length; i++) {
-      uint104 _reward = uint104(_rewards[i]);
-      bool isGtZero = _reward > 0;
-      if (isGtZero) {
-        prizePool.withdrawReserve(results[i].recipient, _reward);
-        emit AuctionRewardDistributed(results[i].recipient, i, _reward);
-      }
-    }
+    uint256 futureReserve = prizePool.reserve() + prizePool.reserveForOpenDraw();
+    uint256[] memory _rewards = RewardLib.rewards(auctionResults, futureReserve);
 
-    emit AuctionCompleted(
-      _rewardRecipient,
+    console2.log("rngComplete 6");
+
+    emit RngRelayAuctionCompleted(
       _sequenceId,
+      drawId,
+      _rewardRecipient,
       _auctionElapsedSeconds,
       rewardFraction
     );
 
-    return abi.encode(drawId);
+    for (uint8 i = 0; i < _rewards.length; i++) {
+      uint104 _reward = uint104(_rewards[i]);
+      if (_reward > 0) {
+        prizePool.withdrawReserve(auctionResults[i].recipient, _reward);
+        emit AuctionRewardDistributed(_sequenceId, auctionResults[i].recipient, i, _reward);
+      }
+    }
+
+    return bytes32(uint(drawId));
   }
 
-  /* ============ IAuction Functions ============ */
+  function computeRewards(AuctionResult[] calldata __auctionResults) external returns (uint256[] memory) {
+    uint256 totalReserve = prizePool.reserve() + prizePool.reserveForOpenDraw();
+    return _computeRewards(__auctionResults, totalReserve);
+  }
 
-  function isAuctionComplete(uint32 _sequenceId) external view returns (bool) {
-    return _isAuctionComplete(_sequenceId);
+  function computeRewardsWithTotal(AuctionResult[] calldata __auctionResults, uint256 _totalReserve) external returns (uint256[] memory) {
+    return _computeRewards(__auctionResults, _totalReserve);
+  }
+
+  function canStartNextSequence(uint32 _sequenceId) external view returns (bool) {
+    return _canStartNextSequence(_sequenceId);
   }
 
   function auctionDuration() external view returns (uint64) {
     return _auctionDurationSeconds;
   }
 
-  function fractionalReward(uint64 _elapsedTime) external view returns (UD2x18) {
-    return _fractionalReward(_elapsedTime);
+  function computeRewardFraction(uint64 _auctionElapsedTime) external view returns (UD2x18) {
+    return _fractionalReward(_auctionElapsedTime);
   }
 
-  function sequenceId() external view returns (uint32) {
+  function lastSequenceId() external view returns (uint32) {
     return _lastSequenceId;
   }
 
-  function getAuctionResults()
+  function getLastAuctionResult()
     external
     view
-    returns (AuctionResults memory)
+    returns (AuctionResult memory)
   {
     return _auctionResults;
   }
 
   /* ============ Internal Functions ============ */
 
+  function _computeRewards(AuctionResult[] calldata __auctionResults, uint256 _totalReserve) internal returns (uint256[] memory) {
+    return RewardLib.rewards(__auctionResults, _totalReserve);
+  }
+
   /**
    * @notice Calculates if the current auction is complete.
    * @dev The auction is complete when the last recorded auction sequence ID matches the current sequence ID
    * @return True if the auction is complete, false otherwise
    */
-  function _isAuctionComplete(uint32 _sequenceId) internal view returns (bool) {
+  function _canStartNextSequence(uint32 _sequenceId) internal view returns (bool) {
     return _lastSequenceId >= _sequenceId;
   }
 

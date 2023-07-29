@@ -29,6 +29,9 @@ contract RngAuctionRelayerDirect is RngAuctionRelayer {
         }
         emit DirectRelaySuccess(_relayRewardRecipient, returnData);
 
+        console2.log("returning...");
+        console2.logBytes(returnData);
+
         return returnData;
     }
 }

@@ -5,7 +5,7 @@ import "forge-std/Test.sol";
 
 import { UD2x18 } from "prb-math/UD2x18.sol";
 
-import { AuctionResults } from "../../src/interfaces/IAuction.sol";
+import { AuctionResult } from "../../src/interfaces/IAuction.sol";
 
 import { RewardLibWrapper } from "test/wrappers/RewardLibWrapper.sol";
 
@@ -46,7 +46,7 @@ contract RewardLibTest is Test {
   }
 
   function testReward_noRecipient() external {
-    AuctionResults memory _auctionResults = AuctionResults(
+    AuctionResult memory _auctionResults = AuctionResult(
       address(0), // no recipient
       UD2x18.wrap(5e17) // 0.5
     );
@@ -57,7 +57,7 @@ contract RewardLibTest is Test {
   }
 
   function testReward_zeroReserve() external {
-    AuctionResults memory _auctionResults = AuctionResults(
+    AuctionResult memory _auctionResults = AuctionResult(
       address(this),
       UD2x18.wrap(5e17) // 0.5
     );
@@ -68,7 +68,7 @@ contract RewardLibTest is Test {
   }
 
   function testReward_zeroFraction() external {
-    AuctionResults memory _auctionResults = AuctionResults(
+    AuctionResult memory _auctionResults = AuctionResult(
       address(this),
       UD2x18.wrap(0) // 0
     );
@@ -79,7 +79,7 @@ contract RewardLibTest is Test {
   }
 
   function testReward_fullFraction() external {
-    AuctionResults memory _auctionResults = AuctionResults(
+    AuctionResult memory _auctionResults = AuctionResult(
       address(this),
       UD2x18.wrap(1e18) // full portion (1.0)
     );
@@ -88,7 +88,7 @@ contract RewardLibTest is Test {
   }
 
   function testReward_halfFraction() external {
-    AuctionResults memory _auctionResults = AuctionResults(
+    AuctionResult memory _auctionResults = AuctionResult(
       address(this),
       UD2x18.wrap(5e17) // half portion (0.5)
     );
@@ -97,10 +97,10 @@ contract RewardLibTest is Test {
   }
 
   function testRewards() external {
-    AuctionResults[] memory _auctionResults = new AuctionResults[](3);
-    _auctionResults[0] = AuctionResults(address(this), UD2x18.wrap(0)); // 0 reward (0 portion of 1e18), 1e18 reserve remains
-    _auctionResults[1] = AuctionResults(address(this), UD2x18.wrap(75e16)); // 75e16 reward (0.75 portion of 1e18), 25e16 reserve remains
-    _auctionResults[2] = AuctionResults(address(this), UD2x18.wrap(1e18)); // 25e16 reward (1.0 portion of 25e16), 0 reserve remains
+    AuctionResult[] memory _auctionResults = new AuctionResult[](3);
+    _auctionResults[0] = AuctionResult(address(this), UD2x18.wrap(0)); // 0 reward (0 portion of 1e18), 1e18 reserve remains
+    _auctionResults[1] = AuctionResult(address(this), UD2x18.wrap(75e16)); // 75e16 reward (0.75 portion of 1e18), 25e16 reserve remains
+    _auctionResults[2] = AuctionResult(address(this), UD2x18.wrap(1e18)); // 25e16 reward (1.0 portion of 25e16), 0 reserve remains
     uint256[] memory _rewards = rewardLib.rewards(_auctionResults, 1e18);
     assertEq(_rewards[0], 0);
     assertEq(_rewards[1], 75e16);

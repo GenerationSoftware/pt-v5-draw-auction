@@ -6,7 +6,7 @@ import "forge-std/Test.sol";
 import { UD2x18 } from "prb-math/UD2x18.sol";
 import { RngAuction } from "../src/RngAuction.sol";
 import { IRngAuctionRelayListener } from "../src/interfaces/IRngAuctionRelayListener.sol";
-import { AuctionResults } from "../src/interfaces/IAuction.sol";
+import { AuctionResult } from "../src/interfaces/IAuction.sol";
 
 import { RngRelayerBaseTest } from "./helpers/RngRelayerBaseTest.sol";
 
@@ -37,12 +37,12 @@ contract RngAuctionRelayerDirectTest is RngRelayerBaseTest {
 
         mockIsRngComplete(true);
         mockRngResults(123, 456);
-        mockAuctionResults(address(this), UD2x18.wrap(0.5 ether));
+        mockAuctionResult(address(this), UD2x18.wrap(0.5 ether));
         mockCurrentSequenceId(789);
 
         vm.mockCall(
             address(rngAuctionRelayListener),
-            abi.encodeWithSelector(rngAuctionRelayListener.rngComplete.selector, 123, 456, address(this), 789, AuctionResults(address(this), UD2x18.wrap(0.5 ether))),
+            abi.encodeWithSelector(rngAuctionRelayListener.rngComplete.selector, 123, 456, address(this), 789, AuctionResult(address(this), UD2x18.wrap(0.5 ether))),
             abi.encode(42)
         );
 
@@ -56,12 +56,12 @@ contract RngAuctionRelayerDirectTest is RngRelayerBaseTest {
 
         mockIsRngComplete(true);
         mockRngResults(123, 456);
-        mockAuctionResults(address(this), UD2x18.wrap(0.5 ether));
+        mockAuctionResult(address(this), UD2x18.wrap(0.5 ether));
         mockCurrentSequenceId(789);
 
         vm.mockCallRevert(
             address(rngAuctionRelayListener),
-            abi.encodeWithSelector(rngAuctionRelayListener.rngComplete.selector, 123, 456, address(this), 789, AuctionResults(address(this), UD2x18.wrap(0.5 ether))),
+            abi.encodeWithSelector(rngAuctionRelayListener.rngComplete.selector, 123, 456, address(this), 789, AuctionResult(address(this), UD2x18.wrap(0.5 ether))),
             abi.encode("this is bad")
         );
 

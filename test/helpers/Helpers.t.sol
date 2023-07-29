@@ -7,7 +7,7 @@ import { PrizePool, TieredLiquidityDistributor } from "pt-v5-prize-pool/PrizePoo
 import { RNGInterface } from "rng/RNGInterface.sol";
 import { UD2x18 } from "prb-math/UD2x18.sol";
 
-import { IAuction, AuctionResults } from "../../src/interfaces/IAuction.sol";
+import { IAuction } from "../../src/interfaces/IAuction.sol";
 import { RngAuction } from "../../src/RngAuction.sol";
 
 contract Helpers is Test {

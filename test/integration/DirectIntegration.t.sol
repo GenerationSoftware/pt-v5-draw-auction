@@ -14,16 +14,21 @@ contract RewardLibTest is Test {
 
     RNGBlockhash rng;
     PrizePool prizePool;
+    RngAuction rngAuction;
+    RngAuctionRelayerDirect rngAuctionRelayerDirect;
+    RngRelayAuction rngRelayAuction;
 
     uint64 sequencePeriod = 1 days;
     uint64 sequenceOffset = 100 days;
     uint64 auctionDurationSeconds = 12 hours;
     uint64 auctionTargetTime = 30 minutes;
-    
+
     address recipient1;
     address recipient2;
 
     function setUp() public {
+        vm.warp(100 days);
+
         recipient1 = makeAddr("recipient1");
         recipient2 = makeAddr("recipient2");
 
@@ -44,26 +49,28 @@ contract RewardLibTest is Test {
 
         prizePool = PrizePool(makeAddr("PrizePool"));
 
-        completeRngAuction = new RngRelayAuction(
+        rngRelayAuction = new RngRelayAuction(
             prizePool,
-            rngAuctionRelayerDirect,
+            address(rngAuctionRelayerDirect),
             auctionDurationSeconds,
             auctionTargetTime
         );
     }
 
-
     function testEndToEnd() public {
-        vm.warp(sequencePeriod); // warp to end of first sequence
+        vm.warp(sequenceOffset + sequencePeriod); // warp to end of first sequence
+
+        // trigger rng auction
         rngAuction.startRngRequest(recipient1);
-        vm.warp(20 seconds); // warp one block;
 
-        mockCloseDraw(1);
+        vm.roll(block.number + 2); // mine two blocks
+
+        mockCloseDraw(29102676481673041902632991033461445430619272659676223336789171408008386403022);
         mockReserve(100e18);
-        mockWithdrawReserve(recipient1, 10e18);
-        mockWithdrawReserve(recipient2, 10e18);
 
-        rngAuctionRelayerDirect.relayRngRequest(completeRngAuction, recipient2);
+        // no reward because it happened instantly
+        // trigger relay auction
+        assertEq(rngAuctionRelayerDirect.relay(rngRelayAuction, recipient2), abi.encode(1));
     }
 
     /** ========== MOCKS =================== */
@@ -75,17 +82,25 @@ contract RewardLibTest is Test {
                 prizePool.closeDraw.selector,
                 randomNumber
             ),
-            abi.encode()
+            abi.encodePacked(uint256(1))
         );
     }
 
     function mockReserve(uint256 amount) public {
+        uint half = amount / 2;
         vm.mockCall(
             address(prizePool),
             abi.encodeWithSelector(
                 prizePool.reserve.selector
             ),
-            abi.encode(amount)
+            abi.encode(half)
+        );
+        vm.mockCall(
+            address(prizePool),
+            abi.encodeWithSelector(
+                prizePool.reserveForOpenDraw.selector
+            ),
+            abi.encode(amount - half)
         );
     }
 

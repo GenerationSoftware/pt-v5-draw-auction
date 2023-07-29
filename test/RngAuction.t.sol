@@ -1,51 +1,34 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { Helpers, RNGInterface, UD2x18, AuctionResults } from "test/helpers/Helpers.t.sol";
-import { ERC20Mintable } from "test/mocks/ERC20Mintable.sol";
+import "forge-std/console2.sol";
 
-import { RngAuction, RngAuctionResults } from "../src/RngAuction.sol";
+import { Helpers, RNGInterface, UD2x18 } from "test/helpers/Helpers.t.sol";
+import { ERC20Mintable } from "test/mocks/ERC20Mintable.sol";
+import { AuctionResult } from "../src/interfaces/IAuction.sol";
+
+import {
+  RngAuction,
+  RngAuctionResult,
+  AuctionDurationZero,
+  AuctionTargetTimeExceedsDuration,
+  SequencePeriodZero,
+  AuctionDurationGteSequencePeriod,
+  RngZeroAddress,
+  CannotStartNextSequence,
+  AuctionTargetTimeZero,
+  AuctionExpired
+} from "../src/RngAuction.sol";
 
 contract RngAuctionTest is Helpers {
-  /* ============ Custom Errors ============ */
-
-  /// @notice Thrown when the auction period is zero.
-  error AuctionDurationZero();
-
-  /// @notice Thrown if the auction target time is zero.
-  error AuctionTargetTimeZero();
-
-  /**
-   * @notice Thrown if the auction target time exceeds the auction duration.
-   * @param auctionTargetTime The auction target time to complete in seconds
-   * @param auctionDuration The auction duration in seconds
-   */
-  error AuctionTargetTimeExceedsDuration(uint64 auctionTargetTime, uint64 auctionDuration);
-
-  /// @notice Thrown when the sequence period is zero.
-  error SequencePeriodZero();
-
-  /**
-   * @notice Thrown when the auction duration is greater than or equal to the sequence.
-   * @param auctionDuration The auction duration in seconds
-   * @param sequencePeriod The sequence period in seconds
-   */
-  error AuctionDurationGteSequencePeriod(uint64 auctionDuration, uint64 sequencePeriod);
-
-  /// @notice Thrown when the RNG address passed to the setter function is zero address.
-  error RngZeroAddress();
-
-  /// @notice Thrown if an RNG request has already been made for the current sequence.
-  error RngAlreadyStarted();
-
-  /// @notice Thrown if the time elapsed since the start of the auction is greater than the auction duration.
-  error AuctionExpired();
 
   /* ============ Events ============ */
 
-  event AuctionCompleted(
+  event RngAuctionCompleted(
     address indexed recipient,
     uint32 indexed sequenceId,
+    RNGInterface indexed rng,
+    uint32 rngRequestId,
     uint64 elapsedTime,
     UD2x18 rewardFraction
   );
@@ -64,10 +47,10 @@ contract RngAuctionTest is Helpers {
   RNGInterface public rng;
   ERC20Mintable public rngFeeToken;
 
-  uint64 _auctionDuration = 4 hours;
-  uint64 _auctionTargetTime = 2 hours;
-  uint64 _sequencePeriod = 1 days;
-  uint64 _sequenceOffset = 0;
+  uint64 auctionDuration = 4 hours;
+  uint64 auctionTargetTime = 2 hours;
+  uint64 sequencePeriod = 1 days;
+  uint64 sequenceOffset = 10 days;
   address _recipient = address(2);
 
   function setUp() public {
@@ -81,26 +64,26 @@ contract RngAuctionTest is Helpers {
     rngAuction = new RngAuction(
       rng,
       address(this),
-      _sequencePeriod,
-      _sequenceOffset,
-      _auctionDuration,
-      _auctionTargetTime
+      sequencePeriod,
+      sequenceOffset,
+      auctionDuration,
+      auctionTargetTime
     );
   }
 
   function testConstructor() public {
     assertEq(address(rngAuction.getNextRngService()), address(rng));
-    assertEq(rngAuction.sequencePeriod(), _sequencePeriod);
-    assertEq(rngAuction.sequenceOffset(), _sequenceOffset);
-    assertEq(rngAuction.auctionDuration(), _auctionDuration);
-    assertEq(rngAuction.auctionTargetTime(), _auctionTargetTime);
+    assertEq(rngAuction.sequencePeriod(), sequencePeriod);
+    assertEq(rngAuction.sequenceOffset(), sequenceOffset);
+    assertEq(rngAuction.auctionDuration(), auctionDuration);
+    assertEq(rngAuction.auctionTargetTime(), auctionTargetTime);
   }
 
   /* ============ startRngRequest() ============ */
 
   function testStartRngRequest() public {
     // Warp to end of auction
-    vm.warp(_sequencePeriod + _auctionDuration);
+    vm.warp(sequenceOffset + sequencePeriod + auctionDuration);
 
     // Variables
     uint32 _rngRequestId = 1;
@@ -110,14 +93,11 @@ contract RngAuctionTest is Helpers {
     _mockRngInterface_startRngRequest(rng, address(0), 0, _rngRequestId, _lockBlock);
 
     // Tests
-    uint64 _requestedAt = uint64(block.timestamp);
-
     vm.expectEmit();
-    emit AuctionCompleted(_recipient, 1, _auctionDuration, UD2x18.wrap(uint64(1e18)));
+    emit RngAuctionCompleted(_recipient, 1, rng, 1, auctionDuration, UD2x18.wrap(uint64(1e18)));
 
     rngAuction.startRngRequest(_recipient);
-    AuctionResults memory _auctionResults = rngAuction.getAuctionResults();
-    uint32 _sequenceId = rngAuction.openSequenceId();
+    AuctionResult memory _auctionResults = rngAuction.getLastAuctionResult();
 
     assertEq(rngAuction.lastSequenceId(), 1);
     assertEq(_auctionResults.recipient, _recipient);
@@ -126,7 +106,7 @@ contract RngAuctionTest is Helpers {
 
   function testStartRngRequest_AuctionExpired() public {
     // Warp to past end of auction
-    vm.warp(_sequencePeriod + _auctionDuration + 1);
+    vm.warp(sequenceOffset + sequencePeriod + auctionDuration + 1);
 
     // Variables
     uint32 _rngRequestId = 1;
@@ -140,9 +120,9 @@ contract RngAuctionTest is Helpers {
     rngAuction.startRngRequest(_recipient);
   }
 
-  function testStartRngRequest_RngAlreadyStarted() public {
+  function testStartRngRequest_CannotStartNextSequence() public {
     // Warp to end of auction
-    vm.warp(_sequencePeriod + _auctionDuration);
+    vm.warp(sequenceOffset + sequencePeriod + auctionDuration);
 
     // Variables
     uint32 _rngRequestId = 1;
@@ -153,20 +133,20 @@ contract RngAuctionTest is Helpers {
 
     // Start RNG request
     vm.expectEmit();
-    emit AuctionCompleted(_recipient, 1, _auctionDuration, UD2x18.wrap(uint64(1e18)));
+    emit RngAuctionCompleted(_recipient, 1, rng, 1, auctionDuration, UD2x18.wrap(uint64(1e18)));
     rngAuction.startRngRequest(_recipient);
 
     // Mock calls
     _mockRngInterface_startRngRequest(rng, address(0), 0, _rngRequestId, _lockBlock);
 
     // Try to complete again
-    vm.expectRevert(abi.encodeWithSelector(RngAlreadyStarted.selector));
+    vm.expectRevert(abi.encodeWithSelector(CannotStartNextSequence.selector));
     rngAuction.startRngRequest(_recipient);
   }
 
   function testStartRngRequest_PayWithAllowance_NoAllowance() public {
     // Warp to end of auction
-    vm.warp(_sequencePeriod + _auctionDuration);
+    vm.warp(sequenceOffset + sequencePeriod + auctionDuration);
 
     // Variables
     uint32 _rngRequestId = 1;
@@ -189,7 +169,7 @@ contract RngAuctionTest is Helpers {
 
   function testStartRngRequest_PayWithAllowance() public {
     // Warp to end of auction
-    vm.warp(_sequencePeriod + _auctionDuration);
+    vm.warp(sequenceOffset + sequencePeriod + auctionDuration);
 
     // Variables
     uint32 _rngRequestId = 1;
@@ -222,7 +202,7 @@ contract RngAuctionTest is Helpers {
 
   function testStartRngRequest_PayBefore() public {
     // Warp to end of auction
-    vm.warp(_sequencePeriod + _auctionDuration);
+    vm.warp(sequenceOffset + sequencePeriod + auctionDuration);
 
     // Variables
     uint32 _rngRequestId = 1;
@@ -252,48 +232,53 @@ contract RngAuctionTest is Helpers {
     vm.stopPrank();
   }
 
-  /* ============ isAuctionComplete() ============ */
+  /* ============ canStartNextSequence() ============ */
 
-  function testIsAuctionComplete_NotComplete() public {
+  function testCanStartNextSequence_Halfway() public {
     // Warp to halfway through auction
-    vm.warp(_sequencePeriod + _auctionDuration / 2);
+    vm.warp(sequenceOffset + sequencePeriod + auctionDuration / 2);
 
     // Test
-    assertEq(rngAuction.isAuctionComplete(), false);
+    assertEq(rngAuction.canStartNextSequence(), true, "can start next sequence");
   }
 
-  function testIsAuctionComplete_Completed() public {
+  function testCanStartNextSequence_Completed() public {
     // Warp to halfway through auction
-    vm.warp(_sequencePeriod + _auctionDuration / 2);
+    vm.warp(sequenceOffset + sequencePeriod + auctionDuration / 2);
 
     // Complete auction
     _mockRngInterface_startRngRequest(rng, address(0), 0, 2, 1);
     rngAuction.startRngRequest(_recipient);
 
     // Test
-    assertEq(rngAuction.isAuctionComplete(), true);
+    assertEq(rngAuction.canStartNextSequence(), false, "cannot start next sequence");
   }
 
-  function testIsAuctionComplete_NextSequence() public {
+  function testCanStartNextSequence_NextSequence() public {
     // Warp to halfway through auction
-    vm.warp(_sequencePeriod + _auctionDuration / 2);
+    vm.warp(sequenceOffset + sequencePeriod + auctionDuration / 2);
 
     // Complete auction
     _mockRngInterface_startRngRequest(rng, address(0), 0, 2, 1);
     rngAuction.startRngRequest(_recipient);
 
     // Warp to next sequence
-    vm.warp(_sequencePeriod * 2);
+    vm.warp(sequenceOffset + sequencePeriod * 2);
 
     // Test
-    assertEq(rngAuction.isAuctionComplete(), false);
+    assertEq(rngAuction.canStartNextSequence(), true, "can start next sequence");
+  }
+
+  function testComputeFractionalReward() public {
+    assertEq(rngAuction.computeRewardFraction(0).unwrap(), 0);
+    assertEq(rngAuction.computeRewardFraction(auctionDuration).unwrap(), 1e18);
   }
 
   /* ============ isAuctionOpen() ============ */
 
   function testIsAuctionOpen_IsOpen() public {
     // Warp to halfway through auction
-    vm.warp(_sequencePeriod + _auctionDuration / 2);
+    vm.warp(sequenceOffset + sequencePeriod + auctionDuration / 2);
 
     // Test
     assertEq(rngAuction.isAuctionOpen(), true);
@@ -301,7 +286,7 @@ contract RngAuctionTest is Helpers {
 
   function testIsAuctionOpen_AlreadyCompleted() public {
     // Warp to halfway through auction
-    vm.warp(_sequencePeriod + _auctionDuration / 2);
+    vm.warp(sequenceOffset + sequencePeriod + auctionDuration / 2);
 
     // Complete auction
     _mockRngInterface_startRngRequest(rng, address(0), 0, 2, 1);
@@ -313,7 +298,7 @@ contract RngAuctionTest is Helpers {
 
   function testIsAuctionOpen_Expired() public {
     // Warp to end of auction
-    vm.warp(_sequencePeriod + _auctionDuration + 1);
+    vm.warp(sequenceOffset + sequencePeriod + auctionDuration + 1);
 
     // Test
     assertEq(rngAuction.isAuctionOpen(), false);
@@ -321,49 +306,54 @@ contract RngAuctionTest is Helpers {
 
   /* ============ elapsedTime() ============ */
 
-  function testElapsedTime_AtStart() public {
+  function testAuctionElapsedTime_beforeStart() public {
+    vm.warp(sequenceOffset - 1);
+    assertEq(rngAuction.auctionElapsedTime(), 0);
+  }
+
+  function testAuctionElapsedTime_AtStart() public {
     // Warp to beginning of auction
-    vm.warp(_sequencePeriod);
+    vm.warp(sequenceOffset + sequencePeriod);
 
     // Test
-    assertEq(rngAuction.elapsedTime(), 0);
+    assertEq(rngAuction.auctionElapsedTime(), 0);
   }
 
-  function testElapsedTime_Halfway() public {
+  function testAuctionElapsedTime_Halfway() public {
     // Warp to halfway point of auction
-    vm.warp(_sequencePeriod + _auctionDuration / 2);
+    vm.warp(sequenceOffset + sequencePeriod + auctionDuration / 2);
 
     // Test
-    assertEq(rngAuction.elapsedTime(), _auctionDuration / 2);
+    assertEq(rngAuction.auctionElapsedTime(), auctionDuration / 2);
   }
 
-  function testElapsedTime_AtEnd() public {
+  function testAuctionElapsedTime_AtEnd() public {
     // Warp to end of auction
-    vm.warp(_sequencePeriod + _auctionDuration);
+    vm.warp(sequenceOffset + sequencePeriod + auctionDuration);
 
     // Test
-    assertEq(rngAuction.elapsedTime(), _auctionDuration);
+    assertEq(rngAuction.auctionElapsedTime(), auctionDuration);
   }
 
-  function testElapsedTime_PastAuction() public {
+  function testAuctionElapsedTime_PastAuction() public {
     // Warp past auction
-    vm.warp(_sequencePeriod + _auctionDuration + 1);
+    vm.warp(sequenceOffset + sequencePeriod + auctionDuration + 1);
 
     // Test
-    assertEq(rngAuction.elapsedTime(), _auctionDuration + 1);
+    assertEq(rngAuction.auctionElapsedTime(), auctionDuration + 1);
   }
 
   /* ============ auctionDuration() ============ */
 
   function testAuctionDuration() public {
-    assertEq(rngAuction.auctionDuration(), _auctionDuration);
+    assertEq(rngAuction.auctionDuration(), auctionDuration);
   }
 
   /* ============ currentFractionalReward() ============ */
 
   function testCurrentRewardFraction_AtStart() public {
     // Warp to beginning of auction
-    vm.warp(_sequencePeriod);
+    vm.warp(sequenceOffset + sequencePeriod);
 
     // Test
     assertEq(UD2x18.unwrap(rngAuction.currentFractionalReward()), 0); // 0.0
@@ -371,10 +361,10 @@ contract RngAuctionTest is Helpers {
 
   function testCurrentRewardFraction_Halfway() public {
     // Warp to halfway point of auction
-    vm.warp(_sequencePeriod + _auctionTargetTime);
+    vm.warp(sequenceOffset + sequencePeriod + auctionTargetTime);
 
     // Test
-    AuctionResults memory _lastResults = rngAuction.getAuctionResults();
+    AuctionResult memory _lastResults = rngAuction.getLastAuctionResult();
     assertEq(
       UD2x18.unwrap(rngAuction.currentFractionalReward()),
       UD2x18.unwrap(_lastResults.rewardFraction)
@@ -383,7 +373,7 @@ contract RngAuctionTest is Helpers {
 
   function testCurrentRewardFraction_AtEnd() public {
     // Warp to end of auction
-    vm.warp(_sequencePeriod + _auctionDuration);
+    vm.warp(sequenceOffset + sequencePeriod + auctionDuration);
 
     // Test
     assertEq(UD2x18.unwrap(rngAuction.currentFractionalReward()), 1e18); // 1.0
@@ -391,43 +381,17 @@ contract RngAuctionTest is Helpers {
 
   function testCurrentRewardFraction_PastAuction() public {
     // Warp past auction
-    vm.warp(_sequencePeriod + _auctionDuration + _auctionDuration / 10);
+    vm.warp(sequenceOffset + sequencePeriod + auctionDuration + auctionDuration / 10);
 
     // Test
     assertGe(UD2x18.unwrap(rngAuction.currentFractionalReward()), 1e18); // >= 1.0
   }
 
-  /* ============ currentRewardAmount() ============ */
+  /* ============ getLastAuctionResult() ============ */
 
-  function testCurrentRewardAmount_AtStart() public {
-    // Warp to beginning of auction
-    vm.warp(_sequencePeriod);
-
-    // Test
-    assertEq(rngAuction.currentRewardAmount(2e18), 0); // zero
-  }
-
-  function testCurrentRewardAmount_AtEnd() public {
+  function testGetAuctionResult() public {
     // Warp to end of auction
-    vm.warp(_sequencePeriod + _auctionDuration);
-
-    // Test
-    assertEq(rngAuction.currentRewardAmount(2e18), 2e18); // full
-  }
-
-  function testCurrentRewardAmount_PastAuction() public {
-    // Warp past auction
-    vm.warp(_sequencePeriod + _auctionDuration + _auctionDuration / 10);
-
-    // Test
-    assertGe(rngAuction.currentRewardAmount(2e18), 2e18); // >= reserve
-  }
-
-  /* ============ getAuctionResults() ============ */
-
-  function testGetAuctionResults() public {
-    // Warp to end of auction
-    vm.warp(_sequencePeriod + _auctionDuration);
+    vm.warp(sequenceOffset + sequencePeriod + auctionDuration);
 
     // Variables
     uint32 _rngRequestId = 1;
@@ -438,7 +402,7 @@ contract RngAuctionTest is Helpers {
     rngAuction.startRngRequest(_recipient);
 
     // Tests
-    AuctionResults memory _auctionResults = rngAuction.getAuctionResults();
+    AuctionResult memory _auctionResults = rngAuction.getLastAuctionResult();
     uint32 _sequenceId = rngAuction.openSequenceId();
 
     assertEq(_sequenceId, 1);
@@ -451,12 +415,12 @@ contract RngAuctionTest is Helpers {
   function testCurrentSequence() public {
     vm.warp(0);
     assertEq(rngAuction.openSequenceId(), 0);
-    vm.warp(_sequencePeriod - 1);
+    vm.warp(sequenceOffset + sequencePeriod - 1);
     assertEq(rngAuction.openSequenceId(), 0);
 
-    vm.warp(_sequencePeriod);
+    vm.warp(sequenceOffset + sequencePeriod);
     assertEq(rngAuction.openSequenceId(), 1);
-    vm.warp(_sequencePeriod * 2 - 1);
+    vm.warp(sequenceOffset + sequencePeriod * 2 - 1);
     assertEq(rngAuction.openSequenceId(), 1);
   }
 
@@ -465,43 +429,45 @@ contract RngAuctionTest is Helpers {
     RngAuction offsetRngAuction = new RngAuction(
       rng,
       address(this),
-      _sequencePeriod,
+      sequencePeriod,
       _offset,
-      _auctionDuration,
-      _auctionTargetTime
+      auctionDuration,
+      auctionTargetTime
     );
 
     vm.warp(_offset);
     assertEq(offsetRngAuction.openSequenceId(), 0);
-    vm.warp(_offset + _sequencePeriod - 1);
+    vm.warp(_offset + sequencePeriod - 1);
     assertEq(offsetRngAuction.openSequenceId(), 0);
 
-    vm.warp(_offset + _sequencePeriod);
+    vm.warp(_offset + sequencePeriod);
     assertEq(offsetRngAuction.openSequenceId(), 1);
-    vm.warp(_offset + _sequencePeriod * 2 - 1);
+    vm.warp(_offset + sequencePeriod * 2 - 1);
     assertEq(offsetRngAuction.openSequenceId(), 1);
   }
 
-  function testFailCurrentSequence_BeforeOffset() public {
+  function testOpenSequenceId_BeforeOffset() public {
     uint64 _offset = 101;
     RngAuction offsetRngAuction = new RngAuction(
       rng,
       address(this),
-      _sequencePeriod,
+      sequencePeriod,
       _offset,
-      _auctionDuration,
-      _auctionTargetTime
+      auctionDuration,
+      auctionTargetTime
     );
 
     vm.warp(_offset - 1);
-    offsetRngAuction.openSequenceId();
+
+    uint32 seqId = offsetRngAuction.openSequenceId();
+    assertEq(seqId, 0, "sequence id is zero");
   }
 
   /* ============ isRngComplete() ============ */
 
   function testIsRngComplete_NotRequestedStartOfSequence() public {
     // Warp to start of auction
-    vm.warp(_sequencePeriod);
+    vm.warp(sequenceOffset + sequencePeriod);
 
     // Test
     assertEq(rngAuction.openSequenceId(), 1);
@@ -510,7 +476,7 @@ contract RngAuctionTest is Helpers {
 
   function testIsRngComplete_NotRequestedAfterAuction() public {
     // Warp to end of auction
-    vm.warp(_sequencePeriod + _auctionDuration + 1);
+    vm.warp(sequenceOffset + sequencePeriod + auctionDuration + 1);
 
     // Test
     assertEq(rngAuction.openSequenceId(), 1);
@@ -519,7 +485,7 @@ contract RngAuctionTest is Helpers {
 
   function testIsRngComplete_NotRequestedEndOfSequence() public {
     // Warp to end of auction
-    vm.warp(_sequencePeriod * 2 - 1);
+    vm.warp(sequenceOffset + sequencePeriod * 2 - 1);
 
     // Test
     assertEq(rngAuction.openSequenceId(), 1);
@@ -530,7 +496,7 @@ contract RngAuctionTest is Helpers {
 
   function testRngCompletedAt() public {
     // Warp to halfway through auction
-    vm.warp(_sequencePeriod + _auctionDuration / 2);
+    vm.warp(sequenceOffset + sequencePeriod + auctionDuration / 2);
 
     // Variables
     uint32 _rngRequestId = 1;
@@ -554,7 +520,7 @@ contract RngAuctionTest is Helpers {
 
   function testGetRngResults() public {
     // Warp to halfway through auction
-    vm.warp(_sequencePeriod + _auctionDuration / 2);
+    vm.warp(sequenceOffset + sequencePeriod + auctionDuration / 2);
 
     // Variables
     uint32 _rngRequestId = 1;
@@ -562,12 +528,11 @@ contract RngAuctionTest is Helpers {
     uint256 _randomNumber = 12345;
 
     // Start RNG Request
-    uint64 _requestedAt = uint64(block.timestamp);
     _mockRngInterface_startRngRequest(rng, address(0), 0, _rngRequestId, _lockBlock);
     rngAuction.startRngRequest(_recipient);
 
     // Mock calls
-    uint64 _completedAt = _sequencePeriod + _auctionDuration / 2 + 100;
+    uint64 _completedAt = sequencePeriod + auctionDuration / 2 + 100;
     vm.warp(_completedAt);
     _mockRngInterface_randomNumber(rng, _rngRequestId, _randomNumber);
     _mockRngInterface_completedAt(rng, _rngRequestId, _completedAt);
@@ -585,19 +550,17 @@ contract RngAuctionTest is Helpers {
 
   function testGetLastAuction() public {
     // Warp to halfway through auction
-    vm.warp(_sequencePeriod + _auctionDuration / 2);
+    vm.warp(sequenceOffset + sequencePeriod + auctionDuration / 2);
 
     // Variables
     uint32 _rngRequestId = 1;
     uint32 _lockBlock = uint32(block.number);
-    uint256 _randomNumber = 12345;
 
     // Start RNG Request
-    uint64 _requestedAt = uint64(block.timestamp);
     _mockRngInterface_startRngRequest(rng, address(0), 0, _rngRequestId, _lockBlock);
     rngAuction.startRngRequest(_recipient);
 
-    RngAuctionResults memory lastAuction = rngAuction.getLastAuction();
+    RngAuctionResult memory lastAuction = rngAuction.getLastAuction();
     assertEq(address(lastAuction.rng), address(rng));
     assertEq(address(lastAuction.recipient), address(_recipient));
     assertEq(lastAuction.sequenceId, 1);
@@ -607,14 +570,13 @@ contract RngAuctionTest is Helpers {
 
   function testGetRngRequest() public {
     // Warp to halfway through auction
-    vm.warp(_sequencePeriod + _auctionDuration / 2);
+    vm.warp(sequenceOffset + sequencePeriod + auctionDuration / 2);
 
     // Variables
     uint32 _rngRequestId = 1;
     uint32 _lockBlock = uint32(block.number);
 
     // Start RNG Request
-    uint64 _requestedAt = uint64(block.timestamp);
     _mockRngInterface_startRngRequest(rng, address(0), 0, _rngRequestId, _lockBlock);
     rngAuction.startRngRequest(_recipient);
 
@@ -622,7 +584,7 @@ contract RngAuctionTest is Helpers {
     assertEq(rngAuction.lastSequenceId(), 1);
 
     // Warp to next sequence period and test that nothing has changed
-    vm.warp(_sequencePeriod * 2 + _auctionDuration / 2);
+    vm.warp(sequenceOffset + sequencePeriod * 2 + auctionDuration / 2);
     assertEq(rngAuction.openSequenceId(), 2);
 
     assertEq(rngAuction.lastSequenceId(), 1);
@@ -644,20 +606,20 @@ contract RngAuctionTest is Helpers {
   /* ============ getSequenceOffset() ============ */
 
   function testGetSequenceOffset() public {
-    assertEq(rngAuction.getSequenceOffset(), _sequenceOffset);
+    assertEq(rngAuction.getSequenceOffset(), sequenceOffset);
   }
 
   /* ============ getSequencePeriod() ============ */
 
   function testGetSequencePeriod() public {
-    assertEq(rngAuction.getSequencePeriod(), _sequencePeriod);
+    assertEq(rngAuction.getSequencePeriod(), sequencePeriod);
   }
 
   /* ============ setNextRngService() ============ */
 
   function testSetRngService() public {
     // Warp to halfway through auction
-    vm.warp(_sequencePeriod + _auctionDuration / 2);
+    vm.warp(sequenceOffset + sequencePeriod + auctionDuration / 2);
 
     RNGInterface _newRng = RNGInterface(address(123));
 

@@ -6,7 +6,7 @@ import "forge-std/Test.sol";
 import { UD2x18 } from "prb-math/UD2x18.sol";
 import { RngAuction } from "../../src/RngAuction.sol";
 import { IRngAuctionRelayListener } from "../../src/interfaces/IRngAuctionRelayListener.sol";
-import { AuctionResults } from "../../src/interfaces/IAuction.sol";
+import { AuctionResult } from "../../src/interfaces/IAuction.sol";
 
 import { RngNotCompleted } from "../../src/abstract/RngAuctionRelayer.sol";
 
@@ -30,11 +30,11 @@ contract RngRelayerBaseTest is Test {
         vm.mockCall(address(startRngAuction), abi.encodeWithSelector(startRngAuction.getRngResults.selector), abi.encode(_randomNumber, _rngCompletedAt));
     }
 
-    function mockAuctionResults(address _recipient, UD2x18 _rewardFraction) public {
-        AuctionResults memory results;
+    function mockAuctionResult(address _recipient, UD2x18 _rewardFraction) public {
+        AuctionResult memory results;
         results.recipient = _recipient;
         results.rewardFraction = _rewardFraction;
-        vm.mockCall(address(startRngAuction), abi.encodeWithSelector(startRngAuction.getAuctionResults.selector), abi.encode(results));
+        vm.mockCall(address(startRngAuction), abi.encodeWithSelector(startRngAuction.getLastAuctionResult.selector), abi.encode(results));
     }
 
     function mockCurrentSequenceId(uint32 _sequenceId) public {

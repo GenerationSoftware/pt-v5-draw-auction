@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import { Helpers, RNGInterface, UD2x18, AuctionResults } from "./helpers/Helpers.t.sol";
+import { Helpers, RNGInterface, UD2x18 } from "./helpers/Helpers.t.sol";
+import { AuctionResult } from "../src/interfaces/IAuction.sol";
 
 import {
   RngRelayAuction,
@@ -28,7 +29,7 @@ contract RngRelayAuctionTest is Helpers {
 
   /* ============ Variables ============ */
 
-  RngRelayAuction public completeRngAuction;
+  RngRelayAuction public rngRelayAuction;
 
   PrizePool prizePool;
   address startRngAuctionRelayer;
@@ -39,13 +40,13 @@ contract RngRelayAuctionTest is Helpers {
     prizePool = PrizePool(makeAddr("prizePool"));
     vm.etch(address(prizePool), "prizePool");
 
-    completeRngAuction = new RngRelayAuction(prizePool, address(this), auctionDurationSeconds, auctionTargetTime);
+    rngRelayAuction = new RngRelayAuction(prizePool, address(this), auctionDurationSeconds, auctionTargetTime);
   }
 
   function testConstructor() public {
-    assertEq(completeRngAuction.sequenceId(), 0);
-    assertEq(completeRngAuction.auctionDuration(), auctionDurationSeconds, "auction duration");
-    assertEq(completeRngAuction.fractionalReward(auctionDurationSeconds).unwrap(), 1 ether, "fractional reward");
+    assertEq(rngRelayAuction.lastSequenceId(), 0);
+    assertEq(rngRelayAuction.auctionDuration(), auctionDurationSeconds, "auction duration");
+    assertEq(rngRelayAuction.computeRewardFraction(auctionDurationSeconds).unwrap(), 1 ether, "fractional reward");
   }
 
   function testConstructor_PrizePoolZeroAddress() public {
@@ -74,23 +75,23 @@ contract RngRelayAuctionTest is Helpers {
   }
 
   function testFractionalReward() public {
-    assertEq(completeRngAuction.fractionalReward(0).unwrap(), 0 ether, "fractional reward at zero");
-    assertEq(completeRngAuction.fractionalReward(auctionDurationSeconds).unwrap(), 1 ether, "fractional reward at one");
+    assertEq(rngRelayAuction.computeRewardFraction(0).unwrap(), 0 ether, "fractional reward at zero");
+    assertEq(rngRelayAuction.computeRewardFraction(auctionDurationSeconds).unwrap(), 1 ether, "fractional reward at one");
   }
 
   function testRngComplete_happyPath() public {
-    AuctionResults memory results = AuctionResults({
+    AuctionResult memory results = AuctionResult({
       recipient: address(this),
       rewardFraction: UD2x18.wrap(0.1 ether)
     });
 
-    assertFalse(completeRngAuction.isAuctionComplete(1));
+    assertFalse(rngRelayAuction.canStartNextSequence(1));
 
     mockCloseDraw(0x1234);
     mockPrizePoolReserve(100e18);
     mockWithdrawReserve(address(this), 10e18);
 
-    completeRngAuction.rngComplete(
+    rngRelayAuction.rngComplete(
       0x1234,
       block.timestamp,
       address(this),
@@ -98,16 +99,16 @@ contract RngRelayAuctionTest is Helpers {
       results
     );
 
-    assertEq(completeRngAuction.sequenceId(), 1, "sequence id is now 1");
-    assertTrue(completeRngAuction.isAuctionComplete(1), "sequence 1 auction is complete");
+    assertEq(rngRelayAuction.lastSequenceId(), 1, "sequence id is now 1");
+    assertTrue(rngRelayAuction.canStartNextSequence(1), "sequence 1 auction is complete");
 
-    AuctionResults memory r = completeRngAuction.getAuctionResults();
+    AuctionResult memory r = rngRelayAuction.getLastAuctionResult();
     assertEq(r.recipient, address(this));
     assertEq(r.rewardFraction.unwrap(), 0 ether, "reward fraction is 0 ether");
   }
 
   function testRngComplete_SequenceAlreadyCompleted() public {
-    AuctionResults memory results = AuctionResults({
+    AuctionResult memory results = AuctionResult({
       recipient: address(this),
       rewardFraction: UD2x18.wrap(0.1 ether)
     });
@@ -116,7 +117,7 @@ contract RngRelayAuctionTest is Helpers {
     mockPrizePoolReserve(100e18);
     mockWithdrawReserve(address(this), 10e18);
 
-    completeRngAuction.rngComplete(
+    rngRelayAuction.rngComplete(
       0x1234,
       block.timestamp,
       address(this),
@@ -125,7 +126,7 @@ contract RngRelayAuctionTest is Helpers {
     );
 
     vm.expectRevert(abi.encodeWithSelector(SequenceAlreadyCompleted.selector));
-    completeRngAuction.rngComplete(
+    rngRelayAuction.rngComplete(
       0x1234,
       block.timestamp,
       address(this),
@@ -135,14 +136,14 @@ contract RngRelayAuctionTest is Helpers {
   }
 
   function testRngComplete_AuctionExpired() public {
-    AuctionResults memory results = AuctionResults({
+    AuctionResult memory results = AuctionResult({
       recipient: address(this),
       rewardFraction: UD2x18.wrap(0.1 ether)
     });
 
     vm.warp(auctionDurationSeconds);
     vm.expectRevert(abi.encodeWithSelector(AuctionExpired.selector));
-    completeRngAuction.rngComplete(
+    rngRelayAuction.rngComplete(
       0x1234,
       0,
       address(this),
@@ -151,14 +152,54 @@ contract RngRelayAuctionTest is Helpers {
     );
   }
 
+  function testComputeRewards() public {
+    AuctionResult[] memory results = new AuctionResult[](2);
+    results[0] = AuctionResult({
+      recipient: address(this),
+      rewardFraction: UD2x18.wrap(0.1 ether)
+    });
+    results[1] = AuctionResult({
+      recipient: address(this),
+      rewardFraction: UD2x18.wrap(0.5 ether)
+    });
+
+    mockPrizePoolReserve(100e18);
+    uint256[] memory rewards = rngRelayAuction.computeRewards(results);
+
+    assertEq(rewards[0], 10e18, "reward 0");
+    assertEq(rewards[1], 45e18, "reward 1");
+  }
+
+  function testComputeRewardsWithTotal() public {
+    AuctionResult[] memory results = new AuctionResult[](2);
+    results[0] = AuctionResult({
+      recipient: address(this),
+      rewardFraction: UD2x18.wrap(0.1 ether)
+    });
+    results[1] = AuctionResult({
+      recipient: address(this),
+      rewardFraction: UD2x18.wrap(0.5 ether)
+    });
+
+    uint256[] memory rewards = rngRelayAuction.computeRewardsWithTotal(results, 100e18);
+
+    assertEq(rewards[0], 10e18, "reward 0");
+    assertEq(rewards[1], 45e18, "reward 1");
+  }
 
   /* ============ mock ============ */
 
   function mockPrizePoolReserve(uint256 amount) public {
+    uint half = amount / 2;
     vm.mockCall(
       address(prizePool),
       abi.encodeWithSelector(prizePool.reserve.selector),
-      abi.encode(amount)
+      abi.encode(half)
+    );
+    vm.mockCall(
+      address(prizePool),
+      abi.encodeWithSelector(prizePool.reserveForOpenDraw.selector),
+      abi.encode(amount - half)
     );
   }
 

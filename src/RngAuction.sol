@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+import "forge-std/console2.sol";
+
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import { Ownable } from "owner-manager/Ownable.sol";
@@ -9,7 +11,7 @@ import { UD2x18 } from "prb-math/UD2x18.sol";
 import { UD60x18, convert, intoUD2x18 } from "prb-math/UD60x18.sol";
 
 import { RewardLib } from "./libraries/RewardLib.sol";
-import { IAuction, AuctionResults } from "./interfaces/IAuction.sol";
+import { IAuction, AuctionResult } from "./interfaces/IAuction.sol";
 
 /**
   * @notice RNG Request.
@@ -18,13 +20,47 @@ import { IAuction, AuctionResults } from "./interfaces/IAuction.sol";
   * @dev   The `sequenceId` value should not be assumed to be the same as a prize pool drawId even though the
   *        timing is designed to align as best as possible.
   */
-struct RngAuctionResults {
+struct RngAuctionResult {
   address recipient;
   UD2x18 rewardFraction;
   uint32 sequenceId;
   RNGInterface rng;
   uint32 rngRequestId;
 }
+
+/* ============ Custom Errors ============ */
+
+/// @notice Thrown when the auction period is zero.
+error AuctionDurationZero();
+
+/// @notice Thrown if the auction target time is zero.
+error AuctionTargetTimeZero();
+
+/**
+  * @notice Thrown if the auction target time exceeds the auction duration.
+  * @param auctionTargetTime The auction target time to complete in seconds
+  * @param auctionDuration The auction duration in seconds
+  */
+error AuctionTargetTimeExceedsDuration(uint64 auctionTargetTime, uint64 auctionDuration);
+
+/// @notice Thrown when the sequence period is zero.
+error SequencePeriodZero();
+
+/**
+  * @notice Thrown when the auction duration is greater than or equal to the sequence.
+  * @param auctionDuration The auction duration in seconds
+  * @param sequencePeriod The sequence period in seconds
+  */
+error AuctionDurationGteSequencePeriod(uint64 auctionDuration, uint64 sequencePeriod);
+
+/// @notice Thrown when the RNG address passed to the setter function is zero address.
+error RngZeroAddress();
+
+/// @notice Thrown if the next sequence cannot yet be started
+error CannotStartNextSequence();
+
+/// @notice Thrown if the time elapsed since the start of the auction is greater than the auction duration.
+error AuctionExpired();
 
 /**
  * @title PoolTogether V5 RngAuction
@@ -62,41 +98,7 @@ contract RngAuction is IAuction, Ownable {
   /// @notice New RNG instance that will be applied before the next auction completion
   RNGInterface internal _nextRng;
 
-  RngAuctionResults internal _lastAuction;
-
-  /* ============ Custom Errors ============ */
-
-  /// @notice Thrown when the auction period is zero.
-  error AuctionDurationZero();
-
-  /// @notice Thrown if the auction target time is zero.
-  error AuctionTargetTimeZero();
-
-  /**
-   * @notice Thrown if the auction target time exceeds the auction duration.
-   * @param auctionTargetTime The auction target time to complete in seconds
-   * @param auctionDuration The auction duration in seconds
-   */
-  error AuctionTargetTimeExceedsDuration(uint64 auctionTargetTime, uint64 auctionDuration);
-
-  /// @notice Thrown when the sequence period is zero.
-  error SequencePeriodZero();
-
-  /**
-   * @notice Thrown when the auction duration is greater than or equal to the sequence.
-   * @param auctionDuration The auction duration in seconds
-   * @param sequencePeriod The sequence period in seconds
-   */
-  error AuctionDurationGteSequencePeriod(uint64 auctionDuration, uint64 sequencePeriod);
-
-  /// @notice Thrown when the RNG address passed to the setter function is zero address.
-  error RngZeroAddress();
-
-  /// @notice Thrown if an RNG request has already been made for the current sequence.
-  error RngAlreadyStarted();
-
-  /// @notice Thrown if the time elapsed since the start of the auction is greater than the auction duration.
-  error AuctionExpired();
+  RngAuctionResult internal _lastAuction;
 
   /* ============ Events ============ */
 
@@ -105,6 +107,22 @@ contract RngAuction is IAuction, Ownable {
    * @param rngService RNG service address
    */
   event SetNextRngService(RNGInterface indexed rngService);
+
+  /**
+   * @notice Emitted when the auction is completed.
+   * @param recipient The recipient of the auction awards
+   * @param sequenceId The sequence ID for the auction
+   * @param elapsedTime The amount of time that the auction ran for in seconds
+   * @param rewardFraction The fraction of the available rewards to be sent to the recipient
+   */
+  event RngAuctionCompleted(
+    address indexed recipient,
+    uint32 indexed sequenceId,
+    RNGInterface indexed rng,
+    uint32 rngRequestId,
+    uint64 elapsedTime,
+    UD2x18 rewardFraction
+  );
 
   /* ============ Constructor ============ */
 
@@ -148,12 +166,12 @@ contract RngAuction is IAuction, Ownable {
    * @param _rewardRecipient Address that will receive the auction reward for starting the RNG request
    */
   function startRngRequest(address _rewardRecipient) external {
-    if (_isRngRequested()) revert RngAlreadyStarted();
+    if (!_canStartNextSequence()) revert CannotStartNextSequence();
 
     RNGInterface rng = _nextRng;
 
-    uint64 _elapsedTimeSeconds = _elapsedTime();
-    if (_elapsedTimeSeconds > auctionDuration) revert AuctionExpired();
+    uint64 _auctionElapsedTimeSeconds = _auctionElapsedTime();
+    if (_auctionElapsedTimeSeconds > auctionDuration) revert AuctionExpired();
 
     (address _feeToken, uint256 _requestFee) = rng.getRequestFee();
     if (_feeToken != address(0) && _requestFee > 0) {
@@ -169,7 +187,7 @@ contract RngAuction is IAuction, Ownable {
     uint32 sequenceId = _openSequenceId();
     UD2x18 rewardFraction = _currentFractionalReward();
 
-    _lastAuction = RngAuctionResults({
+    _lastAuction = RngAuctionResult({
       recipient: _rewardRecipient,
       rewardFraction: rewardFraction,
       sequenceId: sequenceId,
@@ -177,10 +195,12 @@ contract RngAuction is IAuction, Ownable {
       rngRequestId: rngRequestId
     });
 
-    emit AuctionCompleted(
+    emit RngAuctionCompleted(
       _rewardRecipient,
       sequenceId,
-      _elapsedTimeSeconds,
+      rng,
+      rngRequestId,
+      _auctionElapsedTimeSeconds,
       rewardFraction
     );
   }
@@ -190,8 +210,8 @@ contract RngAuction is IAuction, Ownable {
   /**
    * @dev The auction is complete when the RNG has been requested for the current sequence.
    */
-  function isAuctionComplete() external view returns (bool) {
-    return _isRngRequested();
+  function canStartNextSequence() external view returns (bool) {
+    return _canStartNextSequence();
   }
 
   /**
@@ -199,34 +219,29 @@ contract RngAuction is IAuction, Ownable {
    * auction has not expired.
    */
   function isAuctionOpen() external view returns (bool) {
-    return !_isRngRequested() && _elapsedTime() <= auctionDuration;
+    return _canStartNextSequence() && _auctionElapsedTime() <= auctionDuration;
   }
 
-  function elapsedTime() external view returns (uint64) {
-    return _elapsedTime();
+  function auctionElapsedTime() external view returns (uint64) {
+    return _auctionElapsedTime();
   }
 
   function currentFractionalReward() external view returns (UD2x18) {
     return _currentFractionalReward();
   }
 
-  function currentRewardAmount(uint256 _reserve) external view returns (uint256) {
-    AuctionResults memory _results = AuctionResults(msg.sender, _currentFractionalReward());
-    return RewardLib.reward(_results, _reserve);
-  }
-
-  function getLastAuction() external view returns (RngAuctionResults memory) {
+  function getLastAuction() external view returns (RngAuctionResult memory) {
     return _lastAuction;
   }
 
-  function getAuctionResults()
+  function getLastAuctionResult()
     external
     view
-    returns (AuctionResults memory)
+    returns (AuctionResult memory)
   {
     address recipient = _lastAuction.recipient;
     UD2x18 rewardFraction = _lastAuction.rewardFraction;
-    return AuctionResults({
+    return AuctionResult({
       recipient: recipient,
       rewardFraction: rewardFraction
     });
@@ -272,6 +287,10 @@ contract RngAuction is IAuction, Ownable {
     RNGInterface rng = _lastAuction.rng;
     uint32 requestId = _lastAuction.rngRequestId;
     return (rng.randomNumber(requestId), rng.completedAt(requestId));
+  }
+
+  function computeRewardFraction(uint64 __auctionElapsedTime) external view returns (UD2x18) {
+    return _computeRewardFraction(__auctionElapsedTime);
   }
 
   /* ============ Getter Functions ============ */
@@ -340,14 +359,22 @@ contract RngAuction is IAuction, Ownable {
      * Use integer division to calculate a unique ID based off the current timestamp that will remain the same
      * throughout the entire sequence.
      */
-    return uint32((_currentTime() - sequenceOffset) / sequencePeriod);
+    uint64 currentTime = _currentTime();
+    if (currentTime < sequenceOffset) {
+      return 0;
+    }
+    return uint32((currentTime - sequenceOffset) / sequencePeriod);
   }
 
   /**
    * @notice Calculates the elapsed time for the current RNG auction.
    * @return The elapsed time since the start of the current RNG auction in seconds.
    */
-  function _elapsedTime() internal view returns (uint64) {
+  function _auctionElapsedTime() internal view returns (uint64) {
+    uint64 currentTime = _currentTime();
+    if (currentTime < sequenceOffset) {
+      return 0;
+    }
     return (_currentTime() - sequenceOffset) % sequencePeriod;
   }
 
@@ -357,9 +384,13 @@ contract RngAuction is IAuction, Ownable {
    * @return The current reward fraction as a UD2x18 value
    */
   function _currentFractionalReward() internal view returns (UD2x18) {
+    return _computeRewardFraction(_auctionElapsedTime());
+  }
+
+  function _computeRewardFraction(uint64 __auctionElapsedTime) internal view returns (UD2x18) {
     return
       RewardLib.fractionalReward(
-        _elapsedTime(),
+        __auctionElapsedTime,
         auctionDuration,
         _auctionTargetTimeFraction,
         _lastAuction.rewardFraction
@@ -370,8 +401,8 @@ contract RngAuction is IAuction, Ownable {
    * @notice Returns whether the RNG request has been started for the current sequence.
    * @return True if the RNG request has been started, false otherwise.
    */
-  function _isRngRequested() internal view returns (bool) {
-    return _lastAuction.sequenceId == _openSequenceId();
+  function _canStartNextSequence() internal view returns (bool) {
+    return _lastAuction.sequenceId != _openSequenceId();
   }
 
   /**
@@ -381,7 +412,7 @@ contract RngAuction is IAuction, Ownable {
   function _isRngComplete() internal view returns (bool) {
     RNGInterface rng = _lastAuction.rng;
     uint32 requestId = _lastAuction.rngRequestId;
-    return _isRngRequested() && rng.isRequestComplete(requestId);
+    return !_canStartNextSequence() && rng.isRequestComplete(requestId);
   }
 
   /**

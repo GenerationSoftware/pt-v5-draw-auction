@@ -10,7 +10,7 @@ import { UD2x18 } from "prb-math/UD2x18.sol";
  * @param recipient The recipient of the auction awards
  * @param rewardFraction The fraction of the available rewards to be sent to the recipient
  */
-struct AuctionResults {
+struct AuctionResult {
   address recipient;
   UD2x18 rewardFraction;
 }
@@ -18,22 +18,6 @@ struct AuctionResults {
 /* ============ Interface ============ */
 
 interface IAuction {
-  /* ============ Events ============ */
-
-  /**
-   * @notice Emitted when the auction is completed.
-   * @param recipient The recipient of the auction awards
-   * @param sequenceId The sequence ID for the auction
-   * @param elapsedTime The amount of time that the auction ran for in seconds
-   * @param rewardFraction The fraction of the available rewards to be sent to the recipient
-   */
-  event AuctionCompleted(
-    address indexed recipient,
-    uint32 indexed sequenceId,
-    uint64 elapsedTime,
-    UD2x18 rewardFraction
-  );
-
   /* ============ Functions ============ */
 
   /**
@@ -42,20 +26,13 @@ interface IAuction {
    */
   function auctionDuration() external view returns (uint64);
 
-  // function computeRewardFraction(uint256 elapsed) external view returns (uint256);
+  function lastSequenceId() external view returns (uint32);
 
-  // /**
-  //  * @notice Calculates if the current auction is complete.
-  //  * @return True if the auction is complete, false otherwise
-  //  */
-  // function isAuctionComplete(uint32 _sequenceId) external view returns (bool);
+  function computeRewardFraction(uint64 _auctionElapsedTime) external view returns (UD2x18);
 
   /**
    * @notice Returns the results of the last completed auction.
    * @return auctionResults The completed auction results
    */
-  function getAuctionResults()
-    external
-    view
-    returns (AuctionResults memory);
+  function getLastAuctionResult() external view returns (AuctionResult memory);
 }

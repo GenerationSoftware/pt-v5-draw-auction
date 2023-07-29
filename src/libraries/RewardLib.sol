@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import { UD2x18 } from "prb-math/UD2x18.sol";
 import { UD60x18, convert } from "prb-math/UD60x18.sol";
 
-import { AuctionResults } from "../interfaces/IAuction.sol";
+import { AuctionResult } from "../interfaces/IAuction.sol";
 
 library RewardLib {
   /* ============ Internal Functions ============ */
@@ -64,14 +64,15 @@ library RewardLib {
    * @return Rewards in the same order as the auction results they correspond to
    */
   function rewards(
-    AuctionResults[] memory _auctionResults,
+    AuctionResult[] memory _auctionResults,
     uint256 _reserve
   ) internal pure returns (uint256[] memory) {
+    uint256 remainingReserve = _reserve;
     uint256 _auctionResultsLength = _auctionResults.length;
     uint256[] memory _rewards = new uint256[](_auctionResultsLength);
     for (uint256 i; i < _auctionResultsLength; i++) {
-      _rewards[i] = reward(_auctionResults[i], _reserve);
-      _reserve = _reserve - _rewards[i];
+      _rewards[i] = reward(_auctionResults[i], remainingReserve);
+      remainingReserve = remainingReserve - _rewards[i];
     }
     return _rewards;
   }
@@ -84,7 +85,7 @@ library RewardLib {
    * @return Reward amount
    */
   function reward(
-    AuctionResults memory _auctionResult,
+    AuctionResult memory _auctionResult,
     uint256 _reserve
   ) internal pure returns (uint256) {
     if (_auctionResult.recipient == address(0)) return 0;
