@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import "forge-std/Test.sol";
 
 import { UD2x18 } from "prb-math/UD2x18.sol";
-import { StartRngAuction, RngRequest } from "../src/StartRngAuction.sol";
+import { StartRngAuction } from "../src/StartRngAuction.sol";
 import { IRngAuctionRelayListener } from "../src/interfaces/IRngAuctionRelayListener.sol";
 import { AuctionResults } from "../src/interfaces/IAuction.sol";
 
@@ -26,12 +26,11 @@ contract RngAuctionRelayerDirectTest is RngRelayerBaseTest {
 
     function setUp() public override {
         super.setUp();
-        relayer = new RngAuctionRelayerDirect(startRngAuction, rngAuctionRelayListener);
+        relayer = new RngAuctionRelayerDirect(startRngAuction);
     }
 
     function testConstructor() public {
         assertEq(address(relayer.startRngAuction()), address(startRngAuction));
-        assertEq(address(relayer.rngAuctionRelayListener()), address(rngAuctionRelayListener));
     }
 
     function testDirectRelay_happyPath() public {
@@ -50,7 +49,7 @@ contract RngAuctionRelayerDirectTest is RngRelayerBaseTest {
         vm.expectEmit(true, true, false, false);
 
         emit DirectRelaySuccess(address(this), abi.encode(42));
-        assertEq(relayer.relay(address(this)), abi.encode(42));
+        assertEq(relayer.relay(rngAuctionRelayListener, address(this)), abi.encode(42));
     }
 
     function testDirectRelay_callRevert() public {
@@ -67,13 +66,13 @@ contract RngAuctionRelayerDirectTest is RngRelayerBaseTest {
         );
 
         vm.expectRevert(abi.encodeWithSelector(DirectRelayFailed.selector, abi.encode("this is bad")));
-        relayer.relay(address(this));
+        relayer.relay(rngAuctionRelayListener, address(this));
     }
 
     function testDirectRelay_RngNotCompleted() public {
         mockIsRngComplete(false);
         vm.expectRevert(abi.encodeWithSelector(RngNotCompleted.selector));
-        relayer.relay(address(this));
+        relayer.relay(rngAuctionRelayListener, address(this));
     }
 
 }

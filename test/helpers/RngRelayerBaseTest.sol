@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import "forge-std/Test.sol";
 
 import { UD2x18 } from "prb-math/UD2x18.sol";
-import { StartRngAuction, RngRequest } from "../../src/StartRngAuction.sol";
+import { StartRngAuction } from "../../src/StartRngAuction.sol";
 import { IRngAuctionRelayListener } from "../../src/interfaces/IRngAuctionRelayListener.sol";
 import { AuctionResults } from "../../src/interfaces/IAuction.sol";
 
@@ -27,8 +27,7 @@ contract RngRelayerBaseTest is Test {
     }
 
     function mockRngResults(uint256 _randomNumber, uint64 _rngCompletedAt) public {
-        RngRequest memory rngRequest;
-        vm.mockCall(address(startRngAuction), abi.encodeWithSelector(startRngAuction.getRngResults.selector), abi.encode(rngRequest, _randomNumber, _rngCompletedAt));
+        vm.mockCall(address(startRngAuction), abi.encodeWithSelector(startRngAuction.getRngResults.selector), abi.encode(_randomNumber, _rngCompletedAt));
     }
 
     function mockAuctionResults(address _recipient, UD2x18 _rewardFraction) public {
@@ -39,7 +38,7 @@ contract RngRelayerBaseTest is Test {
     }
 
     function mockCurrentSequenceId(uint32 _sequenceId) public {
-        vm.mockCall(address(startRngAuction), abi.encodeWithSelector(startRngAuction.currentSequenceId.selector), abi.encode(_sequenceId));
+        vm.mockCall(address(startRngAuction), abi.encodeWithSelector(startRngAuction.openSequenceId.selector), abi.encode(_sequenceId));
     }
 
 }

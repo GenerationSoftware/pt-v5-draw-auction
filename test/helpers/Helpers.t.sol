@@ -8,23 +8,10 @@ import { RNGInterface } from "rng/RNGInterface.sol";
 import { UD2x18 } from "prb-math/UD2x18.sol";
 
 import { IAuction, AuctionResults } from "../../src/interfaces/IAuction.sol";
-import { StartRngAuction, RngRequest } from "../../src/StartRngAuction.sol";
+import { StartRngAuction } from "../../src/StartRngAuction.sol";
 
 contract Helpers is Test {
   /* ============ StartRngAuction ============ */
-
-  function _mockStartRngAuction_getRngResults(
-    StartRngAuction _rngAuction,
-    RngRequest memory _rngRequest,
-    uint256 _randomNumber,
-    uint64 _rngCompletedAt
-  ) internal {
-    vm.mockCall(
-      address(_rngAuction),
-      abi.encodeWithSelector(StartRngAuction.getRngResults.selector),
-      abi.encode(_rngRequest, _randomNumber, _rngCompletedAt)
-    );
-  }
 
   function _mockStartRngAuction_isRngComplete(StartRngAuction _rngAuction, bool _isCompleted) internal {
     vm.mockCall(
@@ -34,46 +21,18 @@ contract Helpers is Test {
     );
   }
 
-  function _mockStartRngAuction_getRngService(StartRngAuction _rngAuction, RNGInterface _rng) internal {
-    vm.mockCall(
-      address(_rngAuction),
-      abi.encodeWithSelector(StartRngAuction.getRngService.selector),
-      abi.encode(_rng)
-    );
-  }
-
-  function _mockStartRngAuction_currentSequenceId(
+  function _mockStartRngAuction_openSequenceId(
     StartRngAuction _rngAuction,
-    uint32 _currentSequenceId
+    uint32 _openSequenceId
   ) internal {
     vm.mockCall(
       address(_rngAuction),
-      abi.encodeWithSelector(StartRngAuction.currentSequenceId.selector),
-      abi.encode(_currentSequenceId)
-    );
-  }
-
-  function _mockStartRngAuction_rngCompletedAt(StartRngAuction _rngAuction, uint64 _rngCompletedAt) internal {
-    vm.mockCall(
-      address(_rngAuction),
-      abi.encodeWithSelector(StartRngAuction.rngCompletedAt.selector),
-      abi.encode(_rngCompletedAt)
+      abi.encodeWithSelector(StartRngAuction.openSequenceId.selector),
+      abi.encode(_openSequenceId)
     );
   }
 
   /* ============ IAuction ============ */
-
-  function _mockIAuction_getAuctionResults(
-    IAuction _auction,
-    AuctionResults memory _auctionResults,
-    uint32 _sequenceId
-  ) internal {
-    vm.mockCall(
-      address(_auction),
-      abi.encodeWithSelector(IAuction.getAuctionResults.selector),
-      abi.encode(_auctionResults, _sequenceId)
-    );
-  }
 
   /* ============ RNGInterface ============ */
 

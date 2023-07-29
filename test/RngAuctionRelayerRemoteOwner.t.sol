@@ -4,7 +4,7 @@ pragma solidity ^0.8.19;
 import "forge-std/Test.sol";
 
 import { UD2x18 } from "prb-math/UD2x18.sol";
-import { StartRngAuction, RngRequest } from "../src/StartRngAuction.sol";
+import { StartRngAuction } from "../src/StartRngAuction.sol";
 import { IRngAuctionRelayListener } from "../src/interfaces/IRngAuctionRelayListener.sol";
 import { AuctionResults } from "../src/interfaces/IAuction.sol";
 
@@ -36,7 +36,6 @@ contract RngAuctionRelayerRemoteOwnerTest is RngRelayerBaseTest {
 
         relayer = new RngAuctionRelayerRemoteOwner(
             startRngAuction,
-            rngAuctionRelayListener,
             messageDispatcher,
             account,
             toChainId
@@ -45,7 +44,6 @@ contract RngAuctionRelayerRemoteOwnerTest is RngRelayerBaseTest {
 
     function testConstructor() public {
         assertEq(address(relayer.startRngAuction()), address(startRngAuction));
-        assertEq(address(relayer.rngAuctionRelayListener()), address(rngAuctionRelayListener));
         assertEq(address(relayer.messageDispatcher()), address(messageDispatcher));
         assertEq(address(relayer.account()), address(account));
         assertEq(relayer.toChainId(), toChainId);
@@ -78,7 +76,7 @@ contract RngAuctionRelayerRemoteOwnerTest is RngRelayerBaseTest {
         vm.expectEmit(true, true, false, false);
 
         emit RelayedToDispatcher(address(this), bytes32(uint(9999)));
-        assertEq(relayer.relay(address(this)), bytes32(uint(9999)));
+        assertEq(relayer.relay(rngAuctionRelayListener, address(this)), bytes32(uint(9999)));
     }
 
 }
