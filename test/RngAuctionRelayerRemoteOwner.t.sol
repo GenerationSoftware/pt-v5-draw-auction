@@ -13,28 +13,28 @@ import { RngRelayerBaseTest } from "./helpers/RngRelayerBaseTest.sol";
 import { RngNotCompleted } from "../src/abstract/RngAuctionRelayer.sol";
 
 import {
-    RngAuctionRelayerErc5164Account,
+    RngAuctionRelayerRemoteOwner,
     MessageDispatcherArbitrum,
-    Erc5164Account,
-    Erc5164AccountCallEncoder
-} from "../src/RngAuctionRelayerErc5164Account.sol";
+    RemoteOwner,
+    RemoteOwnerCallEncoder
+} from "../src/RngAuctionRelayerRemoteOwner.sol";
 
-contract RngAuctionRelayerErc5164AccountTest is RngRelayerBaseTest {
+contract RngAuctionRelayerRemoteOwnerTest is RngRelayerBaseTest {
 
     event RelayedToDispatcher(address indexed rewardRecipient, bytes32 indexed messageId);
 
-    RngAuctionRelayerErc5164Account relayer;
+    RngAuctionRelayerRemoteOwner relayer;
 
     MessageDispatcherArbitrum messageDispatcher;
-    Erc5164Account account;
+    RemoteOwner account;
     uint256 toChainId = 1;
 
     function setUp() public override {
         super.setUp();
         messageDispatcher = MessageDispatcherArbitrum(makeAddr("messageDispatcher"));
-        account = Erc5164Account(makeAddr("account"));
+        account = RemoteOwner(makeAddr("account"));
 
-        relayer = new RngAuctionRelayerErc5164Account(
+        relayer = new RngAuctionRelayerRemoteOwner(
             startRngAuction,
             rngAuctionRelayListener,
             messageDispatcher,
@@ -63,7 +63,7 @@ contract RngAuctionRelayerErc5164AccountTest is RngRelayerBaseTest {
                 messageDispatcher.dispatchMessage.selector,
                 toChainId,
                 address(account),
-                Erc5164AccountCallEncoder.encodeCalldata(
+                RemoteOwnerCallEncoder.encodeCalldata(
                     address(rngAuctionRelayListener),
                     0,
                     abi.encodeWithSelector(
