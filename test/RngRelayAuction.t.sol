@@ -32,7 +32,6 @@ contract RngRelayAuctionTest is Helpers {
   RngRelayAuction public rngRelayAuction;
 
   PrizePool prizePool;
-  address startRngAuctionRelayer;
   uint64 auctionDurationSeconds = 1 hours;
   uint64 auctionTargetTime = 15 minutes;
 
@@ -85,7 +84,7 @@ contract RngRelayAuctionTest is Helpers {
       rewardFraction: UD2x18.wrap(0.1 ether)
     });
 
-    assertFalse(rngRelayAuction.canStartNextSequence(1));
+    assertFalse(rngRelayAuction.isSequenceCompleted(1));
 
     mockCloseDraw(0x1234);
     mockPrizePoolReserve(100e18);
@@ -100,7 +99,7 @@ contract RngRelayAuctionTest is Helpers {
     );
 
     assertEq(rngRelayAuction.lastSequenceId(), 1, "sequence id is now 1");
-    assertTrue(rngRelayAuction.canStartNextSequence(1), "sequence 1 auction is complete");
+    assertTrue(rngRelayAuction.isSequenceCompleted(1), "sequence 1 auction is complete");
 
     AuctionResult memory r = rngRelayAuction.getLastAuctionResult();
     assertEq(r.recipient, address(this));

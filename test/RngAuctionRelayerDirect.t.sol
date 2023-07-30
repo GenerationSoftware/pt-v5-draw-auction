@@ -26,11 +26,11 @@ contract RngAuctionRelayerDirectTest is RngRelayerBaseTest {
 
     function setUp() public override {
         super.setUp();
-        relayer = new RngAuctionRelayerDirect(startRngAuction);
+        relayer = new RngAuctionRelayerDirect(rngAuction);
     }
 
     function testConstructor() public {
-        assertEq(address(relayer.startRngAuction()), address(startRngAuction));
+        assertEq(address(relayer.rngAuction()), address(rngAuction));
     }
 
     function testDirectRelay_happyPath() public {

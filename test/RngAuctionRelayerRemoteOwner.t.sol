@@ -14,7 +14,7 @@ import { RngNotCompleted } from "../src/abstract/RngAuctionRelayer.sol";
 
 import {
     RngAuctionRelayerRemoteOwner,
-    MessageDispatcherArbitrum,
+    ISingleMessageDispatcher,
     RemoteOwner,
     RemoteOwnerCallEncoder
 } from "../src/RngAuctionRelayerRemoteOwner.sol";
@@ -25,17 +25,17 @@ contract RngAuctionRelayerRemoteOwnerTest is RngRelayerBaseTest {
 
     RngAuctionRelayerRemoteOwner relayer;
 
-    MessageDispatcherArbitrum messageDispatcher;
+    ISingleMessageDispatcher messageDispatcher;
     RemoteOwner account;
     uint256 toChainId = 1;
 
     function setUp() public override {
         super.setUp();
-        messageDispatcher = MessageDispatcherArbitrum(makeAddr("messageDispatcher"));
+        messageDispatcher = ISingleMessageDispatcher(makeAddr("messageDispatcher"));
         account = RemoteOwner(makeAddr("account"));
 
         relayer = new RngAuctionRelayerRemoteOwner(
-            startRngAuction,
+            rngAuction,
             messageDispatcher,
             account,
             toChainId
@@ -43,7 +43,7 @@ contract RngAuctionRelayerRemoteOwnerTest is RngRelayerBaseTest {
     }
 
     function testConstructor() public {
-        assertEq(address(relayer.startRngAuction()), address(startRngAuction));
+        assertEq(address(relayer.rngAuction()), address(rngAuction));
         assertEq(address(relayer.messageDispatcher()), address(messageDispatcher));
         assertEq(address(relayer.account()), address(account));
         assertEq(relayer.toChainId(), toChainId);

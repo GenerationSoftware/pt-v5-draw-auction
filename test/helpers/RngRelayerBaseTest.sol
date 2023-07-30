@@ -12,33 +12,33 @@ import { RngNotCompleted } from "../../src/abstract/RngAuctionRelayer.sol";
 
 contract RngRelayerBaseTest is Test {
 
-    RngAuction startRngAuction;
+    RngAuction rngAuction;
     IRngAuctionRelayListener rngAuctionRelayListener;
 
     function setUp() public virtual {
-        startRngAuction = RngAuction(makeAddr("startRngAuction"));
+        rngAuction = RngAuction(makeAddr("rngAuction"));
         rngAuctionRelayListener = IRngAuctionRelayListener(makeAddr("rngAuctionRelayListener"));
     }
 
     /* Mocks */
 
     function mockIsRngComplete(bool isComplete) public {
-        vm.mockCall(address(startRngAuction), abi.encodeWithSelector(startRngAuction.isRngComplete.selector), abi.encode(isComplete));
+        vm.mockCall(address(rngAuction), abi.encodeWithSelector(rngAuction.isRngComplete.selector), abi.encode(isComplete));
     }
 
     function mockRngResults(uint256 _randomNumber, uint64 _rngCompletedAt) public {
-        vm.mockCall(address(startRngAuction), abi.encodeWithSelector(startRngAuction.getRngResults.selector), abi.encode(_randomNumber, _rngCompletedAt));
+        vm.mockCall(address(rngAuction), abi.encodeWithSelector(rngAuction.getRngResults.selector), abi.encode(_randomNumber, _rngCompletedAt));
     }
 
     function mockAuctionResult(address _recipient, UD2x18 _rewardFraction) public {
         AuctionResult memory results;
         results.recipient = _recipient;
         results.rewardFraction = _rewardFraction;
-        vm.mockCall(address(startRngAuction), abi.encodeWithSelector(startRngAuction.getLastAuctionResult.selector), abi.encode(results));
+        vm.mockCall(address(rngAuction), abi.encodeWithSelector(rngAuction.getLastAuctionResult.selector), abi.encode(results));
     }
 
     function mockCurrentSequenceId(uint32 _sequenceId) public {
-        vm.mockCall(address(startRngAuction), abi.encodeWithSelector(startRngAuction.openSequenceId.selector), abi.encode(_sequenceId));
+        vm.mockCall(address(rngAuction), abi.encodeWithSelector(rngAuction.openSequenceId.selector), abi.encode(_sequenceId));
     }
 
 }

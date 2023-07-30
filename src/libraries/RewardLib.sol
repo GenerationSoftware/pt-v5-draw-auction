@@ -6,20 +6,12 @@ import { UD60x18, convert } from "prb-math/UD60x18.sol";
 
 import { AuctionResult } from "../interfaces/IAuction.sol";
 
+/// @title RewardLib
+/// @author G9 Software Inc.
+/// @notice Library for calculating auction rewards.
+/// @dev This library uses a parabolic fractional dutch auction (PFDA) to calculate rewards. For more details see https://dev.pooltogether.com/protocol/next/design/draw-auction#parabolic-fractional-dutch-auction-pfda
 library RewardLib {
   /* ============ Internal Functions ============ */
-
-  /**
-   * @notice Calculates a linearly increasing fraction from the elapsed time divided by the auction duration.
-   * @dev This function does not do any checks to see if the elapsed time is greater than the auction duration.
-   * @return The reward fraction as a UD2x18 fraction
-   */
-  // function fractionalReward(
-  //   uint64 _elapsedTime,
-  //   uint64 _auctionDuration
-  // ) internal pure returns (UD2x18) {
-  //   return UD2x18.wrap(uint64(convert(_elapsedTime).div(convert(_auctionDuration)).unwrap()));
-  // }
 
   /**
    * @notice Calculates the fractional reward using a Parabolic Fractional Dutch Auction (PFDA)

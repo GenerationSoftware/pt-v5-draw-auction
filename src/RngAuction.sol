@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "forge-std/console2.sol";
-
 import { IERC20 } from "openzeppelin/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import { Ownable } from "owner-manager/Ownable.sol";
@@ -14,11 +12,13 @@ import { RewardLib } from "./libraries/RewardLib.sol";
 import { IAuction, AuctionResult } from "./interfaces/IAuction.sol";
 
 /**
-  * @notice RNG Request.
-  * @param rngRequestId RNG request ID
-  * @param sequenceId Sequence ID that the RNG was requested during.
-  * @dev   The `sequenceId` value should not be assumed to be the same as a prize pool drawId even though the
-  *        timing is designed to align as best as possible.
+  * @notice The results of a successful RNG auction.
+  * @param recipient The recipient of the auction reward
+  * @param rewardFraction The reward fraction that the user will receive
+  * @param sequenceId The id of the sequence that this auction belonged to
+  * @param rng The RNG service that was used to generate the random number
+  * @param rngRequestId The id of the RNG request that was made
+  * @dev   The `sequenceId` value should not be assumed to be the same as a prize pool drawId, but the sequence and offset should match the prize pool.
   */
 struct RngAuctionResult {
   address recipient;
@@ -30,7 +30,7 @@ struct RngAuctionResult {
 
 /* ============ Custom Errors ============ */
 
-/// @notice Thrown when the auction period is zero.
+/// @notice Thrown when the auction duration is zero.
 error AuctionDurationZero();
 
 /// @notice Thrown if the auction target time is zero.
@@ -78,6 +78,7 @@ contract RngAuction is IAuction, Ownable {
   /// @dev This must always be less than the sequence period since the auction needs to complete each period.
   uint64 public immutable auctionDuration;
 
+  /// @notice The target time to complete the auction in seconds
   uint64 public immutable auctionTargetTime;
 
   /// @notice The target time to complete the auction as a fraction of the auction duration
@@ -98,6 +99,7 @@ contract RngAuction is IAuction, Ownable {
   /// @notice New RNG instance that will be applied before the next auction completion
   RNGInterface internal _nextRng;
 
+  /// @notice The last auction result
   RngAuctionResult internal _lastAuction;
 
   /* ============ Events ============ */
@@ -129,7 +131,7 @@ contract RngAuction is IAuction, Ownable {
   /**
    * @notice Deploy the RngAuction smart contract.
    * @param rng_ Address of the RNG service
-   * @param owner_ Address of the RngAuction owner
+   * @param owner_ Address of the RngAuction owner. The owner may swap out the RNG service.
    * @param sequencePeriod_ Sequence period in seconds
    * @param sequenceOffset_ Sequence offset in seconds
    * @param auctionDurationSeconds_ Auction duration in seconds
@@ -222,18 +224,23 @@ contract RngAuction is IAuction, Ownable {
     return _canStartNextSequence() && _auctionElapsedTime() <= auctionDuration;
   }
 
+  /// @notice The amount of time remaining in the current open auction
+  /// @return The elapsed time since the auction started
   function auctionElapsedTime() external view returns (uint64) {
     return _auctionElapsedTime();
   }
 
+  /// @notice The current reward as a fraction.
   function currentFractionalReward() external view returns (UD2x18) {
     return _currentFractionalReward();
   }
 
+  /// @notice Returns the last rng auction result.
   function getLastAuction() external view returns (RngAuctionResult memory) {
     return _lastAuction;
   }
 
+  /// @notice Returns the last auction as a AuctionResult struct to be used to calculate rewards
   function getLastAuctionResult()
     external
     view
@@ -289,6 +296,7 @@ contract RngAuction is IAuction, Ownable {
     return (rng.randomNumber(requestId), rng.completedAt(requestId));
   }
 
+  /// @notice Computes the reward fraction for the given auction elapsed time.
   function computeRewardFraction(uint64 __auctionElapsedTime) external view returns (UD2x18) {
     return _computeRewardFraction(__auctionElapsedTime);
   }

@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "forge-std/console2.sol";
-
 import { UD2x18 } from "prb-math/UD2x18.sol";
 import { convert } from "prb-math/UD60x18.sol";
 import { PrizePool } from "pt-v5-prize-pool/PrizePool.sol";
@@ -40,12 +38,18 @@ error AuctionExpired();
 error PrizePoolZeroAddress();
 
 /**
- * @title   PoolTogether V5 RngRelayAuctionDirect
- * @author  Generation Software Team
- * @notice  This contract sends the results of the draw auction directly to the draw manager.
+ * @title   RngRelayAuction
+ * @author  G9 Software Inc.
+ * @notice  This contract auctions off the RNG relay, then closes the Prize Pool using the RNG results.
  */
 contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
 
+  /// @notice Emitted for each auction that is rewarded within the sequence.
+  /// @dev Not that the reward fractions compound
+  /// @param sequenceId The sequence ID of the auction
+  /// @param recipient The recipient of the reward
+  /// @param index The order in which this reward occurred
+  /// @param reward The reward amount
   event AuctionRewardDistributed(
     uint32 indexed sequenceId,
     address indexed recipient,
@@ -53,7 +57,13 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
     uint256 reward
   );
 
-  event RngRelayAuctionCompleted(
+  /// @notice Emitted once when the sequence is completed and the Prize Pool draw is closed.
+  /// @param sequenceId The sequence id
+  /// @param drawId The draw id that was closed
+  /// @param rewardRecipient The recipient of the Rng Relay Reward
+  /// @param auctionElapsedSeconds The elapsed time of the Rng Relay Auction
+  /// @param rewardFraction The reward fraction of the Rng Relay Auction. Note that this fraction is applied after the Rng Auction fraction is taken.
+  event RngSequenceCompleted(
     uint32 indexed sequenceId,
     uint32 indexed drawId,
     address indexed rewardRecipient,
@@ -61,10 +71,12 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
     UD2x18 rewardFraction
   );
 
-  /// @notice The PrizePool to send the auction results to
+  /// @notice The PrizePool whose draw wil be closed.
   PrizePool public immutable prizePool;
 
-  address public immutable startRngAuctionRelayer;
+  /// @notice The relayer that RNG results must originate from.
+  /// @dev Note that this may be a Remote Owner if relayed over an ERC-5164 bridge.
+  address public immutable rngAuctionRelayer;
 
   /* ============ Variables ============ */
 
@@ -82,24 +94,26 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
 
   /* ============ Constructor ============ */
 
-  /**
-   * @notice Deploy the RngRelayAuction smart contract.
-   */
+  /// @notice Construct a new contract
+  /// @param prizePool_ The target Prize Pool to close draws for
+  /// @param _rngAuctionRelayer The relayer that RNG results must originate from
+  /// @param auctionDurationSeconds_ The auction duration in seconds
+  /// @param auctionTargetTime_ The target time to complete the auction
   constructor(
     PrizePool prizePool_,
-    address _startRngAuctionRelayer,
+    address _rngAuctionRelayer,
     uint64 auctionDurationSeconds_,
     uint64 auctionTargetTime_
   ) {
     if (address(prizePool_) == address(0)) revert PrizePoolZeroAddress();
     prizePool = prizePool_;
-    if (address(_startRngAuctionRelayer) == address(0)) revert RngRelayerZeroAddress();
+    if (address(_rngAuctionRelayer) == address(0)) revert RngRelayerZeroAddress();
     if (auctionDurationSeconds_ == 0) revert AuctionDurationZero();
     if (auctionTargetTime_ == 0) revert AuctionTargetTimeZero();
     if (auctionTargetTime_ > auctionDurationSeconds_) {
       revert AuctionTargetTimeExceedsDuration(auctionDurationSeconds_, auctionTargetTime_);
     }
-    startRngAuctionRelayer = _startRngAuctionRelayer;
+    rngAuctionRelayer = _rngAuctionRelayer;
     _auctionDurationSeconds = auctionDurationSeconds_;
     _auctionTargetTimeFraction = UD2x18.wrap(
       uint64(convert(auctionTargetTime_).div(convert(_auctionDurationSeconds)).unwrap())
@@ -108,45 +122,41 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
 
   /* ============ External Functions ============ */
 
+  /// @notice Called by the relayer to complete the Rng relay auction.
+  /// @param _randomNumber The random number that was generated
+  /// @param _rngCompletedAt The timestamp that the RNG was completed at
+  /// @param _rewardRecipient The recipient of the relay auction reward
+  /// @param _sequenceId The sequence ID of the auction
+  /// @param _rngAuctionResult The result of the RNG auction
   function rngComplete(
     uint256 _randomNumber,
     uint256 _rngCompletedAt,
     address _rewardRecipient,
     uint32 _sequenceId,
-    AuctionResult calldata _startRngAuctionResult
+    AuctionResult calldata _rngAuctionResult
   ) external returns (bytes32) {
-    console2.log("rngComplete 1");
-    if (_canStartNextSequence(_sequenceId)) revert SequenceAlreadyCompleted();
+    if (_sequenceHasCompleted(_sequenceId)) revert SequenceAlreadyCompleted();
     uint64 _auctionElapsedSeconds = uint64(block.timestamp < _rngCompletedAt ? 0 : block.timestamp - _rngCompletedAt);
     if (_auctionElapsedSeconds > (_auctionDurationSeconds-1)) revert AuctionExpired();
-    console2.log("rngComplete 2");
     // Calculate the reward fraction and set the draw auction results
     UD2x18 rewardFraction = _fractionalReward(_auctionElapsedSeconds);
     _auctionResults.rewardFraction = rewardFraction;
     _auctionResults.recipient = _rewardRecipient;
     _lastSequenceId = _sequenceId;
 
-    console2.log("rngComplete 3");
-
     AuctionResult[] memory auctionResults = new AuctionResult[](2);
-    auctionResults[0] = _startRngAuctionResult;
+    auctionResults[0] = _rngAuctionResult;
     auctionResults[1] = AuctionResult({
       rewardFraction: rewardFraction,
       recipient: _rewardRecipient
     });
 
-    console2.log("rngComplete 4", _randomNumber);
-
     uint32 drawId = prizePool.closeDraw(_randomNumber);
-
-    console2.log("rngComplete 5");
 
     uint256 futureReserve = prizePool.reserve() + prizePool.reserveForOpenDraw();
     uint256[] memory _rewards = RewardLib.rewards(auctionResults, futureReserve);
 
-    console2.log("rngComplete 6");
-
-    emit RngRelayAuctionCompleted(
+    emit RngSequenceCompleted(
       _sequenceId,
       drawId,
       _rewardRecipient,
@@ -165,31 +175,47 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
     return bytes32(uint(drawId));
   }
 
+  /// @notice Computes the actual rewards that will be distributed to the recipients using the current Prize Pool reserve.
+  /// @param __auctionResults The auction results to use for calculation
+  /// @return rewards The rewards that will be distributed
   function computeRewards(AuctionResult[] calldata __auctionResults) external returns (uint256[] memory) {
     uint256 totalReserve = prizePool.reserve() + prizePool.reserveForOpenDraw();
     return _computeRewards(__auctionResults, totalReserve);
   }
 
+  /// @notice Computes the actual rewards that will be distributed to the recipients given the passed total reserve
+  /// @param __auctionResults The auction results to use for calculation
+  /// @param _totalReserve The total reserve to use for calculation
+  /// @return rewards The rewards that will be distributed.
   function computeRewardsWithTotal(AuctionResult[] calldata __auctionResults, uint256 _totalReserve) external returns (uint256[] memory) {
     return _computeRewards(__auctionResults, _totalReserve);
   }
 
-  function canStartNextSequence(uint32 _sequenceId) external view returns (bool) {
-    return _canStartNextSequence(_sequenceId);
+  /// @notice Returns whether the given sequence has complete.
+  /// @param _sequenceId The sequence to check
+  /// @return True if the sequence has already completed
+  function isSequenceCompleted(uint32 _sequenceId) external view returns (bool) {
+    return _sequenceHasCompleted(_sequenceId);
   }
 
+  /// @notice Returns the duration of the auction in seconds. 
   function auctionDuration() external view returns (uint64) {
     return _auctionDurationSeconds;
   }
 
+  /// @notice Computes the reward fraction for the given auction elapsed time
+  /// @param _auctionElapsedTime The elapsed time of the auction
+  /// @return The reward fraction
   function computeRewardFraction(uint64 _auctionElapsedTime) external view returns (UD2x18) {
     return _fractionalReward(_auctionElapsedTime);
   }
 
+  /// @notice Returns the last completed sequence id
   function lastSequenceId() external view returns (uint32) {
     return _lastSequenceId;
   }
 
+  /// @notice Returns the last auction result
   function getLastAuctionResult()
     external
     view
@@ -200,16 +226,19 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
 
   /* ============ Internal Functions ============ */
 
+  /// @notice Computes the rewards for each reward recipient based on their reward fraction.
+  /// @dev Note that the fractions compound, such that the second reward fraction is a fraction of the remained of the previous, etc.
+  /// @param __auctionResults The auction results to use for calculation
+  /// @param _totalReserve The total reserve to use for calculation
+  /// @return The actual rewards for each reward recipient
   function _computeRewards(AuctionResult[] calldata __auctionResults, uint256 _totalReserve) internal returns (uint256[] memory) {
     return RewardLib.rewards(__auctionResults, _totalReserve);
   }
 
-  /**
-   * @notice Calculates if the current auction is complete.
-   * @dev The auction is complete when the last recorded auction sequence ID matches the current sequence ID
-   * @return True if the auction is complete, false otherwise
-   */
-  function _canStartNextSequence(uint32 _sequenceId) internal view returns (bool) {
+  /// @notice Returns whether the given sequence has completed.
+  /// @param _sequenceId The sequence to check
+  /// @return True if the sequence has already completed, false otherwise
+  function _sequenceHasCompleted(uint32 _sequenceId) internal view returns (bool) {
     return _lastSequenceId >= _sequenceId;
   }
 
