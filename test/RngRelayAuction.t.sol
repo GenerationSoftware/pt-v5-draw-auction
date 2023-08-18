@@ -13,6 +13,7 @@ import {
   SequenceAlreadyCompleted,
   AuctionExpired,
   PrizePoolZeroAddress,
+  UnauthorizedRelayer,
   AuctionTargetTimeExceedsDuration
 } from "../src/RngRelayAuction.sol";
 
@@ -76,6 +77,23 @@ contract RngRelayAuctionTest is Helpers {
   function testFractionalReward() public {
     assertEq(rngRelayAuction.computeRewardFraction(0).unwrap(), 0 ether, "fractional reward at zero");
     assertEq(rngRelayAuction.computeRewardFraction(auctionDurationSeconds).unwrap(), 1 ether, "fractional reward at one");
+  }
+
+  function testRngComplete_UnauthorizedRelayer() public {
+    address bob = makeAddr("bob");
+    vm.startPrank(bob);
+    vm.expectRevert(abi.encodeWithSelector(UnauthorizedRelayer.selector, bob));
+    rngRelayAuction.rngComplete(
+      0x1234,
+      block.timestamp,
+      bob,
+      1,
+      AuctionResult({
+        recipient: address(this),
+        rewardFraction: UD2x18.wrap(0.1 ether)
+      })
+    );
+    vm.stopPrank();
   }
 
   function testRngComplete_happyPath() public {
