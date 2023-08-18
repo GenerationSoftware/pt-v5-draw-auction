@@ -25,43 +25,38 @@ contract RngAuctionRelayerRemoteOwner is RngAuctionRelayer {
     /// @notice The ERC-5164 Dispatcher to use to bridge messages
     ISingleMessageDispatcher public immutable messageDispatcher;
 
-    /// @notice The address of the Remote Owner that this contract is attached to.
-    /// @dev Note: the Remote Owner lives on the destination chain, not the chain on which the relayer lives.
-    RemoteOwner public immutable account;
-
     /// @notice The chain ID that the Remote Owner is deployed to.
     uint256 public immutable toChainId;
 
     /// @notice Constructs a new contract
     /// @param _rngAuction The RNG auction to pull results from.
     /// @param _messageDispatcher The ERC-5164 Dispatcher to use to bridge messages
-    /// @param _remoteOwner The address of the Remote Owner that this contract is attached to.
     /// @param _toChainId The chain ID that the Remote Owner is deployed to.
     constructor(
         RngAuction _rngAuction,
         ISingleMessageDispatcher _messageDispatcher,
-        RemoteOwner _remoteOwner,
         uint256 _toChainId
     ) RngAuctionRelayer(_rngAuction) {
         messageDispatcher = _messageDispatcher;
-        account = _remoteOwner;
         toChainId = _toChainId;
     }
 
     /// @notice Relays the RNG results through the 5164 message dispatcher to the remote rngAuctionRelayListener on the other chain.
     /// @dev Note that some bridges require an additional transaction to bridge the message.
     /// For example, both Arbitrum and zkSync require off-chain information to accomplish this. See ERC-5164 implementations for more details.
+    /// @param _remoteOwner The address of the Remote Owner on the other chain whom should call the remote relayer
     /// @param _remoteRngAuctionRelayListener The address of the IRngAuctionRelayListener to relay to on the other chain.
     /// @param rewardRecipient The address that shall receive the RngAuctionRelay reward. Note that this address must be able to receive rewards on the other chain.
     /// @return The message ID of the dispatched message.
     function relay(
+        RemoteOwner _remoteOwner,
         IRngAuctionRelayListener _remoteRngAuctionRelayListener,
         address rewardRecipient
     ) external returns (bytes32) {
         bytes memory listenerCalldata = encodeCalldata(rewardRecipient);
         bytes32 messageId = messageDispatcher.dispatchMessage(
             toChainId,
-            address(account),
+            address(_remoteOwner),
             RemoteOwnerCallEncoder.encodeCalldata(address(_remoteRngAuctionRelayListener), 0, listenerCalldata)
         );
         emit RelayedToDispatcher(rewardRecipient, messageId);

@@ -26,18 +26,17 @@ contract RngAuctionRelayerRemoteOwnerTest is RngRelayerBaseTest {
     RngAuctionRelayerRemoteOwner relayer;
 
     ISingleMessageDispatcher messageDispatcher;
-    RemoteOwner account;
+    RemoteOwner remoteOwner;
     uint256 toChainId = 1;
 
     function setUp() public override {
         super.setUp();
         messageDispatcher = ISingleMessageDispatcher(makeAddr("messageDispatcher"));
-        account = RemoteOwner(makeAddr("account"));
+        remoteOwner = RemoteOwner(makeAddr("remoteOwner"));
 
         relayer = new RngAuctionRelayerRemoteOwner(
             rngAuction,
             messageDispatcher,
-            account,
             toChainId
         );
     }
@@ -45,7 +44,6 @@ contract RngAuctionRelayerRemoteOwnerTest is RngRelayerBaseTest {
     function testConstructor() public {
         assertEq(address(relayer.rngAuction()), address(rngAuction));
         assertEq(address(relayer.messageDispatcher()), address(messageDispatcher));
-        assertEq(address(relayer.account()), address(account));
         assertEq(relayer.toChainId(), toChainId);
     }
 
@@ -60,7 +58,7 @@ contract RngAuctionRelayerRemoteOwnerTest is RngRelayerBaseTest {
             abi.encodeWithSelector(
                 messageDispatcher.dispatchMessage.selector,
                 toChainId,
-                address(account),
+                address(remoteOwner),
                 RemoteOwnerCallEncoder.encodeCalldata(
                     address(rngAuctionRelayListener),
                     0,
@@ -76,7 +74,7 @@ contract RngAuctionRelayerRemoteOwnerTest is RngRelayerBaseTest {
         vm.expectEmit(true, true, false, false);
 
         emit RelayedToDispatcher(address(this), bytes32(uint(9999)));
-        assertEq(relayer.relay(rngAuctionRelayListener, address(this)), bytes32(uint(9999)));
+        assertEq(relayer.relay(remoteOwner, rngAuctionRelayListener, address(this)), bytes32(uint(9999)));
     }
 
 }
