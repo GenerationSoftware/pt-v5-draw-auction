@@ -18,6 +18,9 @@ error AuctionDurationZero();
 /// @notice Thrown if the auction target time is zero.
 error AuctionTargetTimeZero();
 
+/// @notice Thrown if the caller is not the relayer.
+error UnauthorizedRelayer(address relayer);
+
 /**
   * @notice Thrown if the auction target time exceeds the auction duration.
   * @param auctionTargetTime The auction target time to complete in seconds
@@ -134,7 +137,7 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
     address _rewardRecipient,
     uint32 _sequenceId,
     AuctionResult calldata _rngAuctionResult
-  ) external returns (bytes32) {
+  ) external onlyRngAuctionRelayer returns (bytes32) {
     if (_sequenceHasCompleted(_sequenceId)) revert SequenceAlreadyCompleted();
     uint64 _auctionElapsedSeconds = uint64(block.timestamp < _rngCompletedAt ? 0 : block.timestamp - _rngCompletedAt);
     if (_auctionElapsedSeconds > (_auctionDurationSeconds-1)) revert AuctionExpired();
@@ -255,5 +258,15 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
         _auctionTargetTimeFraction,
         _auctionResults.rewardFraction
       );
+  }
+
+  /**
+   * @notice Requires the sender to be the rng auction relayer
+   */
+  modifier onlyRngAuctionRelayer() {
+    if (msg.sender != rngAuctionRelayer) {
+      revert UnauthorizedRelayer(msg.sender);
+    }
+    _;
   }
 }
