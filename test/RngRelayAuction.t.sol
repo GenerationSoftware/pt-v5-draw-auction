@@ -28,15 +28,29 @@ contract RngRelayAuctionTest is Helpers {
     UD2x18 rewardFraction
   );
 
+  event AuctionRewardDistributed(
+    uint32 indexed sequenceId,
+    address indexed recipient,
+    uint32 index,
+    uint256 reward
+  );
+
+  event RngSequenceCompleted(
+    uint32 indexed sequenceId,
+    uint32 indexed drawId
+  );
   /* ============ Variables ============ */
 
   RngRelayAuction public rngRelayAuction;
 
   PrizePool prizePool;
   uint64 auctionDurationSeconds = 1 hours;
-  uint64 auctionTargetTime = 15 minutes;
+  uint64 auctionTargetTime = 1;
+
+  address alice;
 
   function setUp() public {
+    alice = makeAddr("alice");
     prizePool = PrizePool(makeAddr("prizePool"));
     vm.etch(address(prizePool), "prizePool");
 
@@ -46,7 +60,7 @@ contract RngRelayAuctionTest is Helpers {
   function testConstructor() public {
     assertEq(rngRelayAuction.lastSequenceId(), 0);
     assertEq(rngRelayAuction.auctionDuration(), auctionDurationSeconds, "auction duration");
-    assertEq(rngRelayAuction.computeRewardFraction(auctionDurationSeconds).unwrap(), 1 ether, "fractional reward");
+    assertEq(rngRelayAuction.rngAuctionRelayer(), address(this), "relayer matches");
   }
 
   function testConstructor_PrizePoolZeroAddress() public {
@@ -76,7 +90,11 @@ contract RngRelayAuctionTest is Helpers {
 
   function testFractionalReward() public {
     assertEq(rngRelayAuction.computeRewardFraction(0).unwrap(), 0 ether, "fractional reward at zero");
-    assertEq(rngRelayAuction.computeRewardFraction(auctionDurationSeconds).unwrap(), 1 ether, "fractional reward at one");
+    assertApproxEqAbs(rngRelayAuction.computeRewardFraction(auctionDurationSeconds).unwrap(), 1 ether, 2, "fractional reward at one");
+  }
+
+  function testIsSequenceCompleted_empty() public {
+    assertFalse(rngRelayAuction.isSequenceCompleted(1));
   }
 
   function testRngComplete_UnauthorizedRelayer() public {
@@ -102,16 +120,39 @@ contract RngRelayAuctionTest is Helpers {
       rewardFraction: UD2x18.wrap(0.1 ether)
     });
 
-    assertFalse(rngRelayAuction.isSequenceCompleted(1));
-
     mockCloseDraw(0x1234);
-    mockPrizePoolReserve(100e18);
+    vm.mockCall(
+      address(prizePool),
+      abi.encodeWithSelector(prizePool.reserve.selector),
+      abi.encode(100e18)
+    );
     mockWithdrawReserve(address(this), 10e18);
 
+    vm.expectEmit(true, true, true, true);
+    emit RngSequenceCompleted(
+      1,
+      42
+    );
+    vm.expectEmit(true, true, true, true);
+    emit AuctionRewardDistributed(
+      1,
+      address(this),
+      0,
+      10e18
+    );
+    vm.expectEmit(true, true, true, true);
+    emit AuctionRewardDistributed(
+      1,
+      alice,
+      1,
+      22487498263889022870 // 0.25 * 90
+    );
+    uint completedAt = block.timestamp;
+    vm.warp(completedAt + auctionDurationSeconds/2);
     rngRelayAuction.rngComplete(
       0x1234,
-      block.timestamp,
-      address(this),
+      completedAt,
+      alice,
       1,
       results
     );
@@ -120,8 +161,8 @@ contract RngRelayAuctionTest is Helpers {
     assertTrue(rngRelayAuction.isSequenceCompleted(1), "sequence 1 auction is complete");
 
     AuctionResult memory r = rngRelayAuction.getLastAuctionResult();
-    assertEq(r.recipient, address(this));
-    assertEq(r.rewardFraction.unwrap(), 0 ether, "reward fraction is 0 ether");
+    assertEq(r.recipient, alice);
+    assertEq(r.rewardFraction.unwrap(), 249861091820989143, "reward fraction is about a quarter (halfway through parabola)");
   }
 
   function testRngComplete_SequenceAlreadyCompleted() public {

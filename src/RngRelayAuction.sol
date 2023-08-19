@@ -63,15 +63,9 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
   /// @notice Emitted once when the sequence is completed and the Prize Pool draw is closed.
   /// @param sequenceId The sequence id
   /// @param drawId The draw id that was closed
-  /// @param rewardRecipient The recipient of the Rng Relay Reward
-  /// @param auctionElapsedSeconds The elapsed time of the Rng Relay Auction
-  /// @param rewardFraction The reward fraction of the Rng Relay Auction. Note that this fraction is applied after the Rng Auction fraction is taken.
   event RngSequenceCompleted(
     uint32 indexed sequenceId,
-    uint32 indexed drawId,
-    address indexed rewardRecipient,
-    uint64 auctionElapsedSeconds,
-    UD2x18 rewardFraction
+    uint32 indexed drawId
   );
 
   /// @notice The PrizePool whose draw wil be closed.
@@ -156,15 +150,12 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
 
     uint32 drawId = prizePool.closeDraw(_randomNumber);
 
-    uint256 futureReserve = prizePool.reserve() + prizePool.reserveForOpenDraw();
-    uint256[] memory _rewards = RewardLib.rewards(auctionResults, futureReserve);
+    uint256 reserve = prizePool.reserve();
+    uint256[] memory _rewards = RewardLib.rewards(auctionResults, reserve);
 
     emit RngSequenceCompleted(
       _sequenceId,
-      drawId,
-      _rewardRecipient,
-      _auctionElapsedSeconds,
-      rewardFraction
+      drawId
     );
 
     for (uint8 i = 0; i < _rewards.length; i++) {
