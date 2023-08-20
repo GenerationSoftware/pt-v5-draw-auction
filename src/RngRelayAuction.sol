@@ -159,7 +159,7 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
     );
 
     for (uint8 i = 0; i < _rewards.length; i++) {
-      uint104 _reward = uint104(_rewards[i]);
+      uint96 _reward = _safeCast(_rewards[i]);
       if (_reward > 0) {
         prizePool.withdrawReserve(auctionResults[i].recipient, _reward);
         emit AuctionRewardDistributed(_sequenceId, auctionResults[i].recipient, i, _reward);
@@ -249,6 +249,10 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
         _auctionTargetTimeFraction,
         _auctionResults.rewardFraction
       );
+  }
+
+  function _safeCast(uint256 a) internal pure returns (uint96) {
+    return a > type(uint96).max ? type(uint96).max : uint96(a);
   }
 
   /**
