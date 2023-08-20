@@ -4,6 +4,7 @@ pragma solidity ^0.8.19;
 import { UD2x18 } from "prb-math/UD2x18.sol";
 import { convert } from "prb-math/UD60x18.sol";
 import { PrizePool } from "pt-v5-prize-pool/PrizePool.sol";
+import { SafeCast } from "openzeppelin/utils/math/SafeCast.sol";
 
 import { RewardLib } from "./libraries/RewardLib.sol";
 import { IRngAuctionRelayListener } from "./interfaces/IRngAuctionRelayListener.sol";
@@ -131,12 +132,9 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
     address _rewardRecipient,
     uint32 _sequenceId,
     AuctionResult calldata _rngAuctionResult
-  ) external onlyRngAuctionRelayer returns (bytes32) {
-    if (_sequenceHasCompleted(_sequenceId)) revert SequenceAlreadyCompleted();
-    uint64 _auctionElapsedSeconds = uint64(block.timestamp < _rngCompletedAt ? 0 : block.timestamp - _rngCompletedAt);
-    if (_auctionElapsedSeconds > (_auctionDurationSeconds-1)) revert AuctionExpired();
+  ) external onlyRngAuctionRelayer requireAuctionOpen(_sequenceId, _rngCompletedAt) returns (bytes32) {
     // Calculate the reward fraction and set the draw auction results
-    UD2x18 rewardFraction = _fractionalReward(_auctionElapsedSeconds);
+    UD2x18 rewardFraction = _fractionalReward(SafeCast.toUint64(_computeElapsed(_rngCompletedAt)));
     _auctionResults.rewardFraction = rewardFraction;
     _auctionResults.recipient = _rewardRecipient;
     _lastSequenceId = _sequenceId;
@@ -172,7 +170,7 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
   /// @notice Computes the actual rewards that will be distributed to the recipients using the current Prize Pool reserve.
   /// @param __auctionResults The auction results to use for calculation
   /// @return rewards The rewards that will be distributed
-  function computeRewards(AuctionResult[] calldata __auctionResults) external returns (uint256[] memory) {
+  function computeRewards(AuctionResult[] calldata __auctionResults) external view returns (uint256[] memory) {
     uint256 totalReserve = prizePool.reserve() + prizePool.reserveForOpenDraw();
     return _computeRewards(__auctionResults, totalReserve);
   }
@@ -181,7 +179,7 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
   /// @param __auctionResults The auction results to use for calculation
   /// @param _totalReserve The total reserve to use for calculation
   /// @return rewards The rewards that will be distributed.
-  function computeRewardsWithTotal(AuctionResult[] calldata __auctionResults, uint256 _totalReserve) external returns (uint256[] memory) {
+  function computeRewardsWithTotal(AuctionResult[] calldata __auctionResults, uint256 _totalReserve) external pure returns (uint256[] memory) {
     return _computeRewards(__auctionResults, _totalReserve);
   }
 
@@ -204,6 +202,12 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
     return _fractionalReward(_auctionElapsedTime);
   }
 
+  /// @notice Returns whether the auction is still open
+  /// @return True if the , false otherwise
+  function isAuctionOpen(uint32 _sequenceId, uint256 _rngCompletedAt) external view returns (bool) {
+    return !(_sequenceHasCompleted(_sequenceId) || _isAuctionExpired(_rngCompletedAt));
+  }
+
   /// @notice Returns the last completed sequence id
   function lastSequenceId() external view returns (uint32) {
     return _lastSequenceId;
@@ -220,12 +224,26 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
 
   /* ============ Internal Functions ============ */
 
+  /// @notice Returns whether the auction has expired
+  /// @param _rngCompletedAt The timestamp that the RNG was completed at. This is the RNG relay start time
+  /// @return True if the elapsed time has exceeded the auction duration.
+  function _isAuctionExpired(uint256 _rngCompletedAt) internal view returns (bool) {
+    return _computeElapsed(_rngCompletedAt) > _auctionDurationSeconds;
+  }
+
+  /// @notice Computes the elapsed time since the given timestamp. If in future, then it'll be zero.
+  /// @param _rngCompletedAt The timestamp that the RNG was completed at
+  /// @return The time that has elapsed since the given timestamp.
+  function _computeElapsed(uint256 _rngCompletedAt) internal view returns (uint256) {
+    return block.timestamp < _rngCompletedAt ? 0 : block.timestamp - _rngCompletedAt;
+  }
+
   /// @notice Computes the rewards for each reward recipient based on their reward fraction.
   /// @dev Note that the fractions compound, such that the second reward fraction is a fraction of the remained of the previous, etc.
   /// @param __auctionResults The auction results to use for calculation
   /// @param _totalReserve The total reserve to use for calculation
   /// @return The actual rewards for each reward recipient
-  function _computeRewards(AuctionResult[] calldata __auctionResults, uint256 _totalReserve) internal returns (uint256[] memory) {
+  function _computeRewards(AuctionResult[] calldata __auctionResults, uint256 _totalReserve) internal pure returns (uint256[] memory) {
     return RewardLib.rewards(__auctionResults, _totalReserve);
   }
 
@@ -251,6 +269,9 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
       );
   }
 
+  /// @notice Safely bounds a uint within uint96 size
+  /// @param a The uint to bound
+  /// @return a if a is less than or equal to uint96 max, otherwise uint96 max
   function _safeCast(uint256 a) internal pure returns (uint96) {
     return a > type(uint96).max ? type(uint96).max : uint96(a);
   }
@@ -261,6 +282,17 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
   modifier onlyRngAuctionRelayer() {
     if (msg.sender != rngAuctionRelayer) {
       revert UnauthorizedRelayer(msg.sender);
+    }
+    _;
+  }
+
+  /// @notice Requires that the sequence has not completed, and that the auction has not expired
+  /// @param _sequenceId The sequence ID of the auction
+  /// @param _rngCompletedAt The timestamp that the RNG was completed at
+  modifier requireAuctionOpen(uint32 _sequenceId, uint256 _rngCompletedAt) {
+    if (_sequenceHasCompleted(_sequenceId)) revert SequenceAlreadyCompleted();
+    if (_isAuctionExpired(_rngCompletedAt)) {
+      revert AuctionExpired();
     }
     _;
   }

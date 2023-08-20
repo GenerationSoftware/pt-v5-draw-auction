@@ -97,6 +97,31 @@ contract RngRelayAuctionTest is Helpers {
     assertFalse(rngRelayAuction.isSequenceCompleted(1));
   }
 
+  function testIsAuctionOpen_empty() public {
+    assertTrue(rngRelayAuction.isAuctionOpen(1, 0));
+  }
+
+  function testIsAuctionOpen_closedWhenCompleted() public {
+    mockCloseDraw(0x1234);
+    mockReserve(0);
+    vm.warp(10 days);
+    rngRelayAuction.rngComplete(
+      0x1234,
+      10 days,
+      address(this),
+      1,
+      AuctionResult({
+        recipient: address(this),
+        rewardFraction: UD2x18.wrap(0 ether)
+      })
+    );
+    assertFalse(rngRelayAuction.isAuctionOpen(1, auctionDurationSeconds));
+  }
+
+  function testIsAuctionOpen_closedWhenExpired() public {
+    assertFalse(rngRelayAuction.isAuctionOpen(0, auctionDurationSeconds));
+  }
+
   function testRngComplete_UnauthorizedRelayer() public {
     address bob = makeAddr("bob");
     vm.startPrank(bob);
@@ -121,11 +146,7 @@ contract RngRelayAuctionTest is Helpers {
     });
 
     mockCloseDraw(0x1234);
-    vm.mockCall(
-      address(prizePool),
-      abi.encodeWithSelector(prizePool.reserve.selector),
-      abi.encode(100e18)
-    );
+    mockReserve(100e18);
     mockWithdrawReserve(address(this), 10e18);
 
     vm.expectEmit(true, true, true, true);
@@ -199,7 +220,7 @@ contract RngRelayAuctionTest is Helpers {
       rewardFraction: UD2x18.wrap(0.1 ether)
     });
 
-    vm.warp(auctionDurationSeconds);
+    vm.warp(auctionDurationSeconds+1);
     vm.expectRevert(abi.encodeWithSelector(AuctionExpired.selector));
     rngRelayAuction.rngComplete(
       0x1234,
@@ -277,4 +298,11 @@ contract RngRelayAuctionTest is Helpers {
     );
   }
 
+  function mockReserve(uint value) public {
+    vm.mockCall(
+      address(prizePool),
+      abi.encodeWithSelector(prizePool.reserve.selector),
+      abi.encode(value)
+    );
+  }
 }
