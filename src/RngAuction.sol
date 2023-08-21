@@ -161,9 +161,10 @@ contract RngAuction is IAuction, Ownable {
    * @notice  Starts the RNG Request, ends the current auction, and stores the reward fraction to
    *          be allocated to the recipient.
    * @dev     Will revert if the current auction has already been completed or expired.
-   * @dev     If the RNG Service requests a `feeToken` for payment, the RNG-Request-Fee is expected
-   *          to be held within this contract before calling this function.
-   * @dev     If there is a pending RNGInstance (see _nextRng), it will be swapped in before the
+   * @dev     If the RNG service expects the fee to already be in possession, the caller should not
+   *          call this function directly and should instead call a helper function that transfers
+   *          the funds to the RNG service before calling this function.
+   * @dev     If there is a pending RNG service (see _nextRng), it will be swapped in before the
    *          auction is completed.
    * @param _rewardRecipient Address that will receive the auction reward for starting the RNG request
    */
@@ -176,13 +177,17 @@ contract RngAuction is IAuction, Ownable {
     if (_auctionElapsedTimeSeconds > auctionDuration) revert AuctionExpired();
 
     (address _feeToken, uint256 _requestFee) = rng.getRequestFee();
-    if (_feeToken != address(0) && _requestFee > 0) {
-      if (IERC20(_feeToken).balanceOf(address(this)) < _requestFee) {
-        // Transfer tokens from caller to this contract before continuing
-        IERC20(_feeToken).transferFrom(msg.sender, address(this), _requestFee);
-      }
-      // Increase allowance for the RNG service to take the request fee
-      IERC20(_feeToken).safeIncreaseAllowance(address(rng), _requestFee);
+    if (
+      _feeToken != address(0)
+      && _requestFee > 0
+      && IERC20(_feeToken).allowance(address(this), address(rng)) < _requestFee
+    ) {
+      /**
+       * Set approval for the RNG service to take the request fee to support RNG services
+       * that pull funds from the caller.
+       * NOTE: Not compatible with safeApprove or safeIncreaseAllowance.
+       */
+      IERC20(_feeToken).approve(address(rng), _requestFee);
     }
 
     (uint32 rngRequestId,) = rng.requestRandomNumber();
