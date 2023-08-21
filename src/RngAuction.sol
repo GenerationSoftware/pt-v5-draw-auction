@@ -345,7 +345,7 @@ contract RngAuction is IAuction, Ownable {
   /**
    * @notice Sets the RNG service used to generate random numbers.
    * @dev Only callable by the owner.
-   * @dev The service will not be udpated immediately so the current auction is not disturbed. Instead,
+   * @dev The service will not be updated immediately so the current auction is not disturbed. Instead,
    * it will be swapped out right before the next auction is completed.
    * @param _rngService Address of the new RNG service
    */
