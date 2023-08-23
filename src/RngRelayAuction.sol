@@ -76,19 +76,19 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
   /// @dev Note that this may be a Remote Owner if relayed over an ERC-5164 bridge.
   address public immutable rngAuctionRelayer;
 
-  /* ============ Variables ============ */
-
-  /// @notice The sequence ID that was used in the last auction
-  uint32 internal _lastSequenceId;
-
   /// @notice The auction duration in seconds
-  uint64 internal _auctionDurationSeconds;
+  uint64 internal immutable _auctionDurationSeconds;
 
   /// @notice The target time to complete the auction as a fraction of the auction duration
-  UD2x18 internal _auctionTargetTimeFraction;
+  UD2x18 internal immutable _auctionTargetTimeFraction;
+
+  /* ============ Variables ============ */
 
   /// @notice The last completed auction results
   AuctionResult internal _auctionResults;
+
+  /// @notice The sequence ID that was used in the last auction
+  uint32 internal _lastSequenceId;
 
   /* ============ Constructor ============ */
 
