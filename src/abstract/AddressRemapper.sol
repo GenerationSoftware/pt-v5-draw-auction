@@ -30,11 +30,8 @@ contract AddressRemapper {
    * @return The remapped destination address
    */
   function remappingOf(address _addr) public view returns (address) {
-    if (_destinationAddress[_addr] == address(0)) {
-      return _addr;
-    } else {
-      return _destinationAddress[_addr];
-    }
+    address destAddr = _destinationAddress[_addr];
+    return destAddr != address(0) ? destAddr : _addr;
   }
 
   /* ============ External Functions ============ */
