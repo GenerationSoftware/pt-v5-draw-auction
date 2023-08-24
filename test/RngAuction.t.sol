@@ -144,30 +144,7 @@ contract RngAuctionTest is Helpers {
     rngAuction.startRngRequest(_recipient);
   }
 
-  function testStartRngRequest_PayWithAllowance_NoAllowance() public {
-    // Warp to end of auction
-    vm.warp(sequenceOffset + sequencePeriod + auctionDuration);
-
-    // Variables
-    uint32 _rngRequestId = 1;
-    uint32 _lockBlock = uint32(block.number);
-    uint256 _fee = 2e18;
-
-    // Mint fee to user
-    rngFeeToken.mint(address(this), _fee);
-
-    // Mock calls
-    _mockRngInterface_startRngRequest(rng, address(rngFeeToken), _fee, _rngRequestId, _lockBlock);
-
-    // Remove allowance
-    rngFeeToken.approve(address(rngAuction), 0);
-
-    // Tests
-    vm.expectRevert("ERC20: insufficient allowance");
-    rngAuction.startRngRequest(_recipient);
-  }
-
-  function testStartRngRequest_PayWithAllowance() public {
+  function testStartRngRequest_PayWithAllowance_success() public {
     // Warp to end of auction
     vm.warp(sequenceOffset + sequencePeriod + auctionDuration);
 
@@ -179,15 +156,10 @@ contract RngAuctionTest is Helpers {
     // Mock calls
     _mockRngInterface_startRngRequest(rng, address(rngFeeToken), _fee, _rngRequestId, _lockBlock);
 
-    // Mint fee to user
-    rngFeeToken.mint(address(this), _fee);
-
-    // Set allowance
-    rngFeeToken.approve(address(rngAuction), _fee);
+    // Mint fee to rng auction
+    rngFeeToken.mint(address(rngAuction), _fee);
 
     // Tests
-    vm.expectEmit();
-    emit Transfer(address(this), address(rngAuction), _fee);
     vm.expectEmit();
     emit Approval(address(rngAuction), address(rng), _fee);
     rngAuction.startRngRequest(_recipient);
