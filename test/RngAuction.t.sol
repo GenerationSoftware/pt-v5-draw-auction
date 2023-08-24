@@ -17,7 +17,8 @@ import {
   RngZeroAddress,
   CannotStartNextSequence,
   AuctionTargetTimeZero,
-  AuctionExpired
+  AuctionExpired,
+  OwnerZeroAddress
 } from "../src/RngAuction.sol";
 
 contract RngAuctionTest is Helpers {
@@ -77,6 +78,18 @@ contract RngAuctionTest is Helpers {
     assertEq(rngAuction.sequenceOffset(), sequenceOffset);
     assertEq(rngAuction.auctionDuration(), auctionDuration);
     assertEq(rngAuction.auctionTargetTime(), auctionTargetTime);
+  }
+
+  function testConstructor_OwnerZeroAddress() public {
+    vm.expectRevert(abi.encodeWithSelector(OwnerZeroAddress.selector));
+    new RngAuction(
+      rng,
+      address(0), // owner
+      sequencePeriod,
+      sequenceOffset,
+      auctionDuration,
+      auctionTargetTime
+    );
   }
 
   /* ============ startRngRequest() ============ */

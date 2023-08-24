@@ -62,6 +62,9 @@ error CannotStartNextSequence();
 /// @notice Thrown if the time elapsed since the start of the auction is greater than the auction duration.
 error AuctionExpired();
 
+/// @notice Thrown if owner set is the zero address.
+error OwnerZeroAddress();
+
 /**
  * @title PoolTogether V5 RngAuction
  * @author Generation Software Team
@@ -145,6 +148,7 @@ contract RngAuction is IAuction, Ownable {
     uint64 auctionDurationSeconds_,
     uint64 auctionTargetTime_
   ) Ownable(owner_) {
+    if (address(0) == owner_) revert OwnerZeroAddress();
     if (sequencePeriod_ == 0) revert SequencePeriodZero();
     if (auctionTargetTime_ > auctionDurationSeconds_) revert AuctionTargetTimeExceedsDuration(uint64(auctionTargetTime_), uint64(auctionDurationSeconds_));
     sequencePeriod = sequencePeriod_;
