@@ -328,22 +328,6 @@ contract RngAuction is IAuction, Ownable {
     return _nextRng;
   }
 
-  /**
-   * @notice Returns the sequence offset.
-   * @return The sequence offset in seconds
-   */
-  function getSequenceOffset() external view returns (uint64) {
-    return sequenceOffset;
-  }
-
-  /**
-   * @notice Returns the sequence period.
-   * @return The sequence period in seconds
-   */
-  function getSequencePeriod() external view returns (uint64) {
-    return sequencePeriod;
-  }
-
   /* ============ Setters ============ */
 
   /**
