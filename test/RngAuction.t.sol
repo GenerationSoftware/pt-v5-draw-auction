@@ -588,16 +588,16 @@ contract RngAuctionTest is Helpers {
     assertEq(address(rngAuction.getNextRngService()), address(rng));
   }
 
-  /* ============ getSequenceOffset() ============ */
+  /* ============ sequenceOffset() ============ */
 
-  function testGetSequenceOffset() public {
-    assertEq(rngAuction.getSequenceOffset(), sequenceOffset);
+  function testSequenceOffset() public {
+    assertEq(rngAuction.sequenceOffset(), sequenceOffset);
   }
 
-  /* ============ getSequencePeriod() ============ */
+  /* ============ sequencePeriod() ============ */
 
-  function testGetSequencePeriod() public {
-    assertEq(rngAuction.getSequencePeriod(), sequencePeriod);
+  function testSequencePeriod() public {
+    assertEq(rngAuction.sequencePeriod(), sequencePeriod);
   }
 
   /* ============ setNextRngService() ============ */
