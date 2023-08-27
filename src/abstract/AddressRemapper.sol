@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 /**
  * @title AddressRemapper
- * @author Generation Software Team
+ * @author G9 Software Inc.
  * @notice Allows addresses to provide a remapping to a new address.
  * @dev The RngAuction lives on L1, but the rewards are given out on L2s. This contract allows the L1 reward recipients to remap their addresses to their L2 addresses if needed.
  */
@@ -26,8 +26,9 @@ contract AddressRemapper {
 
   /**
    * @notice Retrieves the remapping for the given address.
+   * @param _addr The address to check for remappings
    * @dev If the address does not have a remapping, the input address will be returned.
-   * @return The remapped destination address
+   * @return The remapped destination address for `_addr`
    */
   function remappingOf(address _addr) public view returns (address) {
     if (_destinationAddress[_addr] == address(0)) {
