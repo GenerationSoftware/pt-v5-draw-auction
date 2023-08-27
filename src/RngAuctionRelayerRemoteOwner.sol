@@ -55,7 +55,7 @@ contract RngAuctionRelayerRemoteOwner is RngAuctionRelayer {
         IRngAuctionRelayListener _remoteRngAuctionRelayListener,
         address _rewardRecipient
     ) external returns (bytes32) {
-        bytes memory listenerCalldata = encodeCalldata(_rewardRecipient);
+        bytes memory listenerCalldata = _encodeCalldata(_rewardRecipient);
         bytes32 messageId = _messageDispatcher.dispatchMessage(
             _remoteOwnerChainId,
             address(_remoteOwner),
