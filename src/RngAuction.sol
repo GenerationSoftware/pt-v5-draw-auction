@@ -320,7 +320,8 @@ contract RngAuction is IAuction, Ownable {
   {
     RNGInterface rng = _lastAuction.rng;
     uint32 requestId = _lastAuction.rngRequestId;
-    return (rng.randomNumber(requestId), rng.completedAt(requestId));
+    randomNumber = rng.randomNumber(requestId);
+    rngCompletedAt = rng.completedAt(requestId);
   }
 
   /// @notice Computes the reward fraction for the given auction elapsed time.
