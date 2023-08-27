@@ -53,7 +53,8 @@ contract RewardLibTest is Test {
             prizePool,
             address(rngAuctionRelayerDirect),
             auctionDurationSeconds,
-            auctionTargetTime
+            auctionTargetTime,
+            10000e18
         );
     }
 
