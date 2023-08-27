@@ -362,14 +362,6 @@ contract RngAuction is IAuction, Ownable {
   /* ============ Internal Functions ============ */
 
   /**
-   * @notice Returns the current timestamp.
-   * @return The current timestamp.
-   */
-  function _currentTime() internal view returns (uint64) {
-    return uint64(block.timestamp);
-  }
-
-  /**
    * @notice Calculates a unique identifier for the current sequence.
    * @return The current sequence ID.
    */
@@ -378,7 +370,7 @@ contract RngAuction is IAuction, Ownable {
      * Use integer division to calculate a unique ID based off the current timestamp that will remain the same
      * throughout the entire sequence.
      */
-    uint64 currentTime = _currentTime();
+    uint64 currentTime = uint64(block.timestamp);
     if (currentTime < sequenceOffset) {
       return 0;
     }
@@ -390,11 +382,11 @@ contract RngAuction is IAuction, Ownable {
    * @return The elapsed time since the start of the current RNG auction in seconds.
    */
   function _auctionElapsedTime() internal view returns (uint64) {
-    uint64 currentTime = _currentTime();
+    uint64 currentTime = uint64(block.timestamp);
     if (currentTime < sequenceOffset) {
       return 0;
     }
-    return (_currentTime() - sequenceOffset) % sequencePeriod;
+    return (uint64(block.timestamp) - sequenceOffset) % sequencePeriod;
   }
 
   /**
