@@ -44,6 +44,9 @@ error PrizePoolZeroAddress();
 /// @notice Thrown if the max reward is zero.
 error MaxRewardIsZero();
 
+/// @notice Emitted when recipient is zero
+error RewardRecipientIsZeroAddress(uint256 index);
+
 /**
  * @title   RngRelayAuction
  * @author  G9 Software Inc.
@@ -170,6 +173,10 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
     );
 
     for (uint8 i = 0; i < _rewards.length; i++) {
+      address _recipient = auctionResults[i].recipient;
+      if (_recipient == address(0)) {
+        revert RewardRecipientIsZeroAddress(i);
+      }
       uint96 _reward = _safeCast(_rewards[i]);
       if (_reward > 0) {
         prizePool.withdrawReserve(auctionResults[i].recipient, _reward);

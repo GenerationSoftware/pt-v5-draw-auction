@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import {
     RngAuctionRelayer,
+    RngAuctionIsZeroAddress,
     RngAuction,
     IRngAuctionRelayListener
 } from "./abstract/RngAuctionRelayer.sol";

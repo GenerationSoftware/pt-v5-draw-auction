@@ -10,12 +10,15 @@ import { AuctionResult } from "../src/interfaces/IAuction.sol";
 
 import { RngRelayerBaseTest } from "./helpers/RngRelayerBaseTest.sol";
 
-import { RngNotCompleted } from "../src/abstract/RngAuctionRelayer.sol";
+import { RngNotCompleted, RewardRecipientIsZeroAddress } from "../src/abstract/RngAuctionRelayer.sol";
 
 import {
     RngAuctionRelayerRemoteOwner,
     IMessageDispatcher,
     RemoteOwner,
+    MessageDispatcherIsZeroAddress,
+    RemoteOwnerIsZeroAddress,
+    RemoteRngAuctionRelayListenerIsZeroAddress,
     RemoteOwnerCallEncoder
 } from "../src/RngAuctionRelayerRemoteOwner.sol";
 
@@ -92,5 +95,50 @@ contract RngAuctionRelayerRemoteOwnerTest is RngRelayerBaseTest {
             address(this)
         ), bytes32(uint(9999)));
     }
+
+    function testRelay_MessageDispatcherIsZeroAddress() public {
+        vm.expectRevert(abi.encodeWithSelector(MessageDispatcherIsZeroAddress.selector));
+        relayer.relay(
+            IMessageDispatcher(address(0)),
+            remoteOwnerChainId,
+            remoteOwner,
+            rngAuctionRelayListener,
+            address(this)
+        );
+    }
+
+    function testRelay_RemoteOwnerIsZeroAddress() public {
+        vm.expectRevert(abi.encodeWithSelector(RemoteOwnerIsZeroAddress.selector));
+        relayer.relay(
+            messageDispatcher,
+            remoteOwnerChainId,
+            RemoteOwner(address(0)),
+            rngAuctionRelayListener,
+            address(this)
+        );
+    }
+
+    function testRelay_RemoteRngAuctionRelayListenerIsZeroAddress() public {
+        vm.expectRevert(abi.encodeWithSelector(RemoteRngAuctionRelayListenerIsZeroAddress.selector));
+        relayer.relay(
+            messageDispatcher,
+            remoteOwnerChainId,
+            remoteOwner,
+            IRngAuctionRelayListener(address(0)),
+            address(this)
+        );
+    }
+
+    function testRelay_RewardRecipientIsZeroAddress() public {
+        vm.expectRevert(abi.encodeWithSelector(RewardRecipientIsZeroAddress.selector));
+        relayer.relay(
+            messageDispatcher,
+            remoteOwnerChainId,
+            remoteOwner,
+            rngAuctionRelayListener,
+            address(0)
+        );
+    }
+
 
 }
