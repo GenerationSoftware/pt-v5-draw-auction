@@ -324,6 +324,8 @@ contract RngAuction is IAuction, Ownable {
   }
 
   /// @notice Computes the reward fraction for the given auction elapsed time.
+  /// @param __auctionElapsedTime The elapsed time of the auction in seconds
+  /// @return The reward fraction as a UD2x18 value
   function computeRewardFraction(uint64 __auctionElapsedTime) external view returns (UD2x18) {
     return _computeRewardFraction(__auctionElapsedTime);
   }
