@@ -67,9 +67,9 @@ error OwnerZeroAddress();
 
 /**
  * @title PoolTogether V5 RngAuction
- * @author Generation Software Team
+ * @author G9 Software Inc.
  * @notice The RngAuction allows anyone to request a new random number using the RNG service set.
- *         The auction incetivises RNG requests to be started in-sync with prize pool draw
+ *         The auction incentivises RNG requests to be started in-sync with prize pool draw
  *         periods across all chains.
  */
 contract RngAuction is IAuction, Ownable {
@@ -117,6 +117,8 @@ contract RngAuction is IAuction, Ownable {
    * @notice Emitted when the auction is completed.
    * @param recipient The recipient of the auction awards
    * @param sequenceId The sequence ID for the auction
+   * @param rng The RNGInterface that was used for this auction
+   * @param rngRequestId The RNGInterface request ID
    * @param elapsedTime The amount of time that the auction ran for in seconds
    * @param rewardFraction The fraction of the available rewards to be sent to the recipient
    */
@@ -219,37 +221,53 @@ contract RngAuction is IAuction, Ownable {
   /* ============ State Functions ============ */
 
   /**
+   * @notice Returns whether the RNG request has been started for the current sequence.
    * @dev The auction is complete when the RNG has been requested for the current sequence.
+   * @return True if the RNG request has been started, false otherwise.
    */
   function canStartNextSequence() external view returns (bool) {
     return _canStartNextSequence();
   }
 
   /**
+   * @notice Checks if the auction is still open and if it can be completed.
    * @dev The auction is open if RNG has not been requested yet this sequence and the
    * auction has not expired.
+   * @return True if the auction is open and can be completed, false otherwise.
    */
   function isAuctionOpen() external view returns (bool) {
     return _canStartNextSequence() && _auctionElapsedTime() <= auctionDuration;
   }
 
-  /// @notice The amount of time remaining in the current open auction
-  /// @return The elapsed time since the auction started
+  /**
+   * @notice The amount of time remaining in the current open auction
+   * @return The elapsed time since the auction started in seconds
+   */
   function auctionElapsedTime() external view returns (uint64) {
     return _auctionElapsedTime();
   }
 
-  /// @notice The current reward as a fraction.
+  /**
+   * @notice Calculates the reward fraction for the current auction if it were to be completed at this time.
+   * @dev Uses the last sold fraction as the target price for this auction.
+   * @return The current reward fraction as a UD2x18 value
+   */
   function currentFractionalReward() external view returns (UD2x18) {
     return _currentFractionalReward();
   }
 
-  /// @notice Returns the last rng auction result.
+  /**
+   * @notice The last auction results.
+   * @return RngAuctionResults struct from the last auction.
+   */
   function getLastAuction() external view returns (RngAuctionResult memory) {
     return _lastAuction;
   }
 
-  /// @notice Returns the last auction as a AuctionResult struct to be used to calculate rewards
+  /**
+   * @notice Returns the last auction as an AuctionResult struct to be used to calculate rewards.
+   * @return AuctionResult struct with data from the last auction
+   */
   function getLastAuctionResult()
     external
     view
@@ -272,7 +290,7 @@ contract RngAuction is IAuction, Ownable {
   }
 
   /**
-   * @notice Returns the last sequence ID.
+   * @notice Returns the sequence ID from the last auction.
    * @return The last sequence ID.
    */
   function lastSequenceId() external view returns (uint32) {
@@ -400,6 +418,7 @@ contract RngAuction is IAuction, Ownable {
 
   /**
    * @notice Returns whether the RNG request has been started for the current sequence.
+   * @dev The auction is complete when the RNG has been requested for the current sequence.
    * @return True if the RNG request has been started, false otherwise.
    */
   function _canStartNextSequence() internal view returns (bool) {
@@ -407,7 +426,7 @@ contract RngAuction is IAuction, Ownable {
   }
 
   /**
-   * @notice Returns whether the RNG request has completed or not for the current sequence ID.
+   * @notice Returns whether the RNG request has completed or not for the current sequence.
    * @return True if the RNG request has completed, false otherwise.
    */
   function _isRngComplete() internal view returns (bool) {

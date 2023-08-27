@@ -126,6 +126,7 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
   /// @param _rewardRecipient The recipient of the relay auction reward
   /// @param _sequenceId The sequence ID of the auction
   /// @param _rngAuctionResult The result of the RNG auction
+  /// @return The closed draw ID converted to bytes32
   function rngComplete(
     uint256 _randomNumber,
     uint256 _rngCompletedAt,
