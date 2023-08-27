@@ -302,7 +302,9 @@ contract RngAuction is IAuction, Ownable {
    * @return True if the RNG request has completed, false otherwise.
    */
   function isRngComplete() external view returns (bool) {
-    return _isRngComplete();
+    RNGInterface rng = _lastAuction.rng;
+    uint32 requestId = _lastAuction.rngRequestId;
+    return !_canStartNextSequence() && rng.isRequestComplete(requestId);
   }
 
   /**
@@ -429,16 +431,6 @@ contract RngAuction is IAuction, Ownable {
    */
   function _canStartNextSequence() internal view returns (bool) {
     return _lastAuction.sequenceId != _openSequenceId();
-  }
-
-  /**
-   * @notice Returns whether the RNG request has completed or not for the current sequence.
-   * @return True if the RNG request has completed, false otherwise.
-   */
-  function _isRngComplete() internal view returns (bool) {
-    RNGInterface rng = _lastAuction.rng;
-    uint32 requestId = _lastAuction.rngRequestId;
-    return !_canStartNextSequence() && rng.isRequestComplete(requestId);
   }
 
   /**
