@@ -34,6 +34,9 @@ abstract contract RngAuctionRelayer is AddressRemapper {
         AuctionResult memory results = rngAuction.getLastAuctionResult();
         uint32 sequenceId = rngAuction.openSequenceId();
         results.recipient = remappingOf(results.recipient);
-        return abi.encodeCall(IRngAuctionRelayListener.rngComplete, (randomNumber, rngCompletedAt, rewardRecipient, sequenceId, results));
+        return abi.encodeCall(
+            IRngAuctionRelayListener.rngComplete,
+            (randomNumber, rngCompletedAt, rewardRecipient, sequenceId, results)
+        );
     }
 }
