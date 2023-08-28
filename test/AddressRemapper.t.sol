@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import "forge-std/Test.sol";
 
-import { AddressRemapperHarness } from "test/harness/AddressRemapperHarness.sol";
+import { AddressRemapper } from "../src/abstract/AddressRemapper.sol";
 
 contract AddressRemapperTest is Test {
   /* ============ Events ============ */
@@ -12,48 +12,53 @@ contract AddressRemapperTest is Test {
 
   /* ============ Variables ============ */
 
-  AddressRemapperHarness public addressRemapper;
+  AddressRemapper public addressRemapper;
 
   function setUp() public {
-    addressRemapper = new AddressRemapperHarness();
+    addressRemapper = new AddressRemapper();
   }
 
   /* ============ _remap ============ */
 
   function testRemap() public {
-    address _bob = address(1);
-    address _destination = address(2);
+    address bob = makeAddr("bob");
+    address alice = makeAddr("alice");
 
     vm.expectEmit();
-    emit AddressRemapped(_bob, _destination);
+    emit AddressRemapped(bob, alice);
 
-    addressRemapper.remap(_bob, _destination);
+    vm.prank(bob);
+    addressRemapper.remapTo(alice);
 
-    assertEq(addressRemapper.remappingOf(_bob), _destination);
+    assertEq(addressRemapper.remappingOf(bob), alice);
   }
 
   function testRemapClear() public {
-    address _bob = address(1);
-    address _destination = address(2);
+    address bob = makeAddr("bob");
+    address alice = makeAddr("alice");
 
-    assertEq(addressRemapper.remappingOf(_bob), _bob); // no remapping set
+    assertEq(addressRemapper.remappingOf(bob), bob); // no remapping set
 
-    addressRemapper.remap(_bob, _destination);
-    assertEq(addressRemapper.remappingOf(_bob), _destination); // remapping set
+    vm.prank(bob);
+    addressRemapper.remapTo(alice);
+    assertEq(addressRemapper.remappingOf(bob), alice); // remapping set
 
-    addressRemapper.remap(_bob, address(0)); // remapping cleared
-    assertEq(addressRemapper.remappingOf(_bob), _bob);
+    vm.prank(bob);
+    addressRemapper.remapTo(address(0)); // remapping cleared
+    assertEq(addressRemapper.remappingOf(bob), bob);
   }
 
   function testRemapToSelf() public {
-    address _bob = address(1);
-    address _destination = address(2);
+    address bob = makeAddr("bob");
+    address alice = makeAddr("alice");
 
-    addressRemapper.remap(_bob, _destination);
-    assertEq(addressRemapper.remappingOf(_bob), _destination); // remapping set
+    vm.prank(bob);
+    addressRemapper.remapTo(alice);
+    assertEq(addressRemapper.remappingOf(bob), alice); // remapping set
 
-    addressRemapper.remap(_bob, _bob); // remapping to self
-    assertEq(addressRemapper.remappingOf(_bob), _bob);
+    vm.prank(bob);
+    addressRemapper.remapTo(bob); // remapping to self
+    assertEq(addressRemapper.remappingOf(bob), bob);
   }
 
   /* ============ remappingOf ============ */
@@ -66,16 +71,16 @@ contract AddressRemapperTest is Test {
   /* ============ remapTo ============ */
 
   function testRemapTo() public {
-    address _bob = address(1);
-    address _destination = address(2);
+    address bob = makeAddr("bob");
+    address alice = makeAddr("alice");
 
     vm.expectEmit();
-    emit AddressRemapped(_bob, _destination);
+    emit AddressRemapped(bob, alice);
 
-    vm.startPrank(_bob);
-    addressRemapper.remapTo(_destination);
+    vm.startPrank(bob);
+    addressRemapper.remapTo(alice);
 
-    assertEq(addressRemapper.remappingOf(_bob), _destination);
+    assertEq(addressRemapper.remappingOf(bob), alice);
 
     vm.stopPrank();
   }

@@ -46,18 +46,12 @@ contract AddressRemapper {
    * @dev Reset the destination to the zero address to remove the remapping.
    */
   function remapTo(address _destination) external {
-    _remap(msg.sender, _destination);
-  }
-
-  /* ============ Internal Functions ============ */
-
-  /**
-   * @notice Remaps a caller address to the specified destination address
-   * @param _caller The caller address
-   * @param _destination The destination address to remap caller to
-   */
-  function _remap(address _caller, address _destination) internal {
-    _destinationAddress[_caller] = _destination;
-    emit AddressRemapped(_caller, _destination);
+    if (_destination == address(0) || _destination == msg.sender) {
+      delete _destinationAddress[msg.sender];
+      emit AddressRemapped(msg.sender, msg.sender);
+    } else {
+      _destinationAddress[msg.sender] = _destination;
+      emit AddressRemapped(msg.sender, _destination);
+    }
   }
 }
