@@ -41,6 +41,9 @@ error AuctionExpired();
 /// @notice Thrown if the PrizePool address is the zero address.
 error PrizePoolZeroAddress();
 
+/// @notice Thrown if the max reward is zero.
+error MaxRewardIsZero();
+
 /**
  * @title   RngRelayAuction
  * @author  G9 Software Inc.
@@ -82,6 +85,9 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
   /// @notice The target time to complete the auction as a fraction of the auction duration
   UD2x18 internal immutable _auctionTargetTimeFraction;
 
+  /// @notice The maximum number of rewards that will be distributed per sequence.
+  uint256 public immutable maxRewards;
+
   /* ============ Variables ============ */
 
   /// @notice The last completed auction results
@@ -97,11 +103,13 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
   /// @param _rngAuctionRelayer The relayer that RNG results must originate from
   /// @param auctionDurationSeconds_ The auction duration in seconds
   /// @param auctionTargetTime_ The target time to complete the auction
+  /// @param _maxRewards The maximum number of rewards that will be distributed per sequence.
   constructor(
     PrizePool prizePool_,
     address _rngAuctionRelayer,
     uint64 auctionDurationSeconds_,
-    uint64 auctionTargetTime_
+    uint64 auctionTargetTime_,
+    uint256 _maxRewards
   ) {
     if (address(prizePool_) == address(0)) revert PrizePoolZeroAddress();
     prizePool = prizePool_;
@@ -116,6 +124,10 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
     _auctionTargetTimeFraction = UD2x18.wrap(
       uint64(convert(auctionTargetTime_).div(convert(_auctionDurationSeconds)).unwrap())
     );
+    if (_maxRewards == 0) {
+      revert MaxRewardIsZero();
+    }
+    maxRewards = _maxRewards;
   }
 
   /* ============ External Functions ============ */
@@ -150,7 +162,7 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
     uint32 drawId = prizePool.closeDraw(_randomNumber);
 
     uint256 reserve = prizePool.reserve();
-    uint256[] memory _rewards = RewardLib.rewards(auctionResults, reserve);
+    uint256[] memory _rewards = RewardLib.rewards(auctionResults, reserve > maxRewards ? maxRewards : reserve);
 
     emit RngSequenceCompleted(
       _sequenceId,
@@ -175,7 +187,7 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
     AuctionResult[] calldata __auctionResults
   ) external view returns (uint256[] memory) {
     uint256 totalReserve = prizePool.reserve() + prizePool.reserveForOpenDraw();
-    return _computeRewards(__auctionResults, totalReserve);
+    return _computeRewards(__auctionResults, totalReserve > maxRewards ? maxRewards : totalReserve);
   }
 
   /// @notice Computes the actual rewards that will be distributed to the recipients given the passed total reserve

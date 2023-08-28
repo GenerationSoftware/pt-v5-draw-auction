@@ -14,6 +14,7 @@ import {
   AuctionExpired,
   PrizePoolZeroAddress,
   UnauthorizedRelayer,
+  MaxRewardIsZero,
   AuctionTargetTimeExceedsDuration
 } from "../src/RngRelayAuction.sol";
 
@@ -46,6 +47,7 @@ contract RngRelayAuctionTest is Helpers {
   PrizePool prizePool;
   uint64 auctionDurationSeconds = 1 hours;
   uint64 auctionTargetTime = 1;
+  uint256 maxRewards = 1000e18;
 
   address alice;
 
@@ -54,7 +56,7 @@ contract RngRelayAuctionTest is Helpers {
     prizePool = PrizePool(makeAddr("prizePool"));
     vm.etch(address(prizePool), "prizePool");
 
-    rngRelayAuction = new RngRelayAuction(prizePool, address(this), auctionDurationSeconds, auctionTargetTime);
+    rngRelayAuction = new RngRelayAuction(prizePool, address(this), auctionDurationSeconds, auctionTargetTime, maxRewards);
   }
 
   function testConstructor() public {
@@ -65,27 +67,32 @@ contract RngRelayAuctionTest is Helpers {
 
   function testConstructor_PrizePoolZeroAddress() public {
     vm.expectRevert(abi.encodeWithSelector(PrizePoolZeroAddress.selector));
-    new RngRelayAuction(PrizePool(address(0)), address(this), auctionDurationSeconds, auctionTargetTime);
+    new RngRelayAuction(PrizePool(address(0)), address(this), auctionDurationSeconds, auctionTargetTime, maxRewards);
   }
 
   function testConstructor_RngRelayerZeroAddress() public {
     vm.expectRevert(abi.encodeWithSelector(RngRelayerZeroAddress.selector));
-    new RngRelayAuction(prizePool, address(0), auctionDurationSeconds, auctionTargetTime);
+    new RngRelayAuction(prizePool, address(0), auctionDurationSeconds, auctionTargetTime, maxRewards);
   }
 
   function testConstructor_AuctionDurationZero() public {
     vm.expectRevert(abi.encodeWithSelector(AuctionDurationZero.selector));
-    new RngRelayAuction(prizePool, address(this), 0, auctionTargetTime);
+    new RngRelayAuction(prizePool, address(this), 0, auctionTargetTime, maxRewards);
+  }
+
+  function testConstructor_MaxRewardIsZero() public {
+    vm.expectRevert(abi.encodeWithSelector(MaxRewardIsZero.selector));
+    new RngRelayAuction(prizePool, address(this), auctionDurationSeconds, auctionTargetTime, 0);
   }
 
   function testConstructor_AuctionTargetTimeZero() public {
     vm.expectRevert(abi.encodeWithSelector(AuctionTargetTimeZero.selector));
-    new RngRelayAuction(prizePool, address(this), auctionDurationSeconds, 0);
+    new RngRelayAuction(prizePool, address(this), auctionDurationSeconds, 0, maxRewards);
   }
 
   function testConstructor_AuctionTargetTimeExceedsDuration() public {
     vm.expectRevert(abi.encodeWithSelector(AuctionTargetTimeExceedsDuration.selector, 1 hours, 2 hours));
-    new RngRelayAuction(prizePool, address(this), 1 hours, 2 hours);
+    new RngRelayAuction(prizePool, address(this), 1 hours, 2 hours, maxRewards);
   }
 
   function testFractionalReward() public {
@@ -186,6 +193,54 @@ contract RngRelayAuctionTest is Helpers {
     assertEq(r.rewardFraction.unwrap(), 249861091820989143, "reward fraction is about a quarter (halfway through parabola)");
   }
 
+
+  function testRngComplete_maxRewards() public {
+    rngRelayAuction = new RngRelayAuction(prizePool, address(this), auctionDurationSeconds, auctionTargetTime, 10e18);
+
+    AuctionResult memory results = AuctionResult({
+      recipient: address(this),
+      rewardFraction: UD2x18.wrap(0.1 ether)
+    });
+
+    mockCloseDraw(0x1234);
+    mockReserve(100e18);
+    mockWithdrawReserve(address(this), 1e18);
+
+
+    vm.expectEmit(true, true, true, true);
+    emit AuctionRewardDistributed(
+      1,
+      address(this),
+      0,
+      1e18
+    );
+    vm.expectEmit(true, true, true, true);
+    emit AuctionRewardDistributed(
+      1,
+      alice,
+      1,
+      2.248749826388902287e18
+    );
+
+    uint completedAt = block.timestamp;
+    vm.warp(completedAt + auctionDurationSeconds/2);
+    rngRelayAuction.rngComplete(
+      0x1234,
+      completedAt,
+      alice,
+      1,
+      results
+    );
+
+    assertEq(rngRelayAuction.lastSequenceId(), 1, "sequence id is now 1");
+    assertTrue(rngRelayAuction.isSequenceCompleted(1), "sequence 1 auction is complete");
+
+    AuctionResult memory r = rngRelayAuction.getLastAuctionResult();
+    assertEq(r.recipient, alice);
+    assertEq(r.rewardFraction.unwrap(), 249861091820989143, "reward fraction is about a quarter (halfway through parabola)");
+  }
+
+
   function testRngComplete_SequenceAlreadyCompleted() public {
     AuctionResult memory results = AuctionResult({
       recipient: address(this),
@@ -247,6 +302,26 @@ contract RngRelayAuctionTest is Helpers {
 
     assertEq(rewards[0], 10e18, "reward 0");
     assertEq(rewards[1], 45e18, "reward 1");
+  }
+
+  function testComputeRewards_maxRewards() public {
+    rngRelayAuction = new RngRelayAuction(prizePool, address(this), auctionDurationSeconds, auctionTargetTime, 10e18);
+
+    AuctionResult[] memory results = new AuctionResult[](2);
+    results[0] = AuctionResult({
+      recipient: address(this),
+      rewardFraction: UD2x18.wrap(0.1 ether)
+    });
+    results[1] = AuctionResult({
+      recipient: address(this),
+      rewardFraction: UD2x18.wrap(0.5 ether)
+    });
+
+    mockPrizePoolReserve(100e18);
+    uint256[] memory rewards = rngRelayAuction.computeRewards(results);
+
+    assertEq(rewards[0], 1e18, "reward 0");
+    assertEq(rewards[1], 4.5e18, "reward 1");
   }
 
   function testComputeRewardsWithTotal() public {
