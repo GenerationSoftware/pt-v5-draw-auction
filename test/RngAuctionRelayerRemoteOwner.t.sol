@@ -14,7 +14,7 @@ import { RngNotCompleted } from "../src/abstract/RngAuctionRelayer.sol";
 
 import {
     RngAuctionRelayerRemoteOwner,
-    ISingleMessageDispatcher,
+    IMessageDispatcher,
     RemoteOwner,
     RemoteOwnerCallEncoder
 } from "../src/RngAuctionRelayerRemoteOwner.sol";
@@ -22,7 +22,7 @@ import {
 contract RngAuctionRelayerRemoteOwnerTest is RngRelayerBaseTest {
 
     event RelayedToDispatcher(
-        ISingleMessageDispatcher messageDispatcher,
+        IMessageDispatcher messageDispatcher,
         uint256 indexed remoteOwnerChainId,
         RemoteOwner remoteOwner,
         IRngAuctionRelayListener remoteRngAuctionRelayListener,
@@ -32,14 +32,14 @@ contract RngAuctionRelayerRemoteOwnerTest is RngRelayerBaseTest {
 
     RngAuctionRelayerRemoteOwner relayer;
 
-    ISingleMessageDispatcher messageDispatcher;
+    IMessageDispatcher messageDispatcher;
     RemoteOwner remoteOwner;
     uint256 remoteOwnerChainId = 1;
 
     function setUp() public override {
         super.setUp();
-        messageDispatcher = ISingleMessageDispatcher(makeAddr("messageDispatcher"));
-        remoteOwner = RemoteOwner(makeAddr("remoteOwner"));
+        messageDispatcher = IMessageDispatcher(makeAddr("messageDispatcher"));
+        remoteOwner = RemoteOwner(payable(makeAddr("remoteOwner")));
 
         relayer = new RngAuctionRelayerRemoteOwner(
             rngAuction
