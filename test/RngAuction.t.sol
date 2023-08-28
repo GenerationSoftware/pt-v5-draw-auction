@@ -18,6 +18,7 @@ import {
   CannotStartNextSequence,
   AuctionTargetTimeZero,
   AuctionExpired,
+  RewardRecipientIsZero,
   OwnerZeroAddress
 } from "../src/RngAuction.sol";
 
@@ -168,6 +169,11 @@ contract RngAuctionTest is Helpers {
     // Try to complete again
     vm.expectRevert(abi.encodeWithSelector(CannotStartNextSequence.selector));
     rngAuction.startRngRequest(_recipient);
+  }
+
+  function testStartRngRequest_RewardRecipientIsZero() public {
+    vm.expectRevert(abi.encodeWithSelector(RewardRecipientIsZero.selector));
+    rngAuction.startRngRequest(address(0));
   }
 
   function testStartRngRequest_PayWithAllowance_success() public {
