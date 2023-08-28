@@ -35,7 +35,7 @@ contract RngAuctionRelayerDirect is RngAuctionRelayer {
         IRngAuctionRelayListener _rngAuctionRelayListener,
         address _relayRewardRecipient
     ) external returns (bytes memory) {
-        bytes memory data = encodeCalldata(_relayRewardRecipient);
+        bytes memory data = _encodeCalldata(_relayRewardRecipient);
         (bool success, bytes memory returnData) = address(_rngAuctionRelayListener).call(data);
         if (!success) {
             revert DirectRelayFailed(returnData);

@@ -28,7 +28,7 @@ abstract contract RngAuctionRelayer is AddressRemapper {
     /// @notice Encodes the calldata for the RNG auction relay listener
     /// @param rewardRecipient The address of the relay reward recipient
     /// @return The calldata to call the listener with
-    function encodeCalldata(address rewardRecipient) internal returns (bytes memory) {
+    function _encodeCalldata(address rewardRecipient) internal returns (bytes memory) {
         if (!rngAuction.isRngComplete()) revert RngNotCompleted();
         (uint256 randomNumber, uint64 rngCompletedAt) = rngAuction.getRngResults();
         AuctionResult memory results = rngAuction.getLastAuctionResult();
