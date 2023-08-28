@@ -11,8 +11,13 @@ import {
     IRngAuctionRelayListener
 } from "./abstract/RngAuctionRelayer.sol";
 
+/// @notice Emitted when the message dispatcher is the zero address
 error MessageDispatcherIsZeroAddress();
+
+/// @notice Emitted when the remote owner is the zero address
 error RemoteOwnerIsZeroAddress();
+
+/// @notice Emitted when the relayer listener is the zero address
 error RemoteRngAuctionRelayListenerIsZeroAddress();
 
 /// @title RngAuctionRelayerRemoteOwner

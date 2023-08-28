@@ -45,7 +45,7 @@ error PrizePoolZeroAddress();
 error MaxRewardIsZero();
 
 /// @notice Emitted when recipient is zero
-error RewardRecipientIsZeroAddress(uint256 index);
+error RewardRecipientIsZeroAddress();
 
 /**
  * @title   RngRelayAuction
@@ -149,6 +149,9 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
     uint32 _sequenceId,
     AuctionResult calldata _rngAuctionResult
   ) external onlyRngAuctionRelayer requireAuctionOpen(_sequenceId, _rngCompletedAt) returns (bytes32) {
+    if (_rewardRecipient == address(0)) {
+      revert RewardRecipientIsZeroAddress();
+    }
     // Calculate the reward fraction and set the draw auction results
     UD2x18 rewardFraction = _fractionalReward(SafeCast.toUint64(_computeElapsed(_rngCompletedAt)));
     _auctionResults.rewardFraction = rewardFraction;
@@ -173,10 +176,6 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
     );
 
     for (uint8 i = 0; i < _rewards.length; i++) {
-      address _recipient = auctionResults[i].recipient;
-      if (_recipient == address(0)) {
-        revert RewardRecipientIsZeroAddress(i);
-      }
       uint96 _reward = _safeCast(_rewards[i]);
       if (_reward > 0) {
         prizePool.withdrawReserve(auctionResults[i].recipient, _reward);

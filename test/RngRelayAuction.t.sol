@@ -289,7 +289,7 @@ contract RngRelayAuctionTest is Helpers {
 
   function testRngComplete_RewardRecipientIsZeroAddress() public {
     AuctionResult memory results = AuctionResult({
-      recipient: address(0),
+      recipient: alice,
       rewardFraction: UD2x18.wrap(0.1 ether)
     });
 
@@ -300,11 +300,11 @@ contract RngRelayAuctionTest is Helpers {
     uint completedAt = block.timestamp;
     vm.warp(completedAt + auctionDurationSeconds/2);
 
-    vm.expectRevert(abi.encodeWithSelector(RewardRecipientIsZeroAddress.selector, 0));
+    vm.expectRevert(abi.encodeWithSelector(RewardRecipientIsZeroAddress.selector));
     rngRelayAuction.rngComplete(
       0x1234,
       completedAt,
-      alice,
+      address(0),
       1,
       results
     );
