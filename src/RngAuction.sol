@@ -51,7 +51,7 @@ error SequencePeriodZero();
   * @param auctionDuration The auction duration in seconds
   * @param sequencePeriod The sequence period in seconds
   */
-error AuctionDurationGteSequencePeriod(uint64 auctionDuration, uint64 sequencePeriod);
+error AuctionDurationGtSequencePeriod(uint64 auctionDuration, uint64 sequencePeriod);
 
 /// @notice Thrown when the RNG address passed to the setter function is zero address.
 error RngZeroAddress();
@@ -153,6 +153,7 @@ contract RngAuction is IAuction, Ownable {
     if (address(0) == owner_) revert OwnerZeroAddress();
     if (sequencePeriod_ == 0) revert SequencePeriodZero();
     if (auctionTargetTime_ > auctionDurationSeconds_) revert AuctionTargetTimeExceedsDuration(uint64(auctionTargetTime_), uint64(auctionDurationSeconds_));
+    if (auctionDurationSeconds_ > sequencePeriod_) revert AuctionDurationGtSequencePeriod(uint64(auctionDurationSeconds_), uint64(sequencePeriod_));
     sequencePeriod = sequencePeriod_;
     sequenceOffset = sequenceOffset_;
     auctionDuration = auctionDurationSeconds_;
@@ -273,11 +274,9 @@ contract RngAuction is IAuction, Ownable {
     view
     returns (AuctionResult memory)
   {
-    address recipient = _lastAuction.recipient;
-    UD2x18 rewardFraction = _lastAuction.rewardFraction;
     return AuctionResult({
-      recipient: recipient,
-      rewardFraction: rewardFraction
+      recipient: _lastAuction.recipient,
+      rewardFraction: _lastAuction.rewardFraction
     });
   }
 
