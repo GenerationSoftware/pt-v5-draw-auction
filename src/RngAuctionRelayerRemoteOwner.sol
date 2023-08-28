@@ -59,7 +59,9 @@ contract RngAuctionRelayerRemoteOwner is RngAuctionRelayer {
         bytes32 messageId = _messageDispatcher.dispatchMessage(
             _remoteOwnerChainId,
             address(_remoteOwner),
-            RemoteOwnerCallEncoder.encodeCalldata(address(_remoteRngAuctionRelayListener), 0, listenerCalldata)
+            RemoteOwnerCallEncoder.encodeCalldata(
+                address(_remoteRngAuctionRelayListener), 0, listenerCalldata
+            )
         );
         emit RelayedToDispatcher(
             _messageDispatcher,

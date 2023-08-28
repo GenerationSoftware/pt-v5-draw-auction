@@ -152,13 +152,17 @@ contract RngAuction is IAuction, Ownable {
   ) Ownable(owner_) {
     if (address(0) == owner_) revert OwnerZeroAddress();
     if (sequencePeriod_ == 0) revert SequencePeriodZero();
-    if (auctionTargetTime_ > auctionDurationSeconds_) revert AuctionTargetTimeExceedsDuration(uint64(auctionTargetTime_), uint64(auctionDurationSeconds_));
+    if (auctionTargetTime_ > auctionDurationSeconds_) {
+      revert AuctionTargetTimeExceedsDuration(uint64(auctionTargetTime_), uint64(auctionDurationSeconds_));
+    }
     if (auctionDurationSeconds_ > sequencePeriod_) revert AuctionDurationGtSequencePeriod(uint64(auctionDurationSeconds_), uint64(sequencePeriod_));
     sequencePeriod = sequencePeriod_;
     sequenceOffset = sequenceOffset_;
     auctionDuration = auctionDurationSeconds_;
     auctionTargetTime = auctionTargetTime_;
-    _auctionTargetTimeFraction = intoUD2x18(convert(uint(auctionTargetTime_)).div(convert(uint(auctionDurationSeconds_))));
+    _auctionTargetTimeFraction = (
+      intoUD2x18(convert(uint(auctionTargetTime_)).div(convert(uint(auctionDurationSeconds_))))
+    );
     _setNextRngService(rng_);
   }
 

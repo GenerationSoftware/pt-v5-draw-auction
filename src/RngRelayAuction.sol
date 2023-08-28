@@ -171,7 +171,9 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
   /// @notice Computes the actual rewards that will be distributed to the recipients using the current Prize Pool reserve.
   /// @param __auctionResults The auction results to use for calculation
   /// @return rewards The rewards that will be distributed
-  function computeRewards(AuctionResult[] calldata __auctionResults) external view returns (uint256[] memory) {
+  function computeRewards(
+    AuctionResult[] calldata __auctionResults
+  ) external view returns (uint256[] memory) {
     uint256 totalReserve = prizePool.reserve() + prizePool.reserveForOpenDraw();
     return _computeRewards(__auctionResults, totalReserve);
   }
@@ -180,7 +182,10 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
   /// @param __auctionResults The auction results to use for calculation
   /// @param _totalReserve The total reserve to use for calculation
   /// @return rewards The rewards that will be distributed.
-  function computeRewardsWithTotal(AuctionResult[] calldata __auctionResults, uint256 _totalReserve) external pure returns (uint256[] memory) {
+  function computeRewardsWithTotal(
+    AuctionResult[] calldata __auctionResults,
+    uint256 _totalReserve
+  ) external pure returns (uint256[] memory) {
     return _computeRewards(__auctionResults, _totalReserve);
   }
 
@@ -244,7 +249,10 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
   /// @param __auctionResults The auction results to use for calculation
   /// @param _totalReserve The total reserve to use for calculation
   /// @return The actual rewards for each reward recipient
-  function _computeRewards(AuctionResult[] calldata __auctionResults, uint256 _totalReserve) internal pure returns (uint256[] memory) {
+  function _computeRewards(
+    AuctionResult[] calldata __auctionResults,
+    uint256 _totalReserve
+  ) internal pure returns (uint256[] memory) {
     return RewardLib.rewards(__auctionResults, _totalReserve);
   }
 
