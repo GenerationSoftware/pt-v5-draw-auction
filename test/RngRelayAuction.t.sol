@@ -14,6 +14,7 @@ import {
   AuctionExpired,
   PrizePoolZeroAddress,
   UnauthorizedRelayer,
+  MaxRewardIsZero,
   AuctionTargetTimeExceedsDuration
 } from "../src/RngRelayAuction.sol";
 
@@ -77,6 +78,11 @@ contract RngRelayAuctionTest is Helpers {
   function testConstructor_AuctionDurationZero() public {
     vm.expectRevert(abi.encodeWithSelector(AuctionDurationZero.selector));
     new RngRelayAuction(prizePool, address(this), 0, auctionTargetTime, maxRewards);
+  }
+
+  function testConstructor_MaxRewardIsZero() public {
+    vm.expectRevert(abi.encodeWithSelector(MaxRewardIsZero.selector));
+    new RngRelayAuction(prizePool, address(this), auctionDurationSeconds, auctionTargetTime, 0);
   }
 
   function testConstructor_AuctionTargetTimeZero() public {

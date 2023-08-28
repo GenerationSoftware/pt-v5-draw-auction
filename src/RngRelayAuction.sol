@@ -41,6 +41,9 @@ error AuctionExpired();
 /// @notice Thrown if the PrizePool address is the zero address.
 error PrizePoolZeroAddress();
 
+/// @notice Thrown if the max reward is zero.
+error MaxRewardIsZero();
+
 /**
  * @title   RngRelayAuction
  * @author  G9 Software Inc.
@@ -121,6 +124,9 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
     _auctionTargetTimeFraction = UD2x18.wrap(
       uint64(convert(auctionTargetTime_).div(convert(_auctionDurationSeconds)).unwrap())
     );
+    if (_maxRewards == 0) {
+      revert MaxRewardIsZero();
+    }
     maxRewards = _maxRewards;
   }
 
