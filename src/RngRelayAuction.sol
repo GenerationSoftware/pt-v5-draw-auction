@@ -49,7 +49,7 @@ error PrizePoolZeroAddress();
 contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
 
   /// @notice Emitted for each auction that is rewarded within the sequence.
-  /// @dev Not that the reward fractions compound
+  /// @dev Note that the reward fractions compound
   /// @param sequenceId The sequence ID of the auction
   /// @param recipient The recipient of the reward
   /// @param index The order in which this reward occurred
@@ -69,7 +69,7 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
     uint32 indexed drawId
   );
 
-  /// @notice The PrizePool whose draw wil be closed.
+  /// @notice The PrizePool whose draw will be closed.
   PrizePool public immutable prizePool;
 
   /// @notice The relayer that RNG results must originate from.

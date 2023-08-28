@@ -13,7 +13,7 @@ import {
   AuctionDurationZero,
   AuctionTargetTimeExceedsDuration,
   SequencePeriodZero,
-  AuctionDurationGteSequencePeriod,
+  AuctionDurationGtSequencePeriod,
   RngZeroAddress,
   CannotStartNextSequence,
   AuctionTargetTimeZero,
@@ -88,6 +88,18 @@ contract RngAuctionTest is Helpers {
       sequencePeriod,
       sequenceOffset,
       auctionDuration,
+      auctionTargetTime
+    );
+  }
+
+  function testConstructor_AuctionDurationGtSequencePeriod() public {
+    vm.expectRevert(abi.encodeWithSelector(AuctionDurationGtSequencePeriod.selector, sequencePeriod + 1, sequencePeriod));
+    new RngAuction(
+      rng,
+      address(this), // owner
+      sequencePeriod,
+      sequenceOffset,
+      sequencePeriod + 1,
       auctionTargetTime
     );
   }
