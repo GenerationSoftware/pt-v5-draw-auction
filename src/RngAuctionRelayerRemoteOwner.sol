@@ -3,7 +3,7 @@ pragma solidity ^0.8.19;
 
 import { RemoteOwner } from "remote-owner/RemoteOwner.sol";
 import { RemoteOwnerCallEncoder } from "remote-owner/libraries/RemoteOwnerCallEncoder.sol";
-import { ISingleMessageDispatcher } from "erc5164/interfaces/ISingleMessageDispatcher.sol";
+import { IMessageDispatcher } from "erc5164-interfaces/interfaces/IMessageDispatcher.sol";
 
 import {
     RngAuctionRelayer,
@@ -25,7 +25,7 @@ contract RngAuctionRelayerRemoteOwner is RngAuctionRelayer {
     /// @param rewardRecipient The address that shall receive the RNG relay reward.
     /// @param messageId The message ID of the dispatched message.
     event RelayedToDispatcher(
-        ISingleMessageDispatcher messageDispatcher,
+        IMessageDispatcher messageDispatcher,
         uint256 indexed remoteOwnerChainId,
         RemoteOwner remoteOwner,
         IRngAuctionRelayListener remoteRngAuctionRelayListener,
@@ -49,7 +49,7 @@ contract RngAuctionRelayerRemoteOwner is RngAuctionRelayer {
     /// @param _rewardRecipient The address that shall receive the RngAuctionRelay reward. Note that this address must be able to receive rewards on the other chain.
     /// @return The message ID of the dispatched message.
     function relay(
-        ISingleMessageDispatcher _messageDispatcher,
+        IMessageDispatcher _messageDispatcher,
         uint256 _remoteOwnerChainId,
         RemoteOwner _remoteOwner,
         IRngAuctionRelayListener _remoteRngAuctionRelayListener,
