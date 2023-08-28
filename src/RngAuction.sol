@@ -123,9 +123,10 @@ contract RngAuction is IAuction, Ownable {
    * @param rewardFraction The fraction of the available rewards to be sent to the recipient
    */
   event RngAuctionCompleted(
+    address indexed sender,
     address indexed recipient,
     uint32 indexed sequenceId,
-    RNGInterface indexed rng,
+    RNGInterface rng,
     uint32 rngRequestId,
     uint64 elapsedTime,
     UD2x18 rewardFraction
@@ -214,6 +215,7 @@ contract RngAuction is IAuction, Ownable {
     });
 
     emit RngAuctionCompleted(
+      msg.sender,
       _rewardRecipient,
       sequenceId,
       rng,

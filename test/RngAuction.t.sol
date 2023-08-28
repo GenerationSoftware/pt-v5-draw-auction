@@ -26,9 +26,10 @@ contract RngAuctionTest is Helpers {
   /* ============ Events ============ */
 
   event RngAuctionCompleted(
+    address indexed sender,
     address indexed recipient,
     uint32 indexed sequenceId,
-    RNGInterface indexed rng,
+    RNGInterface rng,
     uint32 rngRequestId,
     uint64 elapsedTime,
     UD2x18 rewardFraction
@@ -119,7 +120,7 @@ contract RngAuctionTest is Helpers {
 
     // Tests
     vm.expectEmit();
-    emit RngAuctionCompleted(_recipient, 1, rng, 1, auctionDuration, UD2x18.wrap(uint64(1e18)));
+    emit RngAuctionCompleted(address(this), _recipient, 1, rng, 1, auctionDuration, UD2x18.wrap(uint64(1e18)));
 
     rngAuction.startRngRequest(_recipient);
     AuctionResult memory _auctionResults = rngAuction.getLastAuctionResult();
@@ -158,7 +159,7 @@ contract RngAuctionTest is Helpers {
 
     // Start RNG request
     vm.expectEmit();
-    emit RngAuctionCompleted(_recipient, 1, rng, 1, auctionDuration, UD2x18.wrap(uint64(1e18)));
+    emit RngAuctionCompleted(address(this), _recipient, 1, rng, 1, auctionDuration, UD2x18.wrap(uint64(1e18)));
     rngAuction.startRngRequest(_recipient);
 
     // Mock calls
