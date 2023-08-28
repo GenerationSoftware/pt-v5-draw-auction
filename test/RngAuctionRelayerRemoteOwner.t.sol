@@ -112,7 +112,7 @@ contract RngAuctionRelayerRemoteOwnerTest is RngRelayerBaseTest {
         relayer.relay(
             messageDispatcher,
             remoteOwnerChainId,
-            RemoteOwner(address(0)),
+            RemoteOwner(payable(0)),
             rngAuctionRelayListener,
             address(this)
         );
