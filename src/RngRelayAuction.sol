@@ -63,7 +63,7 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
   event AuctionRewardDistributed(
     uint32 indexed sequenceId,
     address indexed recipient,
-    uint32 index,
+    uint32 indexed index,
     uint256 reward
   );
 
