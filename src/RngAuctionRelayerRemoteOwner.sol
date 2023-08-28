@@ -11,6 +11,15 @@ import {
     IRngAuctionRelayListener
 } from "./abstract/RngAuctionRelayer.sol";
 
+/// @notice Emitted when the message dispatcher is the zero address
+error MessageDispatcherIsZeroAddress();
+
+/// @notice Emitted when the remote owner is the zero address
+error RemoteOwnerIsZeroAddress();
+
+/// @notice Emitted when the relayer listener is the zero address
+error RemoteRngAuctionRelayListenerIsZeroAddress();
+
 /// @title RngAuctionRelayerRemoteOwner
 /// @author G9 Software Inc.
 /// @notice This contract allows anyone to relay RNG results to an IRngAuctionRelayListener on another chain.
@@ -55,6 +64,15 @@ contract RngAuctionRelayerRemoteOwner is RngAuctionRelayer {
         IRngAuctionRelayListener _remoteRngAuctionRelayListener,
         address _rewardRecipient
     ) external returns (bytes32) {
+        if (address(_messageDispatcher) == address(0)) {
+            revert MessageDispatcherIsZeroAddress();
+        }
+        if (address(_remoteOwner) == address(0)) {
+            revert RemoteOwnerIsZeroAddress();
+        }
+        if (address(_remoteRngAuctionRelayListener) == address(0)) {
+            revert RemoteRngAuctionRelayListenerIsZeroAddress();
+        }
         bytes memory listenerCalldata = _encodeCalldata(_rewardRecipient);
         bytes32 messageId = _messageDispatcher.dispatchMessage(
             _remoteOwnerChainId,

@@ -15,6 +15,7 @@ import {
   PrizePoolZeroAddress,
   UnauthorizedRelayer,
   MaxRewardIsZero,
+  RewardRecipientIsZeroAddress,
   AuctionTargetTimeExceedsDuration
 } from "../src/RngRelayAuction.sol";
 
@@ -281,6 +282,29 @@ contract RngRelayAuctionTest is Helpers {
       0x1234,
       0,
       address(this),
+      1,
+      results
+    );
+  }
+
+  function testRngComplete_RewardRecipientIsZeroAddress() public {
+    AuctionResult memory results = AuctionResult({
+      recipient: alice,
+      rewardFraction: UD2x18.wrap(0.1 ether)
+    });
+
+    mockCloseDraw(0x1234);
+    mockReserve(100e18);
+    mockWithdrawReserve(address(this), 10e18);
+
+    uint completedAt = block.timestamp;
+    vm.warp(completedAt + auctionDurationSeconds/2);
+
+    vm.expectRevert(abi.encodeWithSelector(RewardRecipientIsZeroAddress.selector));
+    rngRelayAuction.rngComplete(
+      0x1234,
+      completedAt,
+      address(0),
       1,
       results
     );

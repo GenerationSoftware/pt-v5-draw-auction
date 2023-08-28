@@ -14,6 +14,7 @@ import { RngNotCompleted } from "../src/abstract/RngAuctionRelayer.sol";
 
 import {
     RngAuctionRelayerDirect,
+    RngAuctionIsZeroAddress,
     DirectRelayFailed
 } from "../src/RngAuctionRelayerDirect.sol";
 
@@ -31,6 +32,11 @@ contract RngAuctionRelayerDirectTest is RngRelayerBaseTest {
 
     function testConstructor() public {
         assertEq(address(relayer.rngAuction()), address(rngAuction));
+    }
+
+    function testConstructor_RngAuctionIsZeroAddress() public {
+        vm.expectRevert(abi.encodeWithSelector(RngAuctionIsZeroAddress.selector));
+        new RngAuctionRelayerDirect(RngAuction(address(0)));
     }
 
     function testDirectRelay_happyPath() public {

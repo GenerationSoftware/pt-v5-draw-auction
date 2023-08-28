@@ -65,6 +65,9 @@ error AuctionExpired();
 /// @notice Thrown if owner set is the zero address.
 error OwnerZeroAddress();
 
+/// @notice Emitted when the zero address is passed as reward recipient
+error RewardRecipientIsZero();
+
 /**
  * @title PoolTogether V5 RngAuction
  * @author G9 Software Inc.
@@ -181,6 +184,7 @@ contract RngAuction is IAuction, Ownable {
    * @param _rewardRecipient Address that will receive the auction reward for starting the RNG request
    */
   function startRngRequest(address _rewardRecipient) external {
+    if (_rewardRecipient == address(0)) revert RewardRecipientIsZero();
     if (!_canStartNextSequence()) revert CannotStartNextSequence();
 
     RNGInterface rng = _nextRng;

@@ -44,6 +44,9 @@ error PrizePoolZeroAddress();
 /// @notice Thrown if the max reward is zero.
 error MaxRewardIsZero();
 
+/// @notice Emitted when recipient is zero
+error RewardRecipientIsZeroAddress();
+
 /**
  * @title   RngRelayAuction
  * @author  G9 Software Inc.
@@ -146,6 +149,9 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
     uint32 _sequenceId,
     AuctionResult calldata _rngAuctionResult
   ) external onlyRngAuctionRelayer requireAuctionOpen(_sequenceId, _rngCompletedAt) returns (bytes32) {
+    if (_rewardRecipient == address(0)) {
+      revert RewardRecipientIsZeroAddress();
+    }
     // Calculate the reward fraction and set the draw auction results
     UD2x18 rewardFraction = _fractionalReward(SafeCast.toUint64(_computeElapsed(_rngCompletedAt)));
     _auctionResults.rewardFraction = rewardFraction;
