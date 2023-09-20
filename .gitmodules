@@ -20,7 +20,7 @@
 [submodule "lib/pt-v5-prize-pool"]
 	path = lib/pt-v5-prize-pool
 	url = https://github.com/generationsoftware/pt-v5-prize-pool
-	branch = prod-deploy-1
+	branch = gen-440-auctions-allocate-fees-instead-of-withdrawreserve-c4-92
 [submodule "lib/remote-owner"]
 	path = lib/remote-owner
 	url = https://github.com/generationsoftware/remote-owner

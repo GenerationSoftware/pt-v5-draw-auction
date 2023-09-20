@@ -105,11 +105,11 @@ contract RewardLibTest is Test {
         );
     }
 
-    function mockWithdrawReserve(address to, uint256 amount) public {
+    function mockAllocateRewardFromReserve(address to, uint256 amount) public {
         vm.mockCall(
             address(prizePool),
             abi.encodeWithSelector(
-                prizePool.withdrawReserve.selector,
+                prizePool.allocateRewardFromReserve.selector,
                 to,
                 amount
             ),

@@ -60,7 +60,7 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
   /// @param recipient The recipient of the reward
   /// @param index The order in which this reward occurred
   /// @param reward The reward amount
-  event AuctionRewardDistributed(
+  event AuctionRewardAllocated(
     uint32 indexed sequenceId,
     address indexed recipient,
     uint32 indexed index,
@@ -178,8 +178,8 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
     for (uint8 i = 0; i < _rewards.length; i++) {
       uint96 _reward = _safeCast(_rewards[i]);
       if (_reward > 0) {
-        prizePool.withdrawReserve(auctionResults[i].recipient, _reward);
-        emit AuctionRewardDistributed(_sequenceId, auctionResults[i].recipient, i, _reward);
+        prizePool.allocateRewardFromReserve(auctionResults[i].recipient, _reward);
+        emit AuctionRewardAllocated(_sequenceId, auctionResults[i].recipient, i, _reward);
       }
     }
 

@@ -21,6 +21,9 @@ import {
 
 contract RngRelayAuctionTest is Helpers {
 
+  /* ============ Mock Errors ============ */
+  error MockAllocateRewardFromReserve(address to, uint256 amount);
+
   /* ============ Events ============ */
 
   event AuctionCompleted(
@@ -30,7 +33,7 @@ contract RngRelayAuctionTest is Helpers {
     UD2x18 rewardFraction
   );
 
-  event AuctionRewardDistributed(
+  event AuctionRewardAllocated(
     uint32 indexed sequenceId,
     address indexed recipient,
     uint32 indexed index,
@@ -155,7 +158,7 @@ contract RngRelayAuctionTest is Helpers {
 
     mockCloseDraw(0x1234);
     mockReserve(100e18);
-    mockWithdrawReserve(address(this), 10e18);
+    mockAllocateRewardFromReserve(address(this), 10e18);
 
     vm.expectEmit(true, true, true, true);
     emit RngSequenceCompleted(
@@ -163,14 +166,14 @@ contract RngRelayAuctionTest is Helpers {
       42
     );
     vm.expectEmit(true, true, true, true);
-    emit AuctionRewardDistributed(
+    emit AuctionRewardAllocated(
       1,
       address(this),
       0,
       10e18
     );
     vm.expectEmit(true, true, true, true);
-    emit AuctionRewardDistributed(
+    emit AuctionRewardAllocated(
       1,
       alice,
       1,
@@ -194,6 +197,35 @@ contract RngRelayAuctionTest is Helpers {
     assertEq(r.rewardFraction.unwrap(), 249861091820989143, "reward fraction is about a quarter (halfway through parabola)");
   }
 
+  function testRngComplete_rewardsAllocated() public {
+    AuctionResult memory results = AuctionResult({
+      recipient: address(this),
+      rewardFraction: UD2x18.wrap(0.1 ether)
+    });
+
+    mockCloseDraw(0x1234);
+    mockReserve(100e18);
+    uint completedAt = block.timestamp;
+    vm.warp(completedAt + auctionDurationSeconds/2);
+
+    vm.mockCallRevert(
+      address(prizePool),
+      abi.encodeWithSelector(
+        prizePool.allocateRewardFromReserve.selector,
+        alice,
+        22487498263889022870
+      ),
+      abi.encodeWithSelector(MockAllocateRewardFromReserve.selector, alice, 22487498263889022870)
+    );
+    vm.expectRevert(abi.encodeWithSelector(MockAllocateRewardFromReserve.selector, alice, 22487498263889022870));
+    rngRelayAuction.rngComplete(
+      0x1234,
+      completedAt,
+      alice,
+      1,
+      results
+    );
+  }
 
   function testRngComplete_maxRewards() public {
     rngRelayAuction = new RngRelayAuction(prizePool, address(this), auctionDurationSeconds, auctionTargetTime, 10e18);
@@ -205,18 +237,18 @@ contract RngRelayAuctionTest is Helpers {
 
     mockCloseDraw(0x1234);
     mockReserve(100e18);
-    mockWithdrawReserve(address(this), 1e18);
+    mockAllocateRewardFromReserve(address(this), 1e18);
 
 
     vm.expectEmit(true, true, true, true);
-    emit AuctionRewardDistributed(
+    emit AuctionRewardAllocated(
       1,
       address(this),
       0,
       1e18
     );
     vm.expectEmit(true, true, true, true);
-    emit AuctionRewardDistributed(
+    emit AuctionRewardAllocated(
       1,
       alice,
       1,
@@ -250,7 +282,7 @@ contract RngRelayAuctionTest is Helpers {
 
     mockCloseDraw(0x1234);
     mockPrizePoolReserve(100e18);
-    mockWithdrawReserve(address(this), 10e18);
+    mockAllocateRewardFromReserve(address(this), 10e18);
 
     rngRelayAuction.rngComplete(
       0x1234,
@@ -295,7 +327,7 @@ contract RngRelayAuctionTest is Helpers {
 
     mockCloseDraw(0x1234);
     mockReserve(100e18);
-    mockWithdrawReserve(address(this), 10e18);
+    mockAllocateRewardFromReserve(address(this), 10e18);
 
     uint completedAt = block.timestamp;
     vm.warp(completedAt + auctionDurationSeconds/2);
@@ -381,10 +413,10 @@ contract RngRelayAuctionTest is Helpers {
     );
   }
 
-  function mockWithdrawReserve(address recipient, uint256 amount) public {
+  function mockAllocateRewardFromReserve(address recipient, uint256 amount) public {
     vm.mockCall(
       address(prizePool),
-      abi.encodeWithSelector(PrizePool.withdrawReserve.selector, recipient, amount),
+      abi.encodeWithSelector(PrizePool.allocateRewardFromReserve.selector, recipient, amount),
       abi.encode()
     );
   }
