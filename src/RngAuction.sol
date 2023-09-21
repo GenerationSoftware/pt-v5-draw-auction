@@ -118,12 +118,12 @@ contract RngAuction is IAuction, Ownable {
 
   /**
    * @notice Emitted when the auction is completed.
-   * @param recipient The recipient of the auction awards
+   * @param recipient The recipient of the auction reward
    * @param sequenceId The sequence ID for the auction
    * @param rng The RNGInterface that was used for this auction
    * @param rngRequestId The RNGInterface request ID
    * @param elapsedTime The amount of time that the auction ran for in seconds
-   * @param rewardFraction The fraction of the available rewards to be sent to the recipient
+   * @param rewardFraction The fraction of the available rewards to be allocated to the recipient
    */
   event RngAuctionCompleted(
     address indexed sender,
@@ -181,7 +181,9 @@ contract RngAuction is IAuction, Ownable {
    *          the funds to the RNG service before calling this function.
    * @dev     If there is a pending RNG service (see _nextRng), it will be swapped in before the
    *          auction is completed.
-   * @param _rewardRecipient Address that will receive the auction reward for starting the RNG request
+   * @param _rewardRecipient Address that will be allocated the auction reward for starting the RNG request.
+   * The recipient can withdraw the rewards from the Prize Pools that use the random number once all
+   * subsequent auctions are complete.
    */
   function startRngRequest(address _rewardRecipient) external {
     if (_rewardRecipient == address(0)) revert RewardRecipientIsZero();
