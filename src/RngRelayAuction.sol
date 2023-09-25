@@ -60,7 +60,7 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
   /// @param recipient The recipient of the reward
   /// @param index The order in which this reward occurred
   /// @param reward The reward amount
-  event AuctionRewardDistributed(
+  event AuctionRewardAllocated(
     uint32 indexed sequenceId,
     address indexed recipient,
     uint32 indexed index,
@@ -138,7 +138,7 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
   /// @notice Called by the relayer to complete the Rng relay auction.
   /// @param _randomNumber The random number that was generated
   /// @param _rngCompletedAt The timestamp that the RNG was completed at
-  /// @param _rewardRecipient The recipient of the relay auction reward
+  /// @param _rewardRecipient The recipient of the relay auction reward (the recipient can withdraw the rewards from the Prize Pool once the auction is complete)
   /// @param _sequenceId The sequence ID of the auction
   /// @param _rngAuctionResult The result of the RNG auction
   /// @return The closed draw ID converted to bytes32
@@ -178,17 +178,17 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
     for (uint8 i = 0; i < _rewards.length; i++) {
       uint96 _reward = _safeCast(_rewards[i]);
       if (_reward > 0) {
-        prizePool.withdrawReserve(auctionResults[i].recipient, _reward);
-        emit AuctionRewardDistributed(_sequenceId, auctionResults[i].recipient, i, _reward);
+        prizePool.allocateRewardFromReserve(auctionResults[i].recipient, _reward);
+        emit AuctionRewardAllocated(_sequenceId, auctionResults[i].recipient, i, _reward);
       }
     }
 
     return bytes32(uint(drawId));
   }
 
-  /// @notice Computes the actual rewards that will be distributed to the recipients using the current Prize Pool reserve.
+  /// @notice Computes the actual rewards that will be allocated to the recipients using the current Prize Pool reserve.
   /// @param __auctionResults The auction results to use for calculation
-  /// @return rewards The rewards that will be distributed
+  /// @return rewards The rewards that will be allocated
   function computeRewards(
     AuctionResult[] calldata __auctionResults
   ) external view returns (uint256[] memory) {
@@ -196,10 +196,10 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
     return _computeRewards(__auctionResults, totalReserve > maxRewards ? maxRewards : totalReserve);
   }
 
-  /// @notice Computes the actual rewards that will be distributed to the recipients given the passed total reserve
+  /// @notice Computes the actual rewards that will be allocated to the recipients given the passed total reserve
   /// @param __auctionResults The auction results to use for calculation
   /// @param _totalReserve The total reserve to use for calculation
-  /// @return rewards The rewards that will be distributed.
+  /// @return rewards The rewards that will be allocated.
   function computeRewardsWithTotal(
     AuctionResult[] calldata __auctionResults,
     uint256 _totalReserve

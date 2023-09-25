@@ -66,7 +66,7 @@ contract RewardLibTest is Test {
 
         vm.roll(block.number + 2); // mine two blocks
 
-        mockCloseDraw(29102676481673041902632991033461445430619272659676223336789171408008386403022);
+        mockCloseDraw(uint256(blockhash(block.number - 1)));
         mockReserve(100e18);
 
         // no reward because it happened instantly
@@ -105,11 +105,11 @@ contract RewardLibTest is Test {
         );
     }
 
-    function mockWithdrawReserve(address to, uint256 amount) public {
+    function mockAllocateRewardFromReserve(address to, uint256 amount) public {
         vm.mockCall(
             address(prizePool),
             abi.encodeWithSelector(
-                prizePool.withdrawReserve.selector,
+                prizePool.allocateRewardFromReserve.selector,
                 to,
                 amount
             ),
