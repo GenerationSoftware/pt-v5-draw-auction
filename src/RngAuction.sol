@@ -90,6 +90,9 @@ contract RngAuction is IAuction, Ownable {
   /// @notice The target time to complete the auction as a fraction of the auction duration
   UD2x18 internal immutable _auctionTargetTimeFraction;
 
+  /// @notice Target reward fraction to complete the first auction.
+  UD2x18 internal immutable _firstAuctionTargetRewardFraction;
+
   /// @notice Duration of the sequence that the auction should align with
   /// @dev This must always be greater than the auction duration.
   uint64 public immutable sequencePeriod;
@@ -145,6 +148,7 @@ contract RngAuction is IAuction, Ownable {
    * @param sequenceOffset_ Sequence offset in seconds
    * @param auctionDurationSeconds_ Auction duration in seconds
    * @param auctionTargetTime_ Target time to complete the auction in seconds
+   * @param firstAuctionTargetRewardFraction_ Target reward fraction to complete the first auction
    */
   constructor(
     RNGInterface rng_,
@@ -152,7 +156,8 @@ contract RngAuction is IAuction, Ownable {
     uint64 sequencePeriod_,
     uint64 sequenceOffset_,
     uint64 auctionDurationSeconds_,
-    uint64 auctionTargetTime_
+    uint64 auctionTargetTime_,
+    UD2x18 firstAuctionTargetRewardFraction_
   ) Ownable(owner_) {
     if (address(0) == owner_) revert OwnerZeroAddress();
     if (sequencePeriod_ == 0) revert SequencePeriodZero();
@@ -162,11 +167,13 @@ contract RngAuction is IAuction, Ownable {
         uint64(auctionDurationSeconds_)
       );
     }
+
     if (auctionDurationSeconds_ > sequencePeriod_)
       revert AuctionDurationGtSequencePeriod(
         uint64(auctionDurationSeconds_),
         uint64(sequencePeriod_)
       );
+
     sequencePeriod = sequencePeriod_;
     sequenceOffset = sequenceOffset_;
     auctionDuration = auctionDurationSeconds_;
@@ -176,6 +183,9 @@ contract RngAuction is IAuction, Ownable {
         convert(uint256(auctionTargetTime_)).div(convert(uint256(auctionDurationSeconds_)))
       )
     );
+
+    _firstAuctionTargetRewardFraction = firstAuctionTargetRewardFraction_;
+
     _setNextRngService(rng_);
   }
 
@@ -427,7 +437,9 @@ contract RngAuction is IAuction, Ownable {
         __auctionElapsedTime,
         auctionDuration,
         _auctionTargetTimeFraction,
-        _lastAuction.rewardFraction
+        _lastAuction.sequenceId == 0
+          ? _firstAuctionTargetRewardFraction
+          : _lastAuction.rewardFraction
       );
   }
 

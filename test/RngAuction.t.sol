@@ -50,6 +50,7 @@ contract RngAuctionTest is Helpers {
 
   uint64 auctionDuration = 4 hours;
   uint64 auctionTargetTime = 2 hours;
+  UD2x18 firstAuctionTargetRewardFraction = UD2x18.wrap(uint64(1e18));
   uint64 sequencePeriod = 1 days;
   uint64 sequenceOffset = 10 days;
   address _recipient = address(2);
@@ -68,7 +69,8 @@ contract RngAuctionTest is Helpers {
       sequencePeriod,
       sequenceOffset,
       auctionDuration,
-      auctionTargetTime
+      auctionTargetTime,
+      firstAuctionTargetRewardFraction
     );
   }
 
@@ -88,7 +90,8 @@ contract RngAuctionTest is Helpers {
       sequencePeriod,
       sequenceOffset,
       auctionDuration,
-      auctionTargetTime
+      auctionTargetTime,
+      firstAuctionTargetRewardFraction
     );
   }
 
@@ -106,7 +109,8 @@ contract RngAuctionTest is Helpers {
       sequencePeriod,
       sequenceOffset,
       sequencePeriod + 1,
-      auctionTargetTime
+      auctionTargetTime,
+      firstAuctionTargetRewardFraction
     );
   }
 
@@ -132,7 +136,7 @@ contract RngAuctionTest is Helpers {
       rng,
       1,
       auctionDuration,
-      UD2x18.wrap(uint64(1e18))
+      firstAuctionTargetRewardFraction
     );
 
     rngAuction.startRngRequest(_recipient);
@@ -179,7 +183,7 @@ contract RngAuctionTest is Helpers {
       rng,
       1,
       auctionDuration,
-      UD2x18.wrap(uint64(1e18))
+      firstAuctionTargetRewardFraction
     );
     rngAuction.startRngRequest(_recipient);
 
@@ -388,11 +392,7 @@ contract RngAuctionTest is Helpers {
     vm.warp(sequenceOffset + sequencePeriod + auctionTargetTime);
 
     // Test
-    AuctionResult memory _lastResults = rngAuction.getLastAuctionResult();
-    assertEq(
-      UD2x18.unwrap(rngAuction.currentFractionalReward()),
-      UD2x18.unwrap(_lastResults.rewardFraction)
-    ); // equal to last reward fraction
+    assertEq(UD2x18.unwrap(rngAuction.currentFractionalReward()), uint64(1e18)); // equal to first reward fraction
   }
 
   function testCurrentRewardFraction_AtEnd() public {
@@ -456,7 +456,8 @@ contract RngAuctionTest is Helpers {
       sequencePeriod,
       _offset,
       auctionDuration,
-      auctionTargetTime
+      auctionTargetTime,
+      firstAuctionTargetRewardFraction
     );
 
     vm.warp(_offset);
@@ -478,7 +479,8 @@ contract RngAuctionTest is Helpers {
       sequencePeriod,
       _offset,
       auctionDuration,
-      auctionTargetTime
+      auctionTargetTime,
+      firstAuctionTargetRewardFraction
     );
 
     vm.warp(_offset - 1);

@@ -39,7 +39,8 @@ contract RewardLibTest is Test {
       sequencePeriod,
       sequenceOffset,
       auctionDurationSeconds,
-      auctionTargetTime
+      auctionTargetTime,
+      UD2x18.wrap(uint64(1e18))
     );
 
     rngAuctionRelayerDirect = new RngAuctionRelayerDirect(rngAuction);
@@ -82,7 +83,7 @@ contract RewardLibTest is Test {
   }
 
   function mockReserve(uint256 amount) public {
-    uint half = amount / 2;
+    uint256 half = amount / 2;
     vm.mockCall(
       address(prizePool),
       abi.encodeWithSelector(prizePool.reserve.selector),
