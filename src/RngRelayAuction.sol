@@ -23,10 +23,10 @@ error AuctionTargetTimeZero();
 error UnauthorizedRelayer(address relayer);
 
 /**
-  * @notice Thrown if the auction target time exceeds the auction duration.
-  * @param auctionTargetTime The auction target time to complete in seconds
-  * @param auctionDuration The auction duration in seconds
-  */
+ * @notice Thrown if the auction target time exceeds the auction duration.
+ * @param auctionTargetTime The auction target time to complete in seconds
+ * @param auctionDuration The auction duration in seconds
+ */
 error AuctionTargetTimeExceedsDuration(uint64 auctionDuration, uint64 auctionTargetTime);
 
 /// @notice Thrown if the RngAuction address is the zero address.
@@ -53,7 +53,6 @@ error RewardRecipientIsZeroAddress();
  * @notice  This contract auctions off the RNG relay, then closes the Prize Pool using the RNG results.
  */
 contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
-
   /// @notice Emitted for each auction that is rewarded within the sequence.
   /// @dev Note that the reward fractions compound
   /// @param sequenceId The sequence ID of the auction
@@ -70,10 +69,7 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
   /// @notice Emitted once when the sequence is completed and the Prize Pool draw is closed.
   /// @param sequenceId The sequence id
   /// @param drawId The draw id that was closed
-  event RngSequenceCompleted(
-    uint32 indexed sequenceId,
-    uint32 indexed drawId
-  );
+  event RngSequenceCompleted(uint32 indexed sequenceId, uint32 indexed drawId);
 
   /// @notice The PrizePool whose draw will be closed.
   PrizePool public immutable prizePool;
@@ -148,7 +144,12 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
     address _rewardRecipient,
     uint32 _sequenceId,
     AuctionResult calldata _rngAuctionResult
-  ) external onlyRngAuctionRelayer requireAuctionOpen(_sequenceId, _rngCompletedAt) returns (bytes32) {
+  )
+    external
+    onlyRngAuctionRelayer
+    requireAuctionOpen(_sequenceId, _rngCompletedAt)
+    returns (bytes32)
+  {
     if (_rewardRecipient == address(0)) {
       revert RewardRecipientIsZeroAddress();
     }
@@ -168,12 +169,12 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
     uint32 drawId = prizePool.closeDraw(_randomNumber);
 
     uint256 reserve = prizePool.reserve();
-    uint256[] memory _rewards = RewardLib.rewards(auctionResults, reserve > maxRewards ? maxRewards : reserve);
-
-    emit RngSequenceCompleted(
-      _sequenceId,
-      drawId
+    uint256[] memory _rewards = RewardLib.rewards(
+      auctionResults,
+      reserve > maxRewards ? maxRewards : reserve
     );
+
+    emit RngSequenceCompleted(_sequenceId, drawId);
 
     for (uint8 i = 0; i < _rewards.length; i++) {
       uint96 _reward = _safeCast(_rewards[i]);
@@ -214,7 +215,7 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
     return _sequenceHasCompleted(_sequenceId);
   }
 
-  /// @notice Returns the duration of the auction in seconds. 
+  /// @notice Returns the duration of the auction in seconds.
   function auctionDuration() external view returns (uint64) {
     return _auctionDurationSeconds;
   }
@@ -238,11 +239,7 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
   }
 
   /// @notice Returns the last auction result
-  function getLastAuctionResult()
-    external
-    view
-    returns (AuctionResult memory)
-  {
+  function getLastAuctionResult() external view returns (AuctionResult memory) {
     return _auctionResults;
   }
 

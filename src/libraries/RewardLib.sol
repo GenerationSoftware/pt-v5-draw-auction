@@ -83,8 +83,6 @@ library RewardLib {
     if (_auctionResult.recipient == address(0)) return 0;
     if (_reserve == 0) return 0;
     return
-      convert(
-        UD60x18.wrap(UD2x18.unwrap(_auctionResult.rewardFraction)).mul(convert(_reserve))
-      );
+      convert(UD60x18.wrap(UD2x18.unwrap(_auctionResult.rewardFraction)).mul(convert(_reserve)));
   }
 }

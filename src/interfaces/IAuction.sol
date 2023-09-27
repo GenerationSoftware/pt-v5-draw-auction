@@ -19,7 +19,6 @@ struct AuctionResult {
 /// @author G9 Software Inc.
 /// @notice Defines some common interfaces for auctions
 interface IAuction {
-
   /// @notice Returns the auction duration in seconds.
   /// @return The auction duration in seconds
   function auctionDuration() external view returns (uint64);

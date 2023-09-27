@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "forge-std/console2.sol";
-
-import { Helpers, RNGInterface, UD2x18 } from "test/helpers/Helpers.t.sol";
+import { Helpers, UD2x18 } from "test/helpers/Helpers.t.sol";
 import { ERC20Mintable } from "test/mocks/ERC20Mintable.sol";
 import { AuctionResult } from "../src/interfaces/IAuction.sol";
 
 import {
   RngAuction,
   RngAuctionResult,
+  RNGInterface,
   AuctionDurationZero,
   AuctionTargetTimeExceedsDuration,
   SequencePeriodZero,
@@ -23,7 +22,6 @@ import {
 } from "../src/RngAuction.sol";
 
 contract RngAuctionTest is Helpers {
-
   /* ============ Events ============ */
 
   event RngAuctionCompleted(
@@ -95,7 +93,13 @@ contract RngAuctionTest is Helpers {
   }
 
   function testConstructor_AuctionDurationGtSequencePeriod() public {
-    vm.expectRevert(abi.encodeWithSelector(AuctionDurationGtSequencePeriod.selector, sequencePeriod + 1, sequencePeriod));
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        AuctionDurationGtSequencePeriod.selector,
+        sequencePeriod + 1,
+        sequencePeriod
+      )
+    );
     new RngAuction(
       rng,
       address(this), // owner
@@ -121,7 +125,15 @@ contract RngAuctionTest is Helpers {
 
     // Tests
     vm.expectEmit();
-    emit RngAuctionCompleted(address(this), _recipient, 1, rng, 1, auctionDuration, UD2x18.wrap(uint64(1e18)));
+    emit RngAuctionCompleted(
+      address(this),
+      _recipient,
+      1,
+      rng,
+      1,
+      auctionDuration,
+      UD2x18.wrap(uint64(1e18))
+    );
 
     rngAuction.startRngRequest(_recipient);
     AuctionResult memory _auctionResults = rngAuction.getLastAuctionResult();
@@ -160,7 +172,15 @@ contract RngAuctionTest is Helpers {
 
     // Start RNG request
     vm.expectEmit();
-    emit RngAuctionCompleted(address(this), _recipient, 1, rng, 1, auctionDuration, UD2x18.wrap(uint64(1e18)));
+    emit RngAuctionCompleted(
+      address(this),
+      _recipient,
+      1,
+      rng,
+      1,
+      auctionDuration,
+      UD2x18.wrap(uint64(1e18))
+    );
     rngAuction.startRngRequest(_recipient);
 
     // Mock calls
@@ -542,10 +562,7 @@ contract RngAuctionTest is Helpers {
     _mockRngInterface_completedAt(rng, _rngRequestId, _completedAt);
 
     // Test
-    (
-      uint256 randomNumber_,
-      uint64 rngCompletedAt_
-    ) = rngAuction.getRngResults();
+    (uint256 randomNumber_, uint64 rngCompletedAt_) = rngAuction.getRngResults();
 
     assertEq(rngAuction.lastSequenceId(), 1);
     assertEq(randomNumber_, _randomNumber);
@@ -653,5 +670,4 @@ contract RngAuctionTest is Helpers {
     rngAuction.setNextRngService(_newRng);
     vm.stopPrank();
   }
-
 }

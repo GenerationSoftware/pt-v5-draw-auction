@@ -12,14 +12,14 @@ import { RewardLib } from "./libraries/RewardLib.sol";
 import { IAuction, AuctionResult } from "./interfaces/IAuction.sol";
 
 /**
-  * @notice The results of a successful RNG auction.
-  * @param recipient The recipient of the auction reward
-  * @param rewardFraction The reward fraction that the user will receive
-  * @param sequenceId The id of the sequence that this auction belonged to
-  * @param rng The RNG service that was used to generate the random number
-  * @param rngRequestId The id of the RNG request that was made
-  * @dev   The `sequenceId` value should not be assumed to be the same as a prize pool drawId, but the sequence and offset should match the prize pool.
-  */
+ * @notice The results of a successful RNG auction.
+ * @param recipient The recipient of the auction reward
+ * @param rewardFraction The reward fraction that the user will receive
+ * @param sequenceId The id of the sequence that this auction belonged to
+ * @param rng The RNG service that was used to generate the random number
+ * @param rngRequestId The id of the RNG request that was made
+ * @dev   The `sequenceId` value should not be assumed to be the same as a prize pool drawId, but the sequence and offset should match the prize pool.
+ */
 struct RngAuctionResult {
   address recipient;
   UD2x18 rewardFraction;
@@ -37,20 +37,20 @@ error AuctionDurationZero();
 error AuctionTargetTimeZero();
 
 /**
-  * @notice Thrown if the auction target time exceeds the auction duration.
-  * @param auctionTargetTime The auction target time to complete in seconds
-  * @param auctionDuration The auction duration in seconds
-  */
+ * @notice Thrown if the auction target time exceeds the auction duration.
+ * @param auctionTargetTime The auction target time to complete in seconds
+ * @param auctionDuration The auction duration in seconds
+ */
 error AuctionTargetTimeExceedsDuration(uint64 auctionTargetTime, uint64 auctionDuration);
 
 /// @notice Thrown when the sequence period is zero.
 error SequencePeriodZero();
 
 /**
-  * @notice Thrown when the auction duration is greater than or equal to the sequence.
-  * @param auctionDuration The auction duration in seconds
-  * @param sequencePeriod The sequence period in seconds
-  */
+ * @notice Thrown when the auction duration is greater than or equal to the sequence.
+ * @param auctionDuration The auction duration in seconds
+ * @param sequencePeriod The sequence period in seconds
+ */
 error AuctionDurationGtSequencePeriod(uint64 auctionDuration, uint64 sequencePeriod);
 
 /// @notice Thrown when the RNG address passed to the setter function is zero address.
@@ -157,15 +157,24 @@ contract RngAuction is IAuction, Ownable {
     if (address(0) == owner_) revert OwnerZeroAddress();
     if (sequencePeriod_ == 0) revert SequencePeriodZero();
     if (auctionTargetTime_ > auctionDurationSeconds_) {
-      revert AuctionTargetTimeExceedsDuration(uint64(auctionTargetTime_), uint64(auctionDurationSeconds_));
+      revert AuctionTargetTimeExceedsDuration(
+        uint64(auctionTargetTime_),
+        uint64(auctionDurationSeconds_)
+      );
     }
-    if (auctionDurationSeconds_ > sequencePeriod_) revert AuctionDurationGtSequencePeriod(uint64(auctionDurationSeconds_), uint64(sequencePeriod_));
+    if (auctionDurationSeconds_ > sequencePeriod_)
+      revert AuctionDurationGtSequencePeriod(
+        uint64(auctionDurationSeconds_),
+        uint64(sequencePeriod_)
+      );
     sequencePeriod = sequencePeriod_;
     sequenceOffset = sequenceOffset_;
     auctionDuration = auctionDurationSeconds_;
     auctionTargetTime = auctionTargetTime_;
     _auctionTargetTimeFraction = (
-      intoUD2x18(convert(uint(auctionTargetTime_)).div(convert(uint(auctionDurationSeconds_))))
+      intoUD2x18(
+        convert(uint256(auctionTargetTime_)).div(convert(uint256(auctionDurationSeconds_)))
+      )
     );
     _setNextRngService(rng_);
   }
@@ -196,9 +205,9 @@ contract RngAuction is IAuction, Ownable {
 
     (address _feeToken, uint256 _requestFee) = rng.getRequestFee();
     if (
-      _feeToken != address(0)
-      && _requestFee > 0
-      && IERC20(_feeToken).allowance(address(this), address(rng)) < _requestFee
+      _feeToken != address(0) &&
+      _requestFee > 0 &&
+      IERC20(_feeToken).allowance(address(this), address(rng)) < _requestFee
     ) {
       /**
        * Set approval for the RNG service to take the request fee to support RNG services
@@ -208,7 +217,7 @@ contract RngAuction is IAuction, Ownable {
       IERC20(_feeToken).approve(address(rng), _requestFee);
     }
 
-    (uint32 rngRequestId,) = rng.requestRandomNumber();
+    (uint32 rngRequestId, ) = rng.requestRandomNumber();
     uint32 sequenceId = _openSequenceId();
     UD2x18 rewardFraction = _currentFractionalReward();
 
@@ -281,15 +290,12 @@ contract RngAuction is IAuction, Ownable {
    * @notice Returns the last auction as an AuctionResult struct to be used to calculate rewards.
    * @return AuctionResult struct with data from the last auction
    */
-  function getLastAuctionResult()
-    external
-    view
-    returns (AuctionResult memory)
-  {
-    return AuctionResult({
-      recipient: _lastAuction.recipient,
-      rewardFraction: _lastAuction.rewardFraction
-    });
+  function getLastAuctionResult() external view returns (AuctionResult memory) {
+    return
+      AuctionResult({
+        recipient: _lastAuction.recipient,
+        rewardFraction: _lastAuction.rewardFraction
+      });
   }
 
   /**
@@ -325,12 +331,7 @@ contract RngAuction is IAuction, Ownable {
    * @return randomNumber The random number result
    * @return rngCompletedAt The timestamp at which the random number request was completed
    */
-  function getRngResults()
-    external
-    returns (
-      uint256 randomNumber, uint64 rngCompletedAt
-    )
-  {
+  function getRngResults() external returns (uint256 randomNumber, uint64 rngCompletedAt) {
     RNGInterface rng = _lastAuction.rng;
     uint32 requestId = _lastAuction.rngRequestId;
     randomNumber = rng.randomNumber(requestId);

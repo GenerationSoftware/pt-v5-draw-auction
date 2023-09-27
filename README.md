@@ -35,7 +35,7 @@ Each sequence includes two auctions:
 1. Starting the RNG request. This is when the RNG request kicks-off, and may require funds (the Chainlink VRF 2.0 needs LINK tokens).
 2. Relaying the RNG results to L2 via a bridge.
 
-Starting the RNG request occurs on L1, and receiving the bridge RNG result occurs on L2. The auctions don't have pricing data, so they compute the reward *as a fraction of the available Prize Pool reserve*. This means that the auction on L1 does not need to know how much reserve is available in a Prize Pool on L2.
+Starting the RNG request occurs on L1, and receiving the bridge RNG result occurs on L2. The auctions don't have pricing data, so they compute the reward _as a fraction of the available Prize Pool reserve_. This means that the auction on L1 does not need to know how much reserve is available in a Prize Pool on L2.
 
 There are three key contracts:
 
