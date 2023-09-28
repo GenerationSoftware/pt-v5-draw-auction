@@ -74,12 +74,15 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
   /// @notice The PrizePool whose draw will be closed.
   PrizePool public immutable prizePool;
 
+  /// @notice The auction duration in seconds
+  uint64 internal immutable _auctionDurationSeconds;
+
   /// @notice The relayer that RNG results must originate from.
   /// @dev Note that this may be a Remote Owner if relayed over an ERC-5164 bridge.
   address public immutable rngAuctionRelayer;
 
-  /// @notice The auction duration in seconds
-  uint64 internal immutable _auctionDurationSeconds;
+  /// @notice Target reward fraction to complete the first auction.
+  UD2x18 internal immutable _firstAuctionTargetRewardFraction;
 
   /// @notice The target time to complete the auction as a fraction of the auction duration
   UD2x18 internal immutable _auctionTargetTimeFraction;
@@ -97,17 +100,21 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
 
   /* ============ Constructor ============ */
 
-  /// @notice Construct a new contract
-  /// @param prizePool_ The target Prize Pool to close draws for
-  /// @param _rngAuctionRelayer The relayer that RNG results must originate from
-  /// @param auctionDurationSeconds_ The auction duration in seconds
-  /// @param auctionTargetTime_ The target time to complete the auction
-  /// @param _maxRewards The maximum number of rewards that will be distributed per sequence.
+  /**
+   * @notice Construct a new contract
+   * @param prizePool_ The target Prize Pool to close draws for
+   * @param auctionDurationSeconds_ The auction duration in seconds
+   * @param auctionTargetTime_ The target time to complete the auction
+   * @param _rngAuctionRelayer The relayer that RNG results must originate from
+   * @param firstAuctionTargetRewardFraction_ Target reward fraction to complete the first auction
+   * @param _maxRewards The maximum number of rewards that will be distributed per sequence.
+   */
   constructor(
     PrizePool prizePool_,
-    address _rngAuctionRelayer,
     uint64 auctionDurationSeconds_,
     uint64 auctionTargetTime_,
+    address _rngAuctionRelayer,
+    UD2x18 firstAuctionTargetRewardFraction_,
     uint256 _maxRewards
   ) {
     if (address(prizePool_) == address(0)) revert PrizePoolZeroAddress();
@@ -118,14 +125,18 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
     if (auctionTargetTime_ > auctionDurationSeconds_) {
       revert AuctionTargetTimeExceedsDuration(auctionDurationSeconds_, auctionTargetTime_);
     }
+
+    if (_maxRewards == 0) {
+      revert MaxRewardIsZero();
+    }
+
     rngAuctionRelayer = _rngAuctionRelayer;
     _auctionDurationSeconds = auctionDurationSeconds_;
     _auctionTargetTimeFraction = UD2x18.wrap(
       uint64(convert(auctionTargetTime_).div(convert(_auctionDurationSeconds)).unwrap())
     );
-    if (_maxRewards == 0) {
-      revert MaxRewardIsZero();
-    }
+
+    _firstAuctionTargetRewardFraction = firstAuctionTargetRewardFraction_;
     maxRewards = _maxRewards;
   }
 
@@ -154,7 +165,9 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
       revert RewardRecipientIsZeroAddress();
     }
     // Calculate the reward fraction and set the draw auction results
-    UD2x18 rewardFraction = _fractionalReward(SafeCast.toUint64(_computeElapsed(_rngCompletedAt)));
+    UD2x18 rewardFraction = _computeRewardFraction(
+      SafeCast.toUint64(_computeElapsed(_rngCompletedAt))
+    );
     _auctionResults.rewardFraction = rewardFraction;
     _auctionResults.recipient = _rewardRecipient;
     _lastSequenceId = _sequenceId;
@@ -184,7 +197,7 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
       }
     }
 
-    return bytes32(uint(drawId));
+    return bytes32(uint256(drawId));
   }
 
   /// @notice Computes the actual rewards that will be allocated to the recipients using the current Prize Pool reserve.
@@ -224,7 +237,7 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
   /// @param _auctionElapsedTime The elapsed time of the auction
   /// @return The reward fraction
   function computeRewardFraction(uint64 _auctionElapsedTime) external view returns (UD2x18) {
-    return _fractionalReward(_auctionElapsedTime);
+    return _computeRewardFraction(_auctionElapsedTime);
   }
 
   /// @notice Returns whether the auction is still open
@@ -280,16 +293,17 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
 
   /**
    * @notice Calculates the reward fraction for an auction if it were to be completed after the elapsed time.
+   * @param _elapsedSeconds The elapsed time of the auction in seconds
    * @dev Uses the last sold fraction as the target price for this auction.
    * @return The reward fraction as a UD2x18 value
    */
-  function _fractionalReward(uint64 _elapsedSeconds) internal view returns (UD2x18) {
+  function _computeRewardFraction(uint64 _elapsedSeconds) internal view returns (UD2x18) {
     return
       RewardLib.fractionalReward(
         _elapsedSeconds,
         _auctionDurationSeconds,
         _auctionTargetTimeFraction,
-        _auctionResults.rewardFraction
+        _lastSequenceId == 0 ? _firstAuctionTargetRewardFraction : _auctionResults.rewardFraction
       );
   }
 

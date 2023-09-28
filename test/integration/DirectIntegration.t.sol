@@ -21,6 +21,7 @@ contract RewardLibTest is Test {
   uint64 sequenceOffset = 100 days;
   uint64 auctionDurationSeconds = 12 hours;
   uint64 auctionTargetTime = 30 minutes;
+  UD2x18 firstAuctionTargetRewardFraction = UD2x18.wrap(uint64(1e18));
 
   address recipient1;
   address recipient2;
@@ -40,7 +41,7 @@ contract RewardLibTest is Test {
       sequenceOffset,
       auctionDurationSeconds,
       auctionTargetTime,
-      UD2x18.wrap(uint64(1e18))
+      firstAuctionTargetRewardFraction
     );
 
     rngAuctionRelayerDirect = new RngAuctionRelayerDirect(rngAuction);
@@ -49,9 +50,10 @@ contract RewardLibTest is Test {
 
     rngRelayAuction = new RngRelayAuction(
       prizePool,
-      address(rngAuctionRelayerDirect),
       auctionDurationSeconds,
       auctionTargetTime,
+      address(rngAuctionRelayerDirect),
+      firstAuctionTargetRewardFraction,
       10000e18
     );
   }

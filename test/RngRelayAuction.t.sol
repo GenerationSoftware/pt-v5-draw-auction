@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import { Helpers, RNGInterface, UD2x18 } from "./helpers/Helpers.t.sol";
 import { AuctionResult } from "../src/interfaces/IAuction.sol";
+import { RewardLib } from "../src/libraries/RewardLib.sol";
 
 import {
   RngRelayAuction,
@@ -43,10 +44,11 @@ contract RngRelayAuctionTest is Helpers {
   /* ============ Variables ============ */
 
   RngRelayAuction public rngRelayAuction;
-
+  RngRelayAuction public rngRelayAuctionWithFirstTargetReward;
   PrizePool prizePool;
   uint64 auctionDurationSeconds = 1 hours;
   uint64 auctionTargetTime = 1;
+  UD2x18 firstAuctionTargetRewardFractionZero = UD2x18.wrap(uint64(0));
   uint256 maxRewards = 1000e18;
 
   address alice;
@@ -58,9 +60,10 @@ contract RngRelayAuctionTest is Helpers {
 
     rngRelayAuction = new RngRelayAuction(
       prizePool,
-      address(this),
       auctionDurationSeconds,
       auctionTargetTime,
+      address(this),
+      firstAuctionTargetRewardFractionZero,
       maxRewards
     );
   }
@@ -75,9 +78,10 @@ contract RngRelayAuctionTest is Helpers {
     vm.expectRevert(abi.encodeWithSelector(PrizePoolZeroAddress.selector));
     new RngRelayAuction(
       PrizePool(address(0)),
-      address(this),
       auctionDurationSeconds,
       auctionTargetTime,
+      address(this),
+      firstAuctionTargetRewardFractionZero,
       maxRewards
     );
   }
@@ -86,33 +90,62 @@ contract RngRelayAuctionTest is Helpers {
     vm.expectRevert(abi.encodeWithSelector(RngRelayerZeroAddress.selector));
     new RngRelayAuction(
       prizePool,
-      address(0),
       auctionDurationSeconds,
       auctionTargetTime,
+      address(0),
+      firstAuctionTargetRewardFractionZero,
       maxRewards
     );
   }
 
   function testConstructor_AuctionDurationZero() public {
     vm.expectRevert(abi.encodeWithSelector(AuctionDurationZero.selector));
-    new RngRelayAuction(prizePool, address(this), 0, auctionTargetTime, maxRewards);
+    new RngRelayAuction(
+      prizePool,
+      0,
+      auctionTargetTime,
+      address(this),
+      firstAuctionTargetRewardFractionZero,
+      maxRewards
+    );
   }
 
   function testConstructor_MaxRewardIsZero() public {
     vm.expectRevert(abi.encodeWithSelector(MaxRewardIsZero.selector));
-    new RngRelayAuction(prizePool, address(this), auctionDurationSeconds, auctionTargetTime, 0);
+    new RngRelayAuction(
+      prizePool,
+      auctionDurationSeconds,
+      auctionTargetTime,
+      address(this),
+      firstAuctionTargetRewardFractionZero,
+      0
+    );
   }
 
   function testConstructor_AuctionTargetTimeZero() public {
     vm.expectRevert(abi.encodeWithSelector(AuctionTargetTimeZero.selector));
-    new RngRelayAuction(prizePool, address(this), auctionDurationSeconds, 0, maxRewards);
+    new RngRelayAuction(
+      prizePool,
+      auctionDurationSeconds,
+      0,
+      address(this),
+      firstAuctionTargetRewardFractionZero,
+      maxRewards
+    );
   }
 
   function testConstructor_AuctionTargetTimeExceedsDuration() public {
     vm.expectRevert(
       abi.encodeWithSelector(AuctionTargetTimeExceedsDuration.selector, 1 hours, 2 hours)
     );
-    new RngRelayAuction(prizePool, address(this), 1 hours, 2 hours, maxRewards);
+    new RngRelayAuction(
+      prizePool,
+      1 hours,
+      2 hours,
+      address(this),
+      firstAuctionTargetRewardFractionZero,
+      maxRewards
+    );
   }
 
   function testFractionalReward() public {
@@ -121,6 +154,7 @@ contract RngRelayAuctionTest is Helpers {
       0 ether,
       "fractional reward at zero"
     );
+
     assertApproxEqAbs(
       rngRelayAuction.computeRewardFraction(auctionDurationSeconds).unwrap(),
       1 ether,
@@ -190,7 +224,7 @@ contract RngRelayAuctionTest is Helpers {
       1,
       22487498263889022870 // 0.25 * 90
     );
-    uint completedAt = block.timestamp;
+    uint256 completedAt = block.timestamp;
     vm.warp(completedAt + auctionDurationSeconds / 2);
     rngRelayAuction.rngComplete(0x1234, completedAt, alice, 1, results);
 
@@ -214,7 +248,7 @@ contract RngRelayAuctionTest is Helpers {
 
     mockCloseDraw(0x1234);
     mockReserve(100e18);
-    uint completedAt = block.timestamp;
+    uint256 completedAt = block.timestamp;
     vm.warp(completedAt + auctionDurationSeconds / 2);
 
     vm.mockCallRevert(
@@ -235,9 +269,10 @@ contract RngRelayAuctionTest is Helpers {
   function testRngComplete_maxRewards() public {
     rngRelayAuction = new RngRelayAuction(
       prizePool,
-      address(this),
       auctionDurationSeconds,
       auctionTargetTime,
+      address(this),
+      firstAuctionTargetRewardFractionZero,
       10e18
     );
 
@@ -255,7 +290,7 @@ contract RngRelayAuctionTest is Helpers {
     vm.expectEmit(true, true, true, true);
     emit AuctionRewardAllocated(1, alice, 1, 2.248749826388902287e18);
 
-    uint completedAt = block.timestamp;
+    uint256 completedAt = block.timestamp;
     vm.warp(completedAt + auctionDurationSeconds / 2);
     rngRelayAuction.rngComplete(0x1234, completedAt, alice, 1, results);
 
@@ -269,6 +304,54 @@ contract RngRelayAuctionTest is Helpers {
       249861091820989143,
       "reward fraction is about a quarter (halfway through parabola)"
     );
+  }
+
+  function testRngComplete_FirstAuctionTargetRewardFractionSet() public {
+    UD2x18 firstAuctionTargetRewardFraction = UD2x18.wrap(uint64(0.1e18));
+
+    rngRelayAuctionWithFirstTargetReward = new RngRelayAuction(
+      prizePool,
+      auctionDurationSeconds,
+      auctionTargetTime,
+      address(this),
+      firstAuctionTargetRewardFraction,
+      maxRewards
+    );
+
+    AuctionResult memory results = AuctionResult({
+      recipient: address(this),
+      rewardFraction: firstAuctionTargetRewardFraction
+    });
+
+    uint256 reserve = 100e18;
+    uint256 allocatedReward = 10e18;
+
+    mockCloseDraw(0x1234);
+    mockReserve(reserve);
+    mockAllocateRewardFromReserve(address(this), allocatedReward);
+
+    vm.expectEmit(true, true, true, true);
+    emit RngSequenceCompleted(1, 42);
+
+    vm.expectEmit(true, true, true, true);
+    emit AuctionRewardAllocated(1, address(this), 0, allocatedReward);
+
+    vm.expectEmit(true, true, true, true);
+    emit AuctionRewardAllocated(1, alice, 1, 2.9238748437500120520e19);
+
+    uint256 completedAt = block.timestamp;
+    vm.warp(completedAt + auctionDurationSeconds / 2);
+    rngRelayAuctionWithFirstTargetReward.rngComplete(0x1234, completedAt, alice, 1, results);
+
+    assertEq(rngRelayAuctionWithFirstTargetReward.lastSequenceId(), 1, "sequence id is now 1");
+    assertTrue(
+      rngRelayAuctionWithFirstTargetReward.isSequenceCompleted(1),
+      "sequence 1 auction is complete"
+    );
+
+    AuctionResult memory r = rngRelayAuctionWithFirstTargetReward.getLastAuctionResult();
+    assertEq(r.recipient, alice);
+    assertEq(r.rewardFraction.unwrap(), 3.24874982638890228e17);
   }
 
   function testRngComplete_SequenceAlreadyCompleted() public {
@@ -308,7 +391,7 @@ contract RngRelayAuctionTest is Helpers {
     mockReserve(100e18);
     mockAllocateRewardFromReserve(address(this), 10e18);
 
-    uint completedAt = block.timestamp;
+    uint256 completedAt = block.timestamp;
     vm.warp(completedAt + auctionDurationSeconds / 2);
 
     vm.expectRevert(abi.encodeWithSelector(RewardRecipientIsZeroAddress.selector));
@@ -336,9 +419,10 @@ contract RngRelayAuctionTest is Helpers {
   function testComputeRewards_maxRewards() public {
     rngRelayAuction = new RngRelayAuction(
       prizePool,
-      address(this),
       auctionDurationSeconds,
       auctionTargetTime,
+      address(this),
+      firstAuctionTargetRewardFractionZero,
       10e18
     );
 
@@ -379,7 +463,7 @@ contract RngRelayAuctionTest is Helpers {
   /* ============ mock ============ */
 
   function mockPrizePoolReserve(uint256 amount) public {
-    uint half = amount / 2;
+    uint256 half = amount / 2;
     vm.mockCall(
       address(prizePool),
       abi.encodeWithSelector(prizePool.reserve.selector),
@@ -408,7 +492,7 @@ contract RngRelayAuctionTest is Helpers {
     );
   }
 
-  function mockReserve(uint value) public {
+  function mockReserve(uint256 value) public {
     vm.mockCall(
       address(prizePool),
       abi.encodeWithSelector(prizePool.reserve.selector),
