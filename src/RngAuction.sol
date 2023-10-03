@@ -234,9 +234,11 @@ contract RngAuction is IAuction, Ownable {
   /* ============ State Functions ============ */
 
   /**
-   * @notice Returns whether the RNG request has been started for the current sequence.
-   * @dev The auction is complete when the RNG has been requested for the current sequence.
-   * @return True if the RNG request has been started, false otherwise.
+   * @notice Determines if the next sequence can be started.
+   * @dev The auction is complete when the RNG has been requested for the current sequence, therefore
+   * the next sequence can be started if the current sequenceId is different from the last
+   * auction's sequenceId.
+   * @return True if the next sequence can be started, false otherwise.
    */
   function canStartNextSequence() external view returns (bool) {
     return _canStartNextSequence();
@@ -431,9 +433,11 @@ contract RngAuction is IAuction, Ownable {
   }
 
   /**
-   * @notice Returns whether the RNG request has been started for the current sequence.
-   * @dev The auction is complete when the RNG has been requested for the current sequence.
-   * @return True if the RNG request has been started, false otherwise.
+   * @notice Determines if the next sequence can be started.
+   * @dev The auction is complete when the RNG has been requested for the current sequence, therefore
+   * the next sequence can be started if the current sequenceId is different from the last
+   * auction's sequenceId.
+   * @return True if the next sequence can be started, false otherwise.
    */
   function _canStartNextSequence() internal view returns (bool) {
     return _lastAuction.sequenceId != _openSequenceId();
