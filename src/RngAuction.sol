@@ -236,7 +236,7 @@ contract RngAuction is IAuction, Ownable {
   /**
    * @notice Determines if the next sequence can be started.
    * @dev The auction is complete when the RNG has been requested for the current sequence, therefore
-   * the next sequence can be started if the the current sequenceId is different from the last
+   * the next sequence can be started if the current sequenceId is different from the last
    * auction's sequenceId.
    * @return True if the next sequence can be started, false otherwise.
    */
