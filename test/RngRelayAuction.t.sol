@@ -11,6 +11,7 @@ import {
   RngRelayerZeroAddress,
   AuctionDurationZero,
   AuctionTargetTimeZero,
+  TargetRewardFractionGTOne,
   SequenceAlreadyCompleted,
   AuctionExpired,
   PrizePoolZeroAddress,
@@ -144,6 +145,18 @@ contract RngRelayAuctionTest is Helpers {
       2 hours,
       address(this),
       firstAuctionTargetRewardFractionZero,
+      maxRewards
+    );
+  }
+
+  function testConstructor_TargetRewardFractionGTOne() public {
+    vm.expectRevert(abi.encodeWithSelector(TargetRewardFractionGTOne.selector));
+    new RngRelayAuction(
+      prizePool,
+      auctionDurationSeconds,
+      auctionTargetTime,
+      address(this),
+      UD2x18.wrap(uint64(2e18)),
       maxRewards
     );
   }

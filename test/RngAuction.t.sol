@@ -12,7 +12,8 @@ import {
   AuctionDurationZero,
   AuctionTargetTimeExceedsDuration,
   SequencePeriodZero,
-  AuctionDurationGtSequencePeriod,
+  AuctionDurationGTSequencePeriod,
+  TargetRewardFractionGTOne,
   RngZeroAddress,
   CannotStartNextSequence,
   AuctionTargetTimeZero,
@@ -95,10 +96,10 @@ contract RngAuctionTest is Helpers {
     );
   }
 
-  function testConstructor_AuctionDurationGtSequencePeriod() public {
+  function testConstructor_AuctionDurationGTSequencePeriod() public {
     vm.expectRevert(
       abi.encodeWithSelector(
-        AuctionDurationGtSequencePeriod.selector,
+        AuctionDurationGTSequencePeriod.selector,
         sequencePeriod + 1,
         sequencePeriod
       )
@@ -111,6 +112,19 @@ contract RngAuctionTest is Helpers {
       sequencePeriod + 1,
       auctionTargetTime,
       firstAuctionTargetRewardFraction
+    );
+  }
+
+  function testConstructor_TargetRewardFractionGTOne() public {
+    vm.expectRevert(abi.encodeWithSelector(TargetRewardFractionGTOne.selector));
+    new RngAuction(
+      rng,
+      address(this), // owner
+      sequencePeriod,
+      sequenceOffset,
+      sequencePeriod,
+      auctionTargetTime,
+      UD2x18.wrap(uint64(2e18))
     );
   }
 

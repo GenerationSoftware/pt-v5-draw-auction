@@ -51,7 +51,10 @@ error SequencePeriodZero();
  * @param auctionDuration The auction duration in seconds
  * @param sequencePeriod The sequence period in seconds
  */
-error AuctionDurationGtSequencePeriod(uint64 auctionDuration, uint64 sequencePeriod);
+error AuctionDurationGTSequencePeriod(uint64 auctionDuration, uint64 sequencePeriod);
+
+/// @notice Thrown when the first auction target reward fraction is greater than one.
+error TargetRewardFractionGTOne();
 
 /// @notice Thrown when the RNG address passed to the setter function is zero address.
 error RngZeroAddress();
@@ -169,10 +172,12 @@ contract RngAuction is IAuction, Ownable {
     }
 
     if (auctionDurationSeconds_ > sequencePeriod_)
-      revert AuctionDurationGtSequencePeriod(
+      revert AuctionDurationGTSequencePeriod(
         uint64(auctionDurationSeconds_),
         uint64(sequencePeriod_)
       );
+
+    if (firstAuctionTargetRewardFraction_.unwrap() > 1e18) revert TargetRewardFractionGTOne();
 
     sequencePeriod = sequencePeriod_;
     sequenceOffset = sequenceOffset_;

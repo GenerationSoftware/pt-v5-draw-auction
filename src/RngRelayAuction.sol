@@ -29,6 +29,9 @@ error UnauthorizedRelayer(address relayer);
  */
 error AuctionTargetTimeExceedsDuration(uint64 auctionDuration, uint64 auctionTargetTime);
 
+/// @notice Thrown when the first auction target reward fraction is greater than one.
+error TargetRewardFractionGTOne();
+
 /// @notice Thrown if the RngAuction address is the zero address.
 error RngRelayerZeroAddress();
 
@@ -125,6 +128,8 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
     if (auctionTargetTime_ > auctionDurationSeconds_) {
       revert AuctionTargetTimeExceedsDuration(auctionDurationSeconds_, auctionTargetTime_);
     }
+
+    if (firstAuctionTargetRewardFraction_.unwrap() > 1e18) revert TargetRewardFractionGTOne();
 
     if (_maxRewards == 0) {
       revert MaxRewardIsZero();
