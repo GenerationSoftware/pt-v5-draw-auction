@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-import "forge-std/console2.sol";
-
-import { Helpers, RNGInterface, UD2x18 } from "test/helpers/Helpers.t.sol";
+import { Helpers, UD2x18 } from "test/helpers/Helpers.t.sol";
 import { ERC20Mintable } from "test/mocks/ERC20Mintable.sol";
 import { AuctionResult } from "../src/interfaces/IAuction.sol";
 
 import {
   RngAuction,
   RngAuctionResult,
+  RNGInterface,
   AuctionDurationZero,
   AuctionTargetTimeExceedsDuration,
   SequencePeriodZero,
-  AuctionDurationGtSequencePeriod,
+  AuctionDurationGTSequencePeriod,
+  TargetRewardFractionGTOne,
   RngZeroAddress,
   CannotStartNextSequence,
   AuctionTargetTimeZero,
@@ -23,7 +23,6 @@ import {
 } from "../src/RngAuction.sol";
 
 contract RngAuctionTest is Helpers {
-
   /* ============ Events ============ */
 
   event RngAuctionCompleted(
@@ -52,6 +51,7 @@ contract RngAuctionTest is Helpers {
 
   uint64 auctionDuration = 4 hours;
   uint64 auctionTargetTime = 2 hours;
+  UD2x18 firstAuctionTargetRewardFraction = UD2x18.wrap(uint64(1e18));
   uint64 sequencePeriod = 1 days;
   uint64 sequenceOffset = 10 days;
   address _recipient = address(2);
@@ -70,7 +70,8 @@ contract RngAuctionTest is Helpers {
       sequencePeriod,
       sequenceOffset,
       auctionDuration,
-      auctionTargetTime
+      auctionTargetTime,
+      firstAuctionTargetRewardFraction
     );
   }
 
@@ -90,19 +91,40 @@ contract RngAuctionTest is Helpers {
       sequencePeriod,
       sequenceOffset,
       auctionDuration,
-      auctionTargetTime
+      auctionTargetTime,
+      firstAuctionTargetRewardFraction
     );
   }
 
-  function testConstructor_AuctionDurationGtSequencePeriod() public {
-    vm.expectRevert(abi.encodeWithSelector(AuctionDurationGtSequencePeriod.selector, sequencePeriod + 1, sequencePeriod));
+  function testConstructor_AuctionDurationGTSequencePeriod() public {
+    vm.expectRevert(
+      abi.encodeWithSelector(
+        AuctionDurationGTSequencePeriod.selector,
+        sequencePeriod + 1,
+        sequencePeriod
+      )
+    );
     new RngAuction(
       rng,
       address(this), // owner
       sequencePeriod,
       sequenceOffset,
       sequencePeriod + 1,
-      auctionTargetTime
+      auctionTargetTime,
+      firstAuctionTargetRewardFraction
+    );
+  }
+
+  function testConstructor_TargetRewardFractionGTOne() public {
+    vm.expectRevert(abi.encodeWithSelector(TargetRewardFractionGTOne.selector));
+    new RngAuction(
+      rng,
+      address(this), // owner
+      sequencePeriod,
+      sequenceOffset,
+      sequencePeriod,
+      auctionTargetTime,
+      UD2x18.wrap(uint64(2e18))
     );
   }
 
@@ -121,7 +143,15 @@ contract RngAuctionTest is Helpers {
 
     // Tests
     vm.expectEmit();
-    emit RngAuctionCompleted(address(this), _recipient, 1, rng, 1, auctionDuration, UD2x18.wrap(uint64(1e18)));
+    emit RngAuctionCompleted(
+      address(this),
+      _recipient,
+      1,
+      rng,
+      1,
+      auctionDuration,
+      firstAuctionTargetRewardFraction
+    );
 
     rngAuction.startRngRequest(_recipient);
     AuctionResult memory _auctionResults = rngAuction.getLastAuctionResult();
@@ -160,7 +190,15 @@ contract RngAuctionTest is Helpers {
 
     // Start RNG request
     vm.expectEmit();
-    emit RngAuctionCompleted(address(this), _recipient, 1, rng, 1, auctionDuration, UD2x18.wrap(uint64(1e18)));
+    emit RngAuctionCompleted(
+      address(this),
+      _recipient,
+      1,
+      rng,
+      1,
+      auctionDuration,
+      firstAuctionTargetRewardFraction
+    );
     rngAuction.startRngRequest(_recipient);
 
     // Mock calls
@@ -368,11 +406,7 @@ contract RngAuctionTest is Helpers {
     vm.warp(sequenceOffset + sequencePeriod + auctionTargetTime);
 
     // Test
-    AuctionResult memory _lastResults = rngAuction.getLastAuctionResult();
-    assertEq(
-      UD2x18.unwrap(rngAuction.currentFractionalReward()),
-      UD2x18.unwrap(_lastResults.rewardFraction)
-    ); // equal to last reward fraction
+    assertEq(UD2x18.unwrap(rngAuction.currentFractionalReward()), uint64(1e18)); // equal to first reward fraction
   }
 
   function testCurrentRewardFraction_AtEnd() public {
@@ -436,7 +470,8 @@ contract RngAuctionTest is Helpers {
       sequencePeriod,
       _offset,
       auctionDuration,
-      auctionTargetTime
+      auctionTargetTime,
+      firstAuctionTargetRewardFraction
     );
 
     vm.warp(_offset);
@@ -458,7 +493,8 @@ contract RngAuctionTest is Helpers {
       sequencePeriod,
       _offset,
       auctionDuration,
-      auctionTargetTime
+      auctionTargetTime,
+      firstAuctionTargetRewardFraction
     );
 
     vm.warp(_offset - 1);
@@ -542,10 +578,7 @@ contract RngAuctionTest is Helpers {
     _mockRngInterface_completedAt(rng, _rngRequestId, _completedAt);
 
     // Test
-    (
-      uint256 randomNumber_,
-      uint64 rngCompletedAt_
-    ) = rngAuction.getRngResults();
+    (uint256 randomNumber_, uint64 rngCompletedAt_) = rngAuction.getRngResults();
 
     assertEq(rngAuction.lastSequenceId(), 1);
     assertEq(randomNumber_, _randomNumber);
@@ -653,5 +686,4 @@ contract RngAuctionTest is Helpers {
     rngAuction.setNextRngService(_newRng);
     vm.stopPrank();
   }
-
 }

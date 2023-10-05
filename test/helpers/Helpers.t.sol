@@ -21,10 +21,7 @@ contract Helpers is Test {
     );
   }
 
-  function _mockRngAuction_openSequenceId(
-    RngAuction _rngAuction,
-    uint32 _openSequenceId
-  ) internal {
+  function _mockRngAuction_openSequenceId(RngAuction _rngAuction, uint32 _openSequenceId) internal {
     vm.mockCall(
       address(_rngAuction),
       abi.encodeWithSelector(RngAuction.openSequenceId.selector),
