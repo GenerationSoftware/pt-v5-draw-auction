@@ -484,7 +484,7 @@ contract RngRelayAuctionTest is Helpers {
     );
     vm.mockCall(
       address(prizePool),
-      abi.encodeWithSelector(prizePool.reserveForOpenDraw.selector),
+      abi.encodeWithSelector(prizePool.pendingReserveContributions.selector),
       abi.encode(amount - half)
     );
   }
@@ -500,7 +500,7 @@ contract RngRelayAuctionTest is Helpers {
   function mockCloseDraw(uint256 randomNumber) public {
     vm.mockCall(
       address(prizePool),
-      abi.encodeWithSelector(PrizePool.closeDraw.selector, randomNumber),
+      abi.encodeWithSelector(PrizePool.awardDraw.selector, randomNumber),
       abi.encode(42)
     );
   }
