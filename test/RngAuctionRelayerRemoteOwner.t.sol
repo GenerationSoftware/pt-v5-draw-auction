@@ -4,6 +4,8 @@ pragma solidity ^0.8.19;
 import "forge-std/Test.sol";
 
 import { UD2x18 } from "prb-math/UD2x18.sol";
+import { MessageLib } from "erc5164-interfaces/libraries/MessageLib.sol";
+
 import { RngAuction } from "../src/RngAuction.sol";
 import { IRngAuctionRelayListener } from "../src/interfaces/IRngAuctionRelayListener.sol";
 import { AuctionResult } from "../src/interfaces/IAuction.sol";
@@ -17,17 +19,18 @@ import {
 
 import {
   RngAuctionRelayerRemoteOwner,
-  IMessageDispatcher,
+  IMessageDispatcherOptimism,
   RemoteOwner,
   MessageDispatcherIsZeroAddress,
   RemoteOwnerIsZeroAddress,
   RemoteRngAuctionRelayListenerIsZeroAddress,
+  GasLimitIsZero,
   RemoteOwnerCallEncoder
 } from "../src/RngAuctionRelayerRemoteOwner.sol";
 
 contract RngAuctionRelayerRemoteOwnerTest is RngRelayerBaseTest {
   event RelayedToDispatcher(
-    IMessageDispatcher messageDispatcher,
+    IMessageDispatcherOptimism messageDispatcher,
     uint256 indexed remoteOwnerChainId,
     RemoteOwner remoteOwner,
     IRngAuctionRelayListener remoteRngAuctionRelayListener,
@@ -37,13 +40,14 @@ contract RngAuctionRelayerRemoteOwnerTest is RngRelayerBaseTest {
 
   RngAuctionRelayerRemoteOwner relayer;
 
-  IMessageDispatcher messageDispatcher;
+  IMessageDispatcherOptimism messageDispatcher;
   RemoteOwner remoteOwner;
   uint256 remoteOwnerChainId = 1;
+  uint32 gasLimit = 250_000;
 
   function setUp() public override {
     super.setUp();
-    messageDispatcher = IMessageDispatcher(makeAddr("messageDispatcher"));
+    messageDispatcher = IMessageDispatcherOptimism(makeAddr("messageDispatcher"));
     remoteOwner = RemoteOwner(payable(makeAddr("remoteOwner")));
 
     relayer = new RngAuctionRelayerRemoteOwner(rngAuction);
@@ -59,26 +63,33 @@ contract RngAuctionRelayerRemoteOwnerTest is RngRelayerBaseTest {
     mockAuctionResult(address(this), UD2x18.wrap(0.5 ether));
     mockCurrentSequenceId(789);
 
+    bytes memory data = RemoteOwnerCallEncoder.encodeCalldata(
+      address(rngAuctionRelayListener),
+      0,
+      abi.encodeWithSelector(
+        rngAuctionRelayListener.rngComplete.selector,
+        123,
+        456,
+        address(this),
+        789,
+        AuctionResult(address(this), UD2x18.wrap(0.5 ether))
+      )
+    );
+
+    address from = address(this);
+    address to = address(remoteOwner);
+    bytes32 messageId = MessageLib.computeMessageId(1, from, to, data);
+
     vm.mockCall(
       address(messageDispatcher),
       abi.encodeWithSelector(
-        messageDispatcher.dispatchMessage.selector,
+        messageDispatcher.dispatchMessageWithGasLimit.selector,
         remoteOwnerChainId,
-        address(remoteOwner),
-        RemoteOwnerCallEncoder.encodeCalldata(
-          address(rngAuctionRelayListener),
-          0,
-          abi.encodeWithSelector(
-            rngAuctionRelayListener.rngComplete.selector,
-            123,
-            456,
-            address(this),
-            789,
-            AuctionResult(address(this), UD2x18.wrap(0.5 ether))
-          )
-        )
+        to,
+        data,
+        gasLimit
       ),
-      abi.encode(bytes32(uint(9999)))
+      abi.encodePacked(messageId)
     );
 
     vm.expectEmit(true, true, false, false);
@@ -89,28 +100,31 @@ contract RngAuctionRelayerRemoteOwnerTest is RngRelayerBaseTest {
       remoteOwner,
       rngAuctionRelayListener,
       address(this),
-      bytes32(uint(9999))
+      messageId
     );
+
     assertEq(
       relayer.relay(
         messageDispatcher,
         remoteOwnerChainId,
         remoteOwner,
         rngAuctionRelayListener,
-        address(this)
+        address(this),
+        gasLimit
       ),
-      bytes32(uint(9999))
+      messageId
     );
   }
 
   function testRelay_MessageDispatcherIsZeroAddress() public {
     vm.expectRevert(abi.encodeWithSelector(MessageDispatcherIsZeroAddress.selector));
     relayer.relay(
-      IMessageDispatcher(address(0)),
+      IMessageDispatcherOptimism(address(0)),
       remoteOwnerChainId,
       remoteOwner,
       rngAuctionRelayListener,
-      address(this)
+      address(this),
+      gasLimit
     );
   }
 
@@ -121,7 +135,8 @@ contract RngAuctionRelayerRemoteOwnerTest is RngRelayerBaseTest {
       remoteOwnerChainId,
       RemoteOwner(payable(0)),
       rngAuctionRelayListener,
-      address(this)
+      address(this),
+      gasLimit
     );
   }
 
@@ -132,7 +147,8 @@ contract RngAuctionRelayerRemoteOwnerTest is RngRelayerBaseTest {
       remoteOwnerChainId,
       remoteOwner,
       IRngAuctionRelayListener(address(0)),
-      address(this)
+      address(this),
+      gasLimit
     );
   }
 
@@ -143,7 +159,20 @@ contract RngAuctionRelayerRemoteOwnerTest is RngRelayerBaseTest {
       remoteOwnerChainId,
       remoteOwner,
       rngAuctionRelayListener,
-      address(0)
+      address(0),
+      gasLimit
+    );
+  }
+
+  function testRelay_GasLimitIsZero() public {
+    vm.expectRevert(abi.encodeWithSelector(GasLimitIsZero.selector));
+    relayer.relay(
+      messageDispatcher,
+      remoteOwnerChainId,
+      remoteOwner,
+      rngAuctionRelayListener,
+      address(this),
+      0
     );
   }
 }
