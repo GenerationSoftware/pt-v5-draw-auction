@@ -184,7 +184,7 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
       recipient: _rewardRecipient
     });
 
-    uint32 drawId = prizePool.closeDraw(_randomNumber);
+    uint32 drawId = prizePool.awardDraw(_randomNumber);
 
     uint256 reserve = prizePool.reserve();
     uint256[] memory _rewards = RewardLib.rewards(
@@ -211,7 +211,7 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
   function computeRewards(
     AuctionResult[] calldata __auctionResults
   ) external view returns (uint256[] memory) {
-    uint256 totalReserve = prizePool.reserve() + prizePool.reserveForOpenDraw();
+    uint256 totalReserve = prizePool.reserve() + prizePool.pendingReserveContributions();
     return _computeRewards(__auctionResults, totalReserve > maxRewards ? maxRewards : totalReserve);
   }
 

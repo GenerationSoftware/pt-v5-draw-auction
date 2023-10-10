@@ -79,7 +79,7 @@ contract RewardLibTest is Test {
   function mockCloseDraw(uint256 randomNumber) public {
     vm.mockCall(
       address(prizePool),
-      abi.encodeWithSelector(prizePool.closeDraw.selector, randomNumber),
+      abi.encodeWithSelector(prizePool.awardDraw.selector, randomNumber),
       abi.encodePacked(uint256(1))
     );
   }
@@ -93,7 +93,7 @@ contract RewardLibTest is Test {
     );
     vm.mockCall(
       address(prizePool),
-      abi.encodeWithSelector(prizePool.reserveForOpenDraw.selector),
+      abi.encodeWithSelector(prizePool.pendingReserveContributions.selector),
       abi.encode(amount - half)
     );
   }

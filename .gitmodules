@@ -9,19 +9,23 @@
 	path = lib/openzeppelin-contracts
 	url = https://github.com/openzeppelin/openzeppelin-contracts
 	branch = release-v4.9
-[submodule "lib/pt-v5-rng-contracts"]
-	path = lib/pt-v5-rng-contracts
-	url = https://github.com/GenerationSoftware/pt-v5-rng-contracts
-	branch = main
 [submodule "lib/prb-math"]
 	path = lib/prb-math
 	url = https://github.com/PaulRBerg/prb-math
 	branch = v4
+[submodule "lib/erc5164-interfaces"]
+	path = lib/erc5164-interfaces
+	url = https://github.com/GenerationSoftware/erc5164-interfaces
+	branch = prod-testnet-2
+[submodule "lib/pt-v5-rng-contracts"]
+	path = lib/pt-v5-rng-contracts
+	url = https://github.com/GenerationSoftware/pt-v5-rng-contracts
+	branch = prod-testnet-2
 [submodule "lib/pt-v5-prize-pool"]
 	path = lib/pt-v5-prize-pool
 	url = https://github.com/generationsoftware/pt-v5-prize-pool
-	branch = main
+	branch = prod-testnet-2
 [submodule "lib/remote-owner"]
 	path = lib/remote-owner
 	url = https://github.com/generationsoftware/remote-owner
-	branch = main
+	branch = prod-testnet-2

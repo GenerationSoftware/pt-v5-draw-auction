@@ -6,7 +6,7 @@ owner-manager/=lib/owner-manager-contracts/contracts/
 rng/=lib/pt-v5-rng-contracts/contracts/
 prb-math/=lib/prb-math/src/
 remote-owner=lib/remote-owner/src/
-erc5164-interfaces=lib/remote-owner/lib/erc5164-interfaces/src/
+erc5164-interfaces=lib/erc5164-interfaces/src/
 
 pt-v5-prize-pool/=lib/pt-v5-prize-pool/src/
 pt-v5-twab-controller=lib/pt-v5-prize-pool/lib/pt-v5-twab-controller/src
