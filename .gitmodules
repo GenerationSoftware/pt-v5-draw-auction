@@ -16,7 +16,7 @@
 [submodule "lib/erc5164-interfaces"]
 	path = lib/erc5164-interfaces
 	url = https://github.com/GenerationSoftware/erc5164-interfaces
-	branch = prod-deploy-2
+	branch = prod-testnet-4
 [submodule "lib/pt-v5-rng-contracts"]
 	path = lib/pt-v5-rng-contracts
 	url = https://github.com/GenerationSoftware/pt-v5-rng-contracts

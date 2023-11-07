@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+import { IMessageDispatcher } from "erc5164-interfaces/interfaces/IMessageDispatcher.sol";
 import { RemoteOwner } from "remote-owner/RemoteOwner.sol";
 import { RemoteOwnerCallEncoder } from "remote-owner/libraries/RemoteOwnerCallEncoder.sol";
 import {
-  IMessageDispatcherOptimism
-} from "erc5164-interfaces/interfaces/IMessageDispatcherOptimism.sol";
+  IMessageDispatcherArbitrum
+} from "erc5164-interfaces/interfaces/extensions/IMessageDispatcherArbitrum.sol";
 
 import {
   RngAuctionRelayer,
@@ -22,16 +23,19 @@ error RemoteOwnerIsZeroAddress();
 /// @notice Emitted when the relayer listener is the zero address.
 error RemoteRngAuctionRelayListenerIsZeroAddress();
 
-/// @notice Emitted when the `gasLimit` passed to the `relay` function is zero.
-error GasLimitIsZero();
+/// @notice Emitted when the `gasLimit` passed to the `relay` function is lower than or equal to 1.
+error GasLimitIsLTEOne();
+
+/// @notice Emitted when the `gasPriceBid` passed to the `relay` function is lower than or equal to 1.
+error GasPriceBidIsLTEOne();
 
 /**
- * @title RngAuctionRelayerRemoteOwner
+ * @title RngAuctionRelayerRemoteOwnerArbitrum
  * @author G9 Software Inc.
- * @notice This contract allows anyone to relay RNG results to an IRngAuctionRelayListener on another chain.
- * @dev This contract uses a Remote Owner, which allows a contract on one chain to operate an address on another chain.
+ * @notice This contract allows anyone to relay RNG results to an IRngAuctionRelayListener on the Arbitrum chain.
+ * @dev This contract uses a Remote Owner, which allows a contract on one chain to operate an address on the Arbitrum chain.
  */
-contract RngAuctionRelayerRemoteOwner is RngAuctionRelayer {
+contract RngAuctionRelayerRemoteOwnerArbitrum is RngAuctionRelayer {
   /**
    * @notice Emitted when the relay was successfully dispatched to the ERC-5164 Dispatcher
    * @param messageDispatcher The ERC-5164 Dispatcher to use to bridge messages
@@ -42,7 +46,7 @@ contract RngAuctionRelayerRemoteOwner is RngAuctionRelayer {
    * @param messageId The message ID of the dispatched message.
    */
   event RelayedToDispatcher(
-    IMessageDispatcherOptimism messageDispatcher,
+    IMessageDispatcherArbitrum messageDispatcher,
     uint256 indexed remoteOwnerChainId,
     RemoteOwner remoteOwner,
     IRngAuctionRelayListener remoteRngAuctionRelayListener,
@@ -57,24 +61,30 @@ contract RngAuctionRelayerRemoteOwner is RngAuctionRelayer {
   constructor(RngAuction _rngAuction) RngAuctionRelayer(_rngAuction) {}
 
   /**
-   * @notice Relays the RNG results through the 5164 message dispatcher to the remote rngAuctionRelayListener on the other chain.
-   * @dev Note that some bridges require an additional transaction to bridge the message.
-   * For example, both Arbitrum and zkSync require off-chain information to accomplish this. See ERC-5164 implementations for more details.
+   * @notice Relays the RNG results through the 5164 message dispatcher to the remote rngAuctionRelayListener on the Arbitrum chain.
+   * @dev `_gasLimit` and `_gasPriceBid` should not be set to 1 as that is used to trigger the Arbitrum RetryableData error.
+   * @dev `_refundAddress` is also passed as `callValueRefundAddress` and can cancel the Arbitrum retryable ticket.
    * @param _messageDispatcher The ERC-5164 Dispatcher to use to bridge messages
    * @param _remoteOwnerChainId The chain ID that the Remote Owner is deployed to
-   * @param _remoteOwner The address of the Remote Owner on the other chain whom should call the remote relayer
-   * @param _remoteRngAuctionRelayListener The address of the IRngAuctionRelayListener to relay to on the other chain
-   * @param _rewardRecipient The address that shall receive the RngAuctionRelay reward. Note that this address must be able to receive rewards on the other chain.
-   * @param _gasLimit Gas limit at which the message will be executed on the receiving chain
+   * @param _remoteOwner The address of the Remote Owner on the Arbitrum chain whom should call the remote relayer
+   * @param _remoteRngAuctionRelayListener The address of the IRngAuctionRelayListener to relay to on the Arbitrum chain
+   * @param _rewardRecipient The address that shall receive the RngAuctionRelay reward. Note that this address must be able to receive rewards on the Arbitrum chain.
+   * @param _refundAddress Address that will receive the `excessFeeRefund` amount if any
+   * @param _gasLimit Gas limit at which the message will be executed on the Arbitrum chain
+   * @param _maxSubmissionCost Max gas deducted from user's Arbitrum balance to cover base submission fee
+   * @param _gasPriceBid Gas price bid for Arbitrum execution
    * @return The message ID of the dispatched message
    */
   function relay(
-    IMessageDispatcherOptimism _messageDispatcher,
+    IMessageDispatcherArbitrum _messageDispatcher,
     uint256 _remoteOwnerChainId,
     RemoteOwner _remoteOwner,
     IRngAuctionRelayListener _remoteRngAuctionRelayListener,
     address _rewardRecipient,
-    uint32 _gasLimit
+    address _refundAddress,
+    uint256 _gasLimit,
+    uint256 _maxSubmissionCost,
+    uint256 _gasPriceBid
   ) external returns (bytes32) {
     if (address(_messageDispatcher) == address(0)) {
       revert MessageDispatcherIsZeroAddress();
@@ -88,12 +98,17 @@ contract RngAuctionRelayerRemoteOwner is RngAuctionRelayer {
       revert RemoteRngAuctionRelayListenerIsZeroAddress();
     }
 
-    if (_gasLimit == 0) {
-      revert GasLimitIsZero();
+    if (_gasLimit <= 1) {
+      revert GasLimitIsLTEOne();
+    }
+
+    if (_gasPriceBid <= 1) {
+      revert GasPriceBidIsLTEOne();
     }
 
     bytes memory listenerCalldata = _encodeCalldata(_rewardRecipient);
-    bytes32 messageId = _messageDispatcher.dispatchMessageWithGasLimit(
+
+    (bytes32 _messageId, ) = _messageDispatcher.dispatchAndProcessMessage(
       _remoteOwnerChainId,
       address(_remoteOwner),
       RemoteOwnerCallEncoder.encodeCalldata(
@@ -101,7 +116,10 @@ contract RngAuctionRelayerRemoteOwner is RngAuctionRelayer {
         0,
         listenerCalldata
       ),
-      _gasLimit
+      _refundAddress,
+      _gasLimit,
+      _maxSubmissionCost,
+      _gasPriceBid
     );
 
     emit RelayedToDispatcher(
@@ -110,9 +128,9 @@ contract RngAuctionRelayerRemoteOwner is RngAuctionRelayer {
       _remoteOwner,
       _remoteRngAuctionRelayListener,
       _rewardRecipient,
-      messageId
+      _messageId
     );
 
-    return messageId;
+    return _messageId;
   }
 }
