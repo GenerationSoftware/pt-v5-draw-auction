@@ -64,6 +64,7 @@ contract RngAuctionRelayerRemoteOwnerArbitrum is RngAuctionRelayer {
    * @notice Relays the RNG results through the 5164 message dispatcher to the remote rngAuctionRelayListener on the Arbitrum chain.
    * @dev `_gasLimit` and `_gasPriceBid` should not be set to 1 as that is used to trigger the Arbitrum RetryableData error.
    * @dev `_refundAddress` is also passed as `callValueRefundAddress` and can cancel the Arbitrum retryable ticket.
+   * @dev The payable amount is passed onto the message dispatcher to use as the L2 gas fee. Any gas refund will be given to the `_refundAddress` on L2.
    * @param _messageDispatcher The ERC-5164 Dispatcher to use to bridge messages
    * @param _remoteOwnerChainId The chain ID that the Remote Owner is deployed to
    * @param _remoteOwner The address of the Remote Owner on the Arbitrum chain whom should call the remote relayer
@@ -85,7 +86,7 @@ contract RngAuctionRelayerRemoteOwnerArbitrum is RngAuctionRelayer {
     uint256 _gasLimit,
     uint256 _maxSubmissionCost,
     uint256 _gasPriceBid
-  ) external returns (bytes32) {
+  ) external payable returns (bytes32) {
     if (address(_messageDispatcher) == address(0)) {
       revert MessageDispatcherIsZeroAddress();
     }
@@ -108,7 +109,7 @@ contract RngAuctionRelayerRemoteOwnerArbitrum is RngAuctionRelayer {
 
     bytes memory listenerCalldata = _encodeCalldata(_rewardRecipient);
 
-    (bytes32 _messageId, ) = _messageDispatcher.dispatchAndProcessMessage(
+    (bytes32 _messageId, ) = _messageDispatcher.dispatchAndProcessMessage{ value: msg.value }(
       _remoteOwnerChainId,
       address(_remoteOwner),
       RemoteOwnerCallEncoder.encodeCalldata(
