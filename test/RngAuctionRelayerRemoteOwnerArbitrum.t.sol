@@ -82,9 +82,11 @@ contract RngAuctionRelayerRemoteOwnerArbitrumTest is RngRelayerBaseTest {
     address from = address(this);
     address to = address(remoteOwner);
     bytes32 messageId = MessageLib.computeMessageId(1, from, to, data);
+    uint256 value = 1e16; // payable value passed along
 
     vm.mockCall(
       address(messageDispatcher),
+      value,
       abi.encodeWithSelector(
         IMessageDispatcherArbitrum.dispatchAndProcessMessage.selector,
         remoteOwnerChainId,
@@ -110,7 +112,7 @@ contract RngAuctionRelayerRemoteOwnerArbitrumTest is RngRelayerBaseTest {
     );
 
     assertEq(
-      relayer.relay(
+      relayer.relay{ value: value }(
         messageDispatcher,
         remoteOwnerChainId,
         remoteOwner,
