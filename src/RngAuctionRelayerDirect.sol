@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+import { PrizePool } from "pt-v5-prize-pool/PrizePool.sol";
 import {
   RngAuctionRelayer,
   RngAuctionIsZeroAddress,
@@ -32,9 +33,10 @@ contract RngAuctionRelayerDirect is RngAuctionRelayer {
   /// @return The return value from the relay listener.
   function relay(
     IRngAuctionRelayListener _rngAuctionRelayListener,
+    PrizePool _prizePool,
     address _relayRewardRecipient
   ) external returns (bytes memory) {
-    bytes memory data = _encodeCalldata(_relayRewardRecipient);
+    bytes memory data = _encodeCalldata(_prizePool, _relayRewardRecipient);
     (bool success, bytes memory returnData) = address(_rngAuctionRelayListener).call(data);
     if (!success) {
       revert DirectRelayFailed(returnData);

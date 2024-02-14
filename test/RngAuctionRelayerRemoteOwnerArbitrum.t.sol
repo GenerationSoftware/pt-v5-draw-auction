@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import "forge-std/Test.sol";
 
+import { PrizePool } from "pt-v5-prize-pool/PrizePool.sol";
 import { UD2x18 } from "prb-math/UD2x18.sol";
 import { MessageLib } from "erc5164-interfaces/libraries/MessageLib.sol";
 
@@ -19,6 +20,7 @@ import {
 
 import {
   RngAuctionRelayerRemoteOwnerArbitrum,
+  ArbitrumRelayParams,
   IMessageDispatcherArbitrum,
   RemoteOwner,
   MessageDispatcherIsZeroAddress,
@@ -35,12 +37,13 @@ contract RngAuctionRelayerRemoteOwnerArbitrumTest is RngRelayerBaseTest {
     uint256 indexed remoteOwnerChainId,
     RemoteOwner remoteOwner,
     IRngAuctionRelayListener remoteRngAuctionRelayListener,
+    PrizePool remotePrizePool,
     address indexed rewardRecipient,
     bytes32 indexed messageId
   );
 
   RngAuctionRelayerRemoteOwnerArbitrum public relayer;
-
+  PrizePool prizePool = PrizePool(makeAddr("prizePool"));
   IMessageDispatcherArbitrum public messageDispatcher;
   RemoteOwner public remoteOwner;
   uint256 public remoteOwnerChainId = 1;
@@ -71,6 +74,7 @@ contract RngAuctionRelayerRemoteOwnerArbitrumTest is RngRelayerBaseTest {
       0,
       abi.encodeWithSelector(
         rngAuctionRelayListener.rngComplete.selector,
+        prizePool,
         123,
         456,
         address(this),
@@ -107,6 +111,7 @@ contract RngAuctionRelayerRemoteOwnerArbitrumTest is RngRelayerBaseTest {
       remoteOwnerChainId,
       remoteOwner,
       rngAuctionRelayListener,
+      prizePool,
       address(this),
       messageId
     );
@@ -117,11 +122,14 @@ contract RngAuctionRelayerRemoteOwnerArbitrumTest is RngRelayerBaseTest {
         remoteOwnerChainId,
         remoteOwner,
         rngAuctionRelayListener,
+        prizePool,
         address(this),
-        address(this),
-        gasLimit,
-        maxSubmissionCost,
-        gasPriceBid
+        ArbitrumRelayParams(
+          address(this),
+          gasLimit,
+          maxSubmissionCost,
+          gasPriceBid
+        )
       ),
       messageId
     );
@@ -134,11 +142,14 @@ contract RngAuctionRelayerRemoteOwnerArbitrumTest is RngRelayerBaseTest {
       remoteOwnerChainId,
       remoteOwner,
       rngAuctionRelayListener,
+      prizePool,
       address(this),
-      address(this),
-      gasLimit,
-      maxSubmissionCost,
-      gasPriceBid
+      ArbitrumRelayParams(
+        address(this),
+        gasLimit,
+        maxSubmissionCost,
+        gasPriceBid
+      )
     );
   }
 
@@ -149,11 +160,14 @@ contract RngAuctionRelayerRemoteOwnerArbitrumTest is RngRelayerBaseTest {
       remoteOwnerChainId,
       RemoteOwner(payable(0)),
       rngAuctionRelayListener,
+      prizePool,
       address(this),
-      address(this),
-      gasLimit,
-      maxSubmissionCost,
-      gasPriceBid
+      ArbitrumRelayParams(
+        address(this),
+        gasLimit,
+        maxSubmissionCost,
+        gasPriceBid
+      )
     );
   }
 
@@ -164,11 +178,14 @@ contract RngAuctionRelayerRemoteOwnerArbitrumTest is RngRelayerBaseTest {
       remoteOwnerChainId,
       remoteOwner,
       IRngAuctionRelayListener(address(0)),
+      prizePool,
       address(this),
-      address(this),
-      gasLimit,
-      maxSubmissionCost,
-      gasPriceBid
+      ArbitrumRelayParams(
+        address(this),
+        gasLimit,
+        maxSubmissionCost,
+        gasPriceBid
+      )
     );
   }
 
@@ -179,11 +196,14 @@ contract RngAuctionRelayerRemoteOwnerArbitrumTest is RngRelayerBaseTest {
       remoteOwnerChainId,
       remoteOwner,
       rngAuctionRelayListener,
+      prizePool,
       address(0),
-      address(this),
-      gasLimit,
-      maxSubmissionCost,
-      gasPriceBid
+      ArbitrumRelayParams(
+        address(this),
+        gasLimit,
+        maxSubmissionCost,
+        gasPriceBid
+      )
     );
   }
 
@@ -194,11 +214,14 @@ contract RngAuctionRelayerRemoteOwnerArbitrumTest is RngRelayerBaseTest {
       remoteOwnerChainId,
       remoteOwner,
       rngAuctionRelayListener,
+      prizePool,
       address(this),
-      address(this),
-      1,
-      maxSubmissionCost,
-      gasPriceBid
+      ArbitrumRelayParams(
+        address(this),
+        1,
+        maxSubmissionCost,
+        gasPriceBid
+      )
     );
   }
 
@@ -209,11 +232,14 @@ contract RngAuctionRelayerRemoteOwnerArbitrumTest is RngRelayerBaseTest {
       remoteOwnerChainId,
       remoteOwner,
       rngAuctionRelayListener,
+      prizePool,
       address(this),
-      address(this),
-      gasLimit,
-      maxSubmissionCost,
-      1
+      ArbitrumRelayParams(
+        address(this),
+        gasLimit,
+        maxSubmissionCost,
+        1
+      )
     );
   }
 }

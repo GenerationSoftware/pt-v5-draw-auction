@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+import { PrizePool } from "pt-v5-prize-pool/PrizePool.sol";
 import { RemoteOwner } from "remote-owner/RemoteOwner.sol";
 import { RemoteOwnerCallEncoder } from "remote-owner/libraries/RemoteOwnerCallEncoder.sol";
 import {
@@ -46,6 +47,7 @@ contract RngAuctionRelayerRemoteOwnerOptimism is RngAuctionRelayer {
     uint256 indexed remoteOwnerChainId,
     RemoteOwner remoteOwner,
     IRngAuctionRelayListener remoteRngAuctionRelayListener,
+    PrizePool remotePrizePool,
     address indexed rewardRecipient,
     bytes32 indexed messageId
   );
@@ -71,6 +73,7 @@ contract RngAuctionRelayerRemoteOwnerOptimism is RngAuctionRelayer {
     uint256 _remoteOwnerChainId,
     RemoteOwner _remoteOwner,
     IRngAuctionRelayListener _remoteRngAuctionRelayListener,
+    PrizePool _remotePrizePool,
     address _rewardRecipient,
     uint32 _gasLimit
   ) external returns (bytes32) {
@@ -90,7 +93,7 @@ contract RngAuctionRelayerRemoteOwnerOptimism is RngAuctionRelayer {
       revert GasLimitIsZero();
     }
 
-    bytes memory listenerCalldata = _encodeCalldata(_rewardRecipient);
+    bytes memory listenerCalldata = _encodeCalldata(_remotePrizePool, _rewardRecipient);
     bytes32 messageId = _messageDispatcher.dispatchMessageWithGasLimit(
       _remoteOwnerChainId,
       address(_remoteOwner),
@@ -107,6 +110,7 @@ contract RngAuctionRelayerRemoteOwnerOptimism is RngAuctionRelayer {
       _remoteOwnerChainId,
       _remoteOwner,
       _remoteRngAuctionRelayListener,
+      _remotePrizePool,
       _rewardRecipient,
       messageId
     );

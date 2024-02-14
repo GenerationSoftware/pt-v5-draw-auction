@@ -49,7 +49,6 @@ contract RewardLibTest is Test {
     prizePool = PrizePool(makeAddr("PrizePool"));
 
     rngRelayAuction = new RngRelayAuction(
-      prizePool,
       auctionDurationSeconds,
       auctionTargetTime,
       address(rngAuctionRelayerDirect),
@@ -71,7 +70,7 @@ contract RewardLibTest is Test {
 
     // no reward because it happened instantly
     // trigger relay auction
-    assertEq(rngAuctionRelayerDirect.relay(rngRelayAuction, recipient2), abi.encode(1));
+    assertEq(rngAuctionRelayerDirect.relay(rngRelayAuction, prizePool, recipient2), abi.encode(1));
   }
 
   /** ========== MOCKS =================== */

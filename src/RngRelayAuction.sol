@@ -72,10 +72,7 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
   /// @notice Emitted once when the sequence is completed and the Prize Pool draw is closed.
   /// @param sequenceId The sequence id
   /// @param drawId The draw id that was closed
-  event RngSequenceCompleted(uint32 indexed sequenceId, uint32 indexed drawId);
-
-  /// @notice The PrizePool whose draw will be closed.
-  PrizePool public immutable prizePool;
+  event RngSequenceCompleted(uint32 indexed sequenceId, PrizePool indexed prizePool, uint32 indexed drawId);
 
   /// @notice The auction duration in seconds
   uint64 internal immutable _auctionDurationSeconds;
@@ -105,7 +102,6 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
 
   /**
    * @notice Construct a new contract
-   * @param prizePool_ The target Prize Pool to close draws for
    * @param auctionDurationSeconds_ The auction duration in seconds
    * @param auctionTargetTime_ The target time to complete the auction
    * @param _rngAuctionRelayer The relayer that RNG results must originate from
@@ -113,15 +109,12 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
    * @param _maxRewards The maximum number of rewards that will be distributed per sequence.
    */
   constructor(
-    PrizePool prizePool_,
     uint64 auctionDurationSeconds_,
     uint64 auctionTargetTime_,
     address _rngAuctionRelayer,
     UD2x18 firstAuctionTargetRewardFraction_,
     uint256 _maxRewards
   ) {
-    if (address(prizePool_) == address(0)) revert PrizePoolZeroAddress();
-    prizePool = prizePool_;
     if (address(_rngAuctionRelayer) == address(0)) revert RngRelayerZeroAddress();
     if (auctionDurationSeconds_ == 0) revert AuctionDurationZero();
     if (auctionTargetTime_ == 0) revert AuctionTargetTimeZero();
@@ -155,6 +148,7 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
   /// @param _rngAuctionResult The result of the RNG auction
   /// @return The closed draw ID converted to bytes32
   function rngComplete(
+    PrizePool _prizePool,
     uint256 _randomNumber,
     uint256 _rngCompletedAt,
     address _rewardRecipient,
@@ -166,6 +160,10 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
     requireAuctionOpen(_sequenceId, _rngCompletedAt)
     returns (bytes32)
   {
+    if (address(_prizePool) == address(0)) {
+      revert PrizePoolZeroAddress();      
+    }
+
     if (_rewardRecipient == address(0)) {
       revert RewardRecipientIsZeroAddress();
     }
@@ -184,20 +182,20 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
       recipient: _rewardRecipient
     });
 
-    uint32 drawId = prizePool.awardDraw(_randomNumber);
+    uint32 drawId = _prizePool.awardDraw(_randomNumber);
 
-    uint256 reserve = prizePool.reserve();
+    uint256 reserve = _prizePool.reserve();
     uint256[] memory _rewards = RewardLib.rewards(
       auctionResults,
       reserve > maxRewards ? maxRewards : reserve
     );
 
-    emit RngSequenceCompleted(_sequenceId, drawId);
+    emit RngSequenceCompleted(_sequenceId, _prizePool, drawId);
 
     for (uint8 i = 0; i < _rewards.length; i++) {
       uint96 _reward = _safeCast(_rewards[i]);
       if (_reward > 0) {
-        prizePool.allocateRewardFromReserve(auctionResults[i].recipient, _reward);
+        _prizePool.allocateRewardFromReserve(auctionResults[i].recipient, _reward);
         emit AuctionRewardAllocated(_sequenceId, auctionResults[i].recipient, i, _reward);
       }
     }
@@ -209,9 +207,10 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
   /// @param __auctionResults The auction results to use for calculation
   /// @return rewards The rewards that will be allocated
   function computeRewards(
+    PrizePool _prizePool,
     AuctionResult[] calldata __auctionResults
   ) external view returns (uint256[] memory) {
-    uint256 totalReserve = prizePool.reserve() + prizePool.pendingReserveContributions();
+    uint256 totalReserve = _prizePool.reserve() + _prizePool.pendingReserveContributions();
     return _computeRewards(__auctionResults, totalReserve > maxRewards ? maxRewards : totalReserve);
   }
 

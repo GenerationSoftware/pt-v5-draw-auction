@@ -15,7 +15,8 @@ import { RngNotCompleted } from "../src/abstract/RngAuctionRelayer.sol";
 import {
   RngAuctionRelayerDirect,
   RngAuctionIsZeroAddress,
-  DirectRelayFailed
+  DirectRelayFailed,
+  PrizePool
 } from "../src/RngAuctionRelayerDirect.sol";
 
 contract RngAuctionRelayerDirectTest is RngRelayerBaseTest {
@@ -23,8 +24,11 @@ contract RngAuctionRelayerDirectTest is RngRelayerBaseTest {
 
   RngAuctionRelayerDirect relayer;
 
+  PrizePool prizePool;
+
   function setUp() public override {
     super.setUp();
+    prizePool = PrizePool(makeAddr("prizePool"));
     relayer = new RngAuctionRelayerDirect(rngAuction);
   }
 
@@ -47,6 +51,7 @@ contract RngAuctionRelayerDirectTest is RngRelayerBaseTest {
       address(rngAuctionRelayListener),
       abi.encodeWithSelector(
         rngAuctionRelayListener.rngComplete.selector,
+        prizePool,
         123,
         456,
         address(this),
@@ -59,7 +64,7 @@ contract RngAuctionRelayerDirectTest is RngRelayerBaseTest {
     vm.expectEmit(true, true, false, false);
 
     emit DirectRelaySuccess(address(this), abi.encode(42));
-    assertEq(relayer.relay(rngAuctionRelayListener, address(this)), abi.encode(42));
+    assertEq(relayer.relay(rngAuctionRelayListener, prizePool, address(this)), abi.encode(42));
   }
 
   function testDirectRelay_callRevert() public {
@@ -72,6 +77,7 @@ contract RngAuctionRelayerDirectTest is RngRelayerBaseTest {
       address(rngAuctionRelayListener),
       abi.encodeWithSelector(
         rngAuctionRelayListener.rngComplete.selector,
+        prizePool,
         123,
         456,
         address(this),
@@ -82,12 +88,12 @@ contract RngAuctionRelayerDirectTest is RngRelayerBaseTest {
     );
 
     vm.expectRevert(abi.encodeWithSelector(DirectRelayFailed.selector, abi.encode("this is bad")));
-    relayer.relay(rngAuctionRelayListener, address(this));
+    relayer.relay(rngAuctionRelayListener, prizePool, address(this));
   }
 
   function testDirectRelay_RngNotCompleted() public {
     mockIsRngComplete(false);
     vm.expectRevert(abi.encodeWithSelector(RngNotCompleted.selector));
-    relayer.relay(rngAuctionRelayListener, address(this));
+    relayer.relay(rngAuctionRelayListener, prizePool, address(this));
   }
 }

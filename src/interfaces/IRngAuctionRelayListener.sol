@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+import { PrizePool } from "pt-v5-prize-pool/PrizePool.sol";
 import { AuctionResult } from "./IAuction.sol";
 
 /// @title IRngAuctionRelayListener
@@ -14,6 +15,7 @@ interface IRngAuctionRelayListener {
   /// @param sequenceId The sequence id of the RNG auction
   /// @return any custom data it likes to track the relay.
   function rngComplete(
+    PrizePool prizePool,
     uint256 randomNumber,
     uint256 rngCompletedAt,
     address rewardRecipient,

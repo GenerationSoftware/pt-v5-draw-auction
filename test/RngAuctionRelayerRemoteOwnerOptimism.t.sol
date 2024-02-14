@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import "forge-std/Test.sol";
 
+import { PrizePool } from "pt-v5-prize-pool/PrizePool.sol";
 import { UD2x18 } from "prb-math/UD2x18.sol";
 import { MessageLib } from "erc5164-interfaces/libraries/MessageLib.sol";
 
@@ -34,12 +35,13 @@ contract RngAuctionRelayerRemoteOwnerOptimismTest is RngRelayerBaseTest {
     uint256 indexed remoteOwnerChainId,
     RemoteOwner remoteOwner,
     IRngAuctionRelayListener remoteRngAuctionRelayListener,
+    PrizePool remotePrizePool,
     address indexed rewardRecipient,
     bytes32 indexed messageId
   );
 
   RngAuctionRelayerRemoteOwnerOptimism relayer;
-
+  PrizePool prizePool = PrizePool(makeAddr("prizePool"));
   IMessageDispatcherOptimism messageDispatcher;
   RemoteOwner remoteOwner;
   uint256 remoteOwnerChainId = 1;
@@ -68,6 +70,7 @@ contract RngAuctionRelayerRemoteOwnerOptimismTest is RngRelayerBaseTest {
       0,
       abi.encodeWithSelector(
         rngAuctionRelayListener.rngComplete.selector,
+        prizePool,
         123,
         456,
         address(this),
@@ -99,6 +102,7 @@ contract RngAuctionRelayerRemoteOwnerOptimismTest is RngRelayerBaseTest {
       remoteOwnerChainId,
       remoteOwner,
       rngAuctionRelayListener,
+      prizePool,
       address(this),
       messageId
     );
@@ -109,6 +113,7 @@ contract RngAuctionRelayerRemoteOwnerOptimismTest is RngRelayerBaseTest {
         remoteOwnerChainId,
         remoteOwner,
         rngAuctionRelayListener,
+        prizePool,
         address(this),
         gasLimit
       ),
@@ -123,6 +128,7 @@ contract RngAuctionRelayerRemoteOwnerOptimismTest is RngRelayerBaseTest {
       remoteOwnerChainId,
       remoteOwner,
       rngAuctionRelayListener,
+      prizePool,
       address(this),
       gasLimit
     );
@@ -135,6 +141,7 @@ contract RngAuctionRelayerRemoteOwnerOptimismTest is RngRelayerBaseTest {
       remoteOwnerChainId,
       RemoteOwner(payable(0)),
       rngAuctionRelayListener,
+      prizePool,
       address(this),
       gasLimit
     );
@@ -147,6 +154,7 @@ contract RngAuctionRelayerRemoteOwnerOptimismTest is RngRelayerBaseTest {
       remoteOwnerChainId,
       remoteOwner,
       IRngAuctionRelayListener(address(0)),
+      prizePool,
       address(this),
       gasLimit
     );
@@ -159,6 +167,7 @@ contract RngAuctionRelayerRemoteOwnerOptimismTest is RngRelayerBaseTest {
       remoteOwnerChainId,
       remoteOwner,
       rngAuctionRelayListener,
+      prizePool,
       address(0),
       gasLimit
     );
@@ -171,6 +180,7 @@ contract RngAuctionRelayerRemoteOwnerOptimismTest is RngRelayerBaseTest {
       remoteOwnerChainId,
       remoteOwner,
       rngAuctionRelayListener,
+      prizePool,
       address(this),
       0
     );

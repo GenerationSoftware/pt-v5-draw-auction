@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+import { PrizePool } from "pt-v5-prize-pool/PrizePool.sol";
 import { IMessageDispatcher } from "erc5164-interfaces/interfaces/IMessageDispatcher.sol";
 import { RemoteOwner } from "remote-owner/RemoteOwner.sol";
 import { RemoteOwnerCallEncoder } from "remote-owner/libraries/RemoteOwnerCallEncoder.sol";
@@ -29,6 +30,13 @@ error GasLimitIsLTEOne();
 /// @notice Emitted when the `gasPriceBid` passed to the `relay` function is lower than or equal to 1.
 error GasPriceBidIsLTEOne();
 
+struct ArbitrumRelayParams {
+  address refundAddress;
+  uint256 gasLimit;
+  uint256 maxSubmissionCost;
+  uint256 gasPriceBid;
+}
+
 /**
  * @title RngAuctionRelayerRemoteOwnerArbitrum
  * @author G9 Software Inc.
@@ -50,6 +58,7 @@ contract RngAuctionRelayerRemoteOwnerArbitrum is RngAuctionRelayer {
     uint256 indexed remoteOwnerChainId,
     RemoteOwner remoteOwner,
     IRngAuctionRelayListener remoteRngAuctionRelayListener,
+    PrizePool remotePrizePool,
     address indexed rewardRecipient,
     bytes32 indexed messageId
   );
@@ -70,10 +79,11 @@ contract RngAuctionRelayerRemoteOwnerArbitrum is RngAuctionRelayer {
    * @param _remoteOwner The address of the Remote Owner on the Arbitrum chain whom should call the remote relayer
    * @param _remoteRngAuctionRelayListener The address of the IRngAuctionRelayListener to relay to on the Arbitrum chain
    * @param _rewardRecipient The address that shall receive the RngAuctionRelay reward. Note that this address must be able to receive rewards on the Arbitrum chain.
-   * @param _refundAddress Address that will receive the `excessFeeRefund` amount if any
-   * @param _gasLimit Gas limit at which the message will be executed on the Arbitrum chain
-   * @param _maxSubmissionCost Max gas deducted from user's Arbitrum balance to cover base submission fee
-   * @param _gasPriceBid Gas price bid for Arbitrum execution
+   * @param _arbitrumRelayParams Struct containing Arbitrum relay parameters. Including:
+   * - refundAddress Address that will receive the `excessFeeRefund` amount if any
+   * - gasLimit Gas limit at which the message will be executed on the Arbitrum chain
+   * - maxSubmissionCost Max gas deducted from user's Arbitrum balance to cover base submission fee
+   * - gasPriceBid Gas price bid for Arbitrum execution
    * @return The message ID of the dispatched message
    */
   function relay(
@@ -81,11 +91,9 @@ contract RngAuctionRelayerRemoteOwnerArbitrum is RngAuctionRelayer {
     uint256 _remoteOwnerChainId,
     RemoteOwner _remoteOwner,
     IRngAuctionRelayListener _remoteRngAuctionRelayListener,
+    PrizePool _remotePrizePool,
     address _rewardRecipient,
-    address _refundAddress,
-    uint256 _gasLimit,
-    uint256 _maxSubmissionCost,
-    uint256 _gasPriceBid
+    ArbitrumRelayParams calldata _arbitrumRelayParams
   ) external payable returns (bytes32) {
     if (address(_messageDispatcher) == address(0)) {
       revert MessageDispatcherIsZeroAddress();
@@ -99,15 +107,13 @@ contract RngAuctionRelayerRemoteOwnerArbitrum is RngAuctionRelayer {
       revert RemoteRngAuctionRelayListenerIsZeroAddress();
     }
 
-    if (_gasLimit <= 1) {
+    if (_arbitrumRelayParams.gasLimit <= 1) {
       revert GasLimitIsLTEOne();
     }
 
-    if (_gasPriceBid <= 1) {
+    if (_arbitrumRelayParams.gasPriceBid <= 1) {
       revert GasPriceBidIsLTEOne();
     }
-
-    bytes memory listenerCalldata = _encodeCalldata(_rewardRecipient);
 
     (bytes32 _messageId, ) = _messageDispatcher.dispatchAndProcessMessage{ value: msg.value }(
       _remoteOwnerChainId,
@@ -115,12 +121,12 @@ contract RngAuctionRelayerRemoteOwnerArbitrum is RngAuctionRelayer {
       RemoteOwnerCallEncoder.encodeCalldata(
         address(_remoteRngAuctionRelayListener),
         0,
-        listenerCalldata
+        _encodeCalldata(_remotePrizePool, _rewardRecipient)
       ),
-      _refundAddress,
-      _gasLimit,
-      _maxSubmissionCost,
-      _gasPriceBid
+      _arbitrumRelayParams.refundAddress,
+      _arbitrumRelayParams.gasLimit,
+      _arbitrumRelayParams.maxSubmissionCost,
+      _arbitrumRelayParams.gasPriceBid
     );
 
     emit RelayedToDispatcher(
@@ -128,6 +134,7 @@ contract RngAuctionRelayerRemoteOwnerArbitrum is RngAuctionRelayer {
       _remoteOwnerChainId,
       _remoteOwner,
       _remoteRngAuctionRelayListener,
+      _remotePrizePool,
       _rewardRecipient,
       _messageId
     );
