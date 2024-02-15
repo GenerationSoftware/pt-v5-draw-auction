@@ -70,6 +70,7 @@ contract RngRelayAuction is IRngAuctionRelayListener, IAuction {
 
   /// @notice Emitted once when the sequence is completed and the Prize Pool draw is closed.
   /// @param sequenceId The sequence id
+  /// @param prizePool The prize pool that was closed
   /// @param drawId The draw id that was closed
   event RngSequenceCompleted(uint32 indexed sequenceId, PrizePool indexed prizePool, uint32 indexed drawId);
 
