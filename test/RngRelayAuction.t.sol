@@ -12,7 +12,6 @@ import {
   AuctionDurationZero,
   AuctionTargetTimeZero,
   TargetRewardFractionGTOne,
-  SequenceAlreadyCompleted,
   AuctionExpired,
   PrizePoolZeroAddress,
   UnauthorizedRelayer,
@@ -69,7 +68,6 @@ contract RngRelayAuctionTest is Helpers {
   }
 
   function testConstructor() public {
-    assertEq(rngRelayAuction.lastSequenceId(), 0);
     assertEq(rngRelayAuction.auctionDuration(), auctionDurationSeconds, "auction duration");
     assertEq(rngRelayAuction.rngAuctionRelayer(), address(this), "relayer matches");
   }
@@ -144,25 +142,21 @@ contract RngRelayAuctionTest is Helpers {
 
   function testFractionalReward() public {
     assertEq(
-      rngRelayAuction.computeRewardFraction(0).unwrap(),
+      rngRelayAuction.computeRewardFraction(prizePool, 0).unwrap(),
       0 ether,
       "fractional reward at zero"
     );
 
     assertApproxEqAbs(
-      rngRelayAuction.computeRewardFraction(auctionDurationSeconds).unwrap(),
+      rngRelayAuction.computeRewardFraction(prizePool, auctionDurationSeconds).unwrap(),
       1 ether,
       2,
       "fractional reward at one"
     );
   }
 
-  function testIsSequenceCompleted_empty() public {
-    assertFalse(rngRelayAuction.isSequenceCompleted(1));
-  }
-
   function testIsAuctionOpen_empty() public {
-    assertTrue(rngRelayAuction.isAuctionOpen(1, 0));
+    assertTrue(rngRelayAuction.isAuctionOpen(0));
   }
 
   function testIsAuctionOpen_closedWhenCompleted() public {
@@ -177,11 +171,20 @@ contract RngRelayAuctionTest is Helpers {
       1,
       AuctionResult({ recipient: address(this), rewardFraction: UD2x18.wrap(0 ether) })
     );
-    assertFalse(rngRelayAuction.isAuctionOpen(1, auctionDurationSeconds));
+    assertFalse(rngRelayAuction.isAuctionOpen(auctionDurationSeconds));
   }
 
-  function testIsAuctionOpen_closedWhenExpired() public {
-    assertFalse(rngRelayAuction.isAuctionOpen(0, auctionDurationSeconds));
+  function testIsAuctionOpen_falseWhenAuctionDurationHasElapsed() public {
+    vm.warp(auctionDurationSeconds);
+    uint256 rngCompletedAt = block.timestamp - auctionDurationSeconds;
+    assertFalse(rngRelayAuction.isAuctionOpen(rngCompletedAt));
+  }
+
+  function testIsAuctionOpen_trueBeforeAuctionDurationHasElapsed() public {
+    vm.warp(auctionDurationSeconds);
+    // one second left!
+    uint256 rngCompletedAt = block.timestamp - auctionDurationSeconds + 1;
+    assertTrue(rngRelayAuction.isAuctionOpen(rngCompletedAt));
   }
 
   function testRngComplete_UnauthorizedRelayer() public {
@@ -212,6 +215,40 @@ contract RngRelayAuctionTest is Helpers {
     );
   }
 
+  function testRngComplete_zeroReward() public {
+    AuctionResult memory results = AuctionResult({
+      recipient: address(this),
+      rewardFraction: UD2x18.wrap(0.1 ether)
+    });
+
+    mockCloseDraw(0x1234);
+    mockReserve(100e18);
+    mockAllocateRewardFromReserve(address(this), 10e18);
+
+    vm.expectEmit(true, true, true, true);
+    emit RngSequenceCompleted(1, prizePool, 42);
+    vm.expectEmit(true, true, true, true);
+    emit AuctionRewardAllocated(1, address(this), 0, 10e18);
+    vm.expectEmit(true, true, true, true);
+    emit AuctionRewardAllocated(
+      1,
+      alice,
+      1,
+      0 // 0.25 * 90
+    );
+    uint256 completedAt = block.timestamp;
+    vm.warp(completedAt);
+    rngRelayAuction.rngComplete(prizePool, 0x1234, completedAt, alice, 1, results);
+
+    AuctionResult memory r = rngRelayAuction.getLastAuctionResult(prizePool);
+    assertEq(r.recipient, alice);
+    assertEq(
+      r.rewardFraction.unwrap(),
+      0,
+      "reward fraction is zero"
+    );
+  }
+
   function testRngComplete_happyPath() public {
     AuctionResult memory results = AuctionResult({
       recipient: address(this),
@@ -237,10 +274,7 @@ contract RngRelayAuctionTest is Helpers {
     vm.warp(completedAt + auctionDurationSeconds / 2);
     rngRelayAuction.rngComplete(prizePool, 0x1234, completedAt, alice, 1, results);
 
-    assertEq(rngRelayAuction.lastSequenceId(), 1, "sequence id is now 1");
-    assertTrue(rngRelayAuction.isSequenceCompleted(1), "sequence 1 auction is complete");
-
-    AuctionResult memory r = rngRelayAuction.getLastAuctionResult();
+    AuctionResult memory r = rngRelayAuction.getLastAuctionResult(prizePool);
     assertEq(r.recipient, alice);
     assertEq(
       r.rewardFraction.unwrap(),
@@ -302,10 +336,7 @@ contract RngRelayAuctionTest is Helpers {
     vm.warp(completedAt + auctionDurationSeconds / 2);
     rngRelayAuction.rngComplete(prizePool, 0x1234, completedAt, alice, 1, results);
 
-    assertEq(rngRelayAuction.lastSequenceId(), 1, "sequence id is now 1");
-    assertTrue(rngRelayAuction.isSequenceCompleted(1), "sequence 1 auction is complete");
-
-    AuctionResult memory r = rngRelayAuction.getLastAuctionResult();
+    AuctionResult memory r = rngRelayAuction.getLastAuctionResult(prizePool);
     assertEq(r.recipient, alice);
     assertEq(
       r.rewardFraction.unwrap(),
@@ -350,31 +381,9 @@ contract RngRelayAuctionTest is Helpers {
     vm.warp(completedAt + auctionDurationSeconds / 2);
     rngRelayAuctionWithFirstTargetReward.rngComplete(prizePool, 0x1234, completedAt, alice, 1, results);
 
-    assertEq(rngRelayAuctionWithFirstTargetReward.lastSequenceId(), 1, "sequence id is now 1");
-    assertTrue(
-      rngRelayAuctionWithFirstTargetReward.isSequenceCompleted(1),
-      "sequence 1 auction is complete"
-    );
-
-    AuctionResult memory r = rngRelayAuctionWithFirstTargetReward.getLastAuctionResult();
+    AuctionResult memory r = rngRelayAuctionWithFirstTargetReward.getLastAuctionResult(prizePool);
     assertEq(r.recipient, alice);
     assertEq(r.rewardFraction.unwrap(), 3.24874982638890228e17);
-  }
-
-  function testRngComplete_SequenceAlreadyCompleted() public {
-    AuctionResult memory results = AuctionResult({
-      recipient: address(this),
-      rewardFraction: UD2x18.wrap(0.1 ether)
-    });
-
-    mockCloseDraw(0x1234);
-    mockPrizePoolReserve(100e18);
-    mockAllocateRewardFromReserve(address(this), 10e18);
-
-    rngRelayAuction.rngComplete(prizePool, 0x1234, block.timestamp, address(this), 1, results);
-
-    vm.expectRevert(abi.encodeWithSelector(SequenceAlreadyCompleted.selector));
-    rngRelayAuction.rngComplete(prizePool, 0x1234, block.timestamp, address(this), 1, results);
   }
 
   function testRngComplete_AuctionExpired() public {

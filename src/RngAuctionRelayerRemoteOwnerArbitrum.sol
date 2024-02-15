@@ -50,6 +50,7 @@ contract RngAuctionRelayerRemoteOwnerArbitrum is RngAuctionRelayer {
    * @param remoteOwnerChainId The chain ID that the Remote Owner is deployed to.
    * @param remoteOwner The address of the Remote Owner on the other chain whom should call the remote relayer
    * @param remoteRngAuctionRelayListener The address of the IRngAuctionRelayListener to relay to on the other chain.
+   * @param remotePrizePool The address of the PrizePool on the other chain.
    * @param rewardRecipient The address that shall receive the RNG relay reward.
    * @param messageId The message ID of the dispatched message.
    */
@@ -78,6 +79,7 @@ contract RngAuctionRelayerRemoteOwnerArbitrum is RngAuctionRelayer {
    * @param _remoteOwnerChainId The chain ID that the Remote Owner is deployed to
    * @param _remoteOwner The address of the Remote Owner on the Arbitrum chain whom should call the remote relayer
    * @param _remoteRngAuctionRelayListener The address of the IRngAuctionRelayListener to relay to on the Arbitrum chain
+   * @param _remotePrizePool The address of the PrizePool on the Arbitrum chain
    * @param _rewardRecipient The address that shall receive the RngAuctionRelay reward. Note that this address must be able to receive rewards on the Arbitrum chain.
    * @param _arbitrumRelayParams Struct containing Arbitrum relay parameters. Including:
    * - refundAddress Address that will receive the `excessFeeRefund` amount if any

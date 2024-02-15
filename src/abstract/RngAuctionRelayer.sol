@@ -31,6 +31,7 @@ abstract contract RngAuctionRelayer is AddressRemapper {
   }
 
   /// @notice Encodes the calldata for the RNG auction relay listener
+  /// @param _prizePool The prize pool to relay the results to
   /// @param _rewardRecipient The address of the relay reward recipient
   /// @return The calldata to call the listener with
   function _encodeCalldata(PrizePool _prizePool, address _rewardRecipient) internal returns (bytes memory) {
